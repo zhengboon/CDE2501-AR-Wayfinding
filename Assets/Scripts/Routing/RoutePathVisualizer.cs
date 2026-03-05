@@ -10,6 +10,7 @@ namespace CDE2501.Wayfinding.Routing
         [SerializeField] private GraphLoader graphLoader;
         [SerializeField] private Transform startReferenceTransform;
         [SerializeField] private bool includeStartReferenceSegment = true;
+        [SerializeField] private bool followMainCameraIfReferenceMissing = true;
         [SerializeField] private float yOffset = 0.12f;
         [SerializeField] private float lineWidth = 0.22f;
         [SerializeField] private Color lineColor = new Color(1f, 0.85f, 0.2f, 1f);
@@ -62,6 +63,11 @@ namespace CDE2501.Wayfinding.Routing
 
         private void Update()
         {
+            if (followMainCameraIfReferenceMissing && startReferenceTransform == null && Camera.main != null)
+            {
+                startReferenceTransform = Camera.main.transform;
+            }
+
             if (_lastRoute != null && _lastRoute.success)
             {
                 DrawRoute(_lastRoute);
@@ -101,12 +107,27 @@ namespace CDE2501.Wayfinding.Routing
             startReferenceTransform = startTransform;
         }
 
+        public void SetIncludeStartReferenceSegment(bool include)
+        {
+            includeStartReferenceSegment = include;
+        }
+
         private void HandleRouteUpdated(RouteResult result)
         {
-            if (result == null || !result.success || result.nodePath == null || result.nodePath.Count < 1 || graphLoader == null)
+            if (result == null || graphLoader == null)
             {
                 _lastRoute = null;
                 _line.positionCount = 0;
+                return;
+            }
+
+            if (!result.success || result.nodePath == null || result.nodePath.Count < 1)
+            {
+                // Keep rendering the last successful route during transient recompute failures.
+                if (_lastRoute == null || !_lastRoute.success)
+                {
+                    _line.positionCount = 0;
+                }
                 return;
             }
 

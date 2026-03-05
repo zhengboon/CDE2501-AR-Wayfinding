@@ -10,8 +10,8 @@ namespace CDE2501.Wayfinding.Location
         [SerializeField] private SensorSourceMode sourceMode = SensorSourceMode.Auto;
         [SerializeField] private SimulationProvider simulationProvider;
         [SerializeField] private bool fallbackToSimulationIfUnavailable = true;
-        [SerializeField] private double fallbackSimLatitude = 1.3521;
-        [SerializeField] private double fallbackSimLongitude = 103.8198;
+        [SerializeField] private double fallbackSimLatitude = 1.294550851849307;
+        [SerializeField] private double fallbackSimLongitude = 103.8060771559821;
 
         [Header("Smoothing")]
         [SerializeField] private float smoothingAlpha = 0.3f;

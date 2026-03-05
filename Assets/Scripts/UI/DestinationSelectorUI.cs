@@ -14,7 +14,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private TMP_Text distanceText;
         [SerializeField] private bool wheelchairModeEnabled;
         [SerializeField] private bool rainModeEnabled;
-        [SerializeField] private string startNodeId = "N1";
+        [SerializeField] private string startNodeId = "QTMRT";
         [SerializeField] private bool useNearestNodeAsStart = true;
         [SerializeField] private Transform startReference;
 

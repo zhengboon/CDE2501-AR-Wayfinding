@@ -1,16 +1,44 @@
 [
   {
-    "name": "Cube1",
-    "type": "Demo",
-    "gps_lat": 1.3521000,
-    "gps_lon": 103.8198000,
-    "indoor_node_id": "Cube1"
+    "name": "Queenstown MRT (EW19)",
+    "type": "MRT",
+    "gps_lat": 1.294550851849307,
+    "gps_lon": 103.8060771559821,
+    "indoor_node_id": "QTMRT"
   },
   {
-    "name": "Cube2",
-    "type": "Demo",
-    "gps_lat": 1.3522000,
-    "gps_lon": 103.8199000,
-    "indoor_node_id": "Cube2"
+    "name": "7RV3+85 Singapore",
+    "type": "Waypoint",
+    "gps_lat": 1.2933125,
+    "gps_lon": 103.8029375,
+    "indoor_node_id": "PC_7RV3_85"
+  },
+  {
+    "name": "7RR3+MC Singapore",
+    "type": "Waypoint",
+    "gps_lat": 1.2916875,
+    "gps_lon": 103.8035625,
+    "indoor_node_id": "PC_7RR3_MC"
+  },
+  {
+    "name": "7RV3+J8 Singapore",
+    "type": "Waypoint",
+    "gps_lat": 1.2940625,
+    "gps_lon": 103.8033125,
+    "indoor_node_id": "PC_7RV3_J8"
+  },
+  {
+    "name": "7RV3+5C Singapore",
+    "type": "Waypoint",
+    "gps_lat": 1.2929375,
+    "gps_lon": 103.8035625,
+    "indoor_node_id": "PC_7RV3_5C"
+  },
+  {
+    "name": "7RV3+XH Singapore",
+    "type": "Waypoint",
+    "gps_lat": 1.2949375,
+    "gps_lon": 103.8039375,
+    "indoor_node_id": "PC_7RV3_XH"
   }
 ]

@@ -8,6 +8,7 @@ namespace CDE2501.Wayfinding.Location
         [SerializeField] private Transform targetTransform;
         [SerializeField] private bool rotateWithHeading = true;
         [SerializeField] private bool applyPitchFromSimulation = true;
+        [SerializeField] private bool driveOnlyWhenSimulationModeEnabled = true;
         [SerializeField] private bool lockYToInitial = false;
         [SerializeField] private float metersPerUnityUnit = 1f;
 
@@ -15,6 +16,7 @@ namespace CDE2501.Wayfinding.Location
         private Vector3 _originWorld;
         private float _originY;
         private bool _isInitialized;
+        private bool _wasDrivingLastFrame;
 
         private void Awake()
         {
@@ -36,7 +38,15 @@ namespace CDE2501.Wayfinding.Location
                 return;
             }
 
-            if (!_isInitialized)
+            bool shouldDrive = !driveOnlyWhenSimulationModeEnabled || simulationProvider.ForceSimulationMode;
+            if (!shouldDrive)
+            {
+                _wasDrivingLastFrame = false;
+                return;
+            }
+
+            // Re-anchor whenever simulation driving resumes to prevent camera jump.
+            if (!_isInitialized || !_wasDrivingLastFrame)
             {
                 _originGeo = simulationProvider.CurrentPoint;
                 _originWorld = targetTransform.position;
@@ -73,6 +83,8 @@ namespace CDE2501.Wayfinding.Location
                 float pitch = applyPitchFromSimulation ? -simulationProvider.CurrentPitch : euler.x;
                 targetTransform.rotation = Quaternion.Euler(pitch, simulationProvider.CurrentHeading, euler.z);
             }
+
+            _wasDrivingLastFrame = true;
         }
 
         public void SetSimulationProvider(SimulationProvider provider)

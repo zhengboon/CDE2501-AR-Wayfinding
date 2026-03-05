@@ -9,13 +9,14 @@ namespace CDE2501.Wayfinding.Location
         [SerializeField] private bool showDebugOverlay = true;
 
         [Header("Start State")]
-        [SerializeField] private double startLatitude = 1.3521;
-        [SerializeField] private double startLongitude = 103.8198;
+        [SerializeField] private double startLatitude = 1.294550851849307;
+        [SerializeField] private double startLongitude = 103.8060771559821;
         [SerializeField] private float startHeading = 0f;
 
         [Header("Movement")]
         [SerializeField] private float moveSpeedMetersPerSecond = 1.2f;
         [SerializeField] private float verticalSpeedMetersPerSecond = 1.2f;
+        [SerializeField, Min(1f)] private float sprintMultiplier = 2.5f;
         [SerializeField] private float turnSpeedDegreesPerSecond = 90f;
         [SerializeField] private float pitchSpeedDegreesPerSecond = 80f;
         [SerializeField] private float minPitchDegrees = -80f;
@@ -131,7 +132,10 @@ namespace CDE2501.Wayfinding.Location
                 verticalInput -= 1f;
             }
 
-            _verticalOffsetMeters += verticalInput * verticalSpeedMetersPerSecond * dt;
+            bool sprinting = IsSprintPressed();
+            float speedScale = sprinting ? Mathf.Max(1f, sprintMultiplier) : 1f;
+
+            _verticalOffsetMeters += verticalInput * verticalSpeedMetersPerSecond * speedScale * dt;
 
             Vector2 moveLocal = new Vector2(strafeInput, forwardInput);
             if (moveLocal.sqrMagnitude > 1f)
@@ -139,7 +143,7 @@ namespace CDE2501.Wayfinding.Location
                 moveLocal.Normalize();
             }
 
-            float meters = moveSpeedMetersPerSecond * dt;
+            float meters = moveSpeedMetersPerSecond * speedScale * dt;
             float forwardMeters = moveLocal.y * meters;
             float strafeMeters = moveLocal.x * meters;
 
@@ -171,6 +175,9 @@ namespace CDE2501.Wayfinding.Location
 
         private void DrawPanelWindow(int id)
         {
+            bool sprinting = IsSprintPressed();
+            float speedScale = sprinting ? Mathf.Max(1f, sprintMultiplier) : 1f;
+
             string text =
                 $"Mode: {(forceSimulationMode ? "Simulation" : "Device Sensors")}\n" +
                 $"Lat: {_currentPoint.latitude:F7}\n" +
@@ -178,7 +185,8 @@ namespace CDE2501.Wayfinding.Location
                 $"Heading: {CurrentHeading:F1} deg\n" +
                 $"Pitch: {CurrentPitch:F1} deg\n" +
                 $"Height Offset: {VerticalOffsetMeters:F1} m\n" +
-                "Controls: Arrows move, A/D look left-right, W/S look up-down, PgUp/PgDn height, F2 mode, F1 panel";
+                $"Speed: {(sprinting ? "Sprint" : "Normal")} x{speedScale:0.0}\n" +
+                "Controls: Arrows move, Shift sprint, A/D look left-right, W/S look up-down, PgUp/PgDn height, F2 mode, F1 panel";
 
             Rect viewport = new Rect(12f, 36f, _panelRect.width - 24f, _panelRect.height - 44f);
             float contentHeight = Mathf.Max(viewport.height, _bodyStyle.CalcHeight(new GUIContent(text), viewport.width - 16f) + 12f);
@@ -187,6 +195,11 @@ namespace CDE2501.Wayfinding.Location
             GUI.Label(new Rect(0f, 0f, contentRect.width, contentRect.height), text, _bodyStyle);
             GUI.EndScrollView();
             GUI.DragWindow(new Rect(0f, 0f, _panelRect.width, 30f));
+        }
+
+        private static bool IsSprintPressed()
+        {
+            return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         }
 
         private void EnsurePanelRect(float scale)

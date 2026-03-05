@@ -1,87 +1,227 @@
 {
   "metadata": {
-    "estateName": "Cube Test Estate",
-    "version": "2.0-cube-demo"
+    "estateName": "Queenstown Mei Chin - Stirling Wayfinding",
+    "version": "3.0-queenstown-waypoints-elevation",
+    "primaryPlusCode": "7RV4+MC Singapore",
+    "anchorName": "Queenstown MRT (EW19)",
+    "anchorGps": {
+      "lat": 1.294550851849307,
+      "lon": 103.8060771559821
+    },
+    "source": {
+      "waypoints": "User-specified plus codes resolved with Google Open Location Code algorithm",
+      "elevation": "Open-Meteo Elevation API sampled on 2026-03-05"
+    },
+    "areaBounds": {
+      "description": "Area bounded by Mei Chin Road to Stirling Road",
+      "minLat": 1.2916875,
+      "maxLat": 1.2949375,
+      "minLon": 103.8029375,
+      "maxLon": 103.8060771559821
+    }
   },
   "nodes": [
     {
-      "id": "Cube1",
-      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
-      "elevationLevel": 3,
+      "id": "QTMRT",
+      "position": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      "elevationLevel": 0,
       "hasStairs": false,
-      "slopeLevel": 0.0,
-      "lightingLevel": 0.9,
-      "clutterLevel": 0.0,
-      "widthLevel": 1.0,
-      "sheltered": true
+      "slopeLevel": 0.1,
+      "lightingLevel": 0.72,
+      "clutterLevel": 0.25,
+      "widthLevel": 0.65,
+      "sheltered": false
     },
     {
-      "id": "Mid",
-      "position": { "x": 0.0, "y": 0.0, "z": 6.0 },
+      "id": "PC_7RV3_85",
+      "position": {
+        "x": -349.417,
+        "y": 10.0,
+        "z": -137.853
+      },
+      "elevationLevel": 2,
+      "hasStairs": false,
+      "slopeLevel": 0.1,
+      "lightingLevel": 0.72,
+      "clutterLevel": 0.25,
+      "widthLevel": 0.65,
+      "sheltered": false
+    },
+    {
+      "id": "PC_7RR3_MC",
+      "position": {
+        "x": -279.86,
+        "y": 13.0,
+        "z": -318.748
+      },
       "elevationLevel": 3,
       "hasStairs": false,
       "slopeLevel": 0.1,
-      "lightingLevel": 0.8,
-      "clutterLevel": 0.1,
-      "widthLevel": 0.9,
-      "sheltered": true
+      "lightingLevel": 0.72,
+      "clutterLevel": 0.25,
+      "widthLevel": 0.65,
+      "sheltered": false
     },
     {
-      "id": "Cube2",
-      "position": { "x": 0.0, "y": 0.0, "z": 12.0 },
+      "id": "PC_7RV3_J8",
+      "position": {
+        "x": -307.683,
+        "y": 5.0,
+        "z": -54.363
+      },
+      "elevationLevel": 1,
+      "hasStairs": false,
+      "slopeLevel": 0.1,
+      "lightingLevel": 0.72,
+      "clutterLevel": 0.25,
+      "widthLevel": 0.65,
+      "sheltered": false
+    },
+    {
+      "id": "PC_7RV3_5C",
+      "position": {
+        "x": -279.86,
+        "y": 15.0,
+        "z": -179.598
+      },
       "elevationLevel": 3,
       "hasStairs": false,
-      "slopeLevel": 0.0,
-      "lightingLevel": 0.9,
-      "clutterLevel": 0.0,
-      "widthLevel": 1.0,
-      "sheltered": true
+      "slopeLevel": 0.1,
+      "lightingLevel": 0.72,
+      "clutterLevel": 0.25,
+      "widthLevel": 0.65,
+      "sheltered": false
+    },
+    {
+      "id": "PC_7RV3_XH",
+      "position": {
+        "x": -238.126,
+        "y": 7.0,
+        "z": 43.042
+      },
+      "elevationLevel": 1,
+      "hasStairs": false,
+      "slopeLevel": 0.1,
+      "lightingLevel": 0.72,
+      "clutterLevel": 0.25,
+      "widthLevel": 0.65,
+      "sheltered": false
     }
   ],
   "edges": [
     {
-      "fromNode": "Cube1",
-      "toNode": "Mid",
-      "distance": 6.0,
-      "slope": 0.1,
+      "fromNode": "QTMRT",
+      "toNode": "PC_7RV3_85",
+      "distance": 375.63,
+      "slope": 0.0266,
       "hasStairs": false,
-      "sheltered": true,
-      "clutter": 0.1,
-      "lighting": 0.8,
-      "width": 0.9
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
     },
     {
-      "fromNode": "Mid",
-      "toNode": "Cube2",
-      "distance": 6.0,
-      "slope": 0.1,
+      "fromNode": "PC_7RV3_85",
+      "toNode": "QTMRT",
+      "distance": 375.63,
+      "slope": 0.0266,
       "hasStairs": false,
-      "sheltered": true,
-      "clutter": 0.1,
-      "lighting": 0.8,
-      "width": 0.9
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
     },
     {
-      "fromNode": "Cube2",
-      "toNode": "Mid",
-      "distance": 6.0,
-      "slope": 0.1,
+      "fromNode": "PC_7RV3_85",
+      "toNode": "PC_7RR3_MC",
+      "distance": 193.81,
+      "slope": 0.0155,
       "hasStairs": false,
-      "sheltered": true,
-      "clutter": 0.1,
-      "lighting": 0.8,
-      "width": 0.9
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
     },
     {
-      "fromNode": "Mid",
-      "toNode": "Cube1",
-      "distance": 6.0,
-      "slope": 0.1,
+      "fromNode": "PC_7RR3_MC",
+      "toNode": "PC_7RV3_85",
+      "distance": 193.81,
+      "slope": 0.0155,
       "hasStairs": false,
-      "sheltered": true,
-      "clutter": 0.1,
-      "lighting": 0.8,
-      "width": 0.9
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
+    },
+    {
+      "fromNode": "PC_7RR3_MC",
+      "toNode": "PC_7RV3_J8",
+      "distance": 265.84,
+      "slope": 0.0301,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
+    },
+    {
+      "fromNode": "PC_7RV3_J8",
+      "toNode": "PC_7RR3_MC",
+      "distance": 265.84,
+      "slope": 0.0301,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
+    },
+    {
+      "fromNode": "PC_7RV3_J8",
+      "toNode": "PC_7RV3_5C",
+      "distance": 128.29,
+      "slope": 0.0779,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
+    },
+    {
+      "fromNode": "PC_7RV3_5C",
+      "toNode": "PC_7RV3_J8",
+      "distance": 128.29,
+      "slope": 0.0779,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
+    },
+    {
+      "fromNode": "PC_7RV3_5C",
+      "toNode": "PC_7RV3_XH",
+      "distance": 226.52,
+      "slope": 0.0353,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
+    },
+    {
+      "fromNode": "PC_7RV3_XH",
+      "toNode": "PC_7RV3_5C",
+      "distance": 226.52,
+      "slope": 0.0353,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.25,
+      "lighting": 0.72,
+      "width": 0.65
     }
   ]
 }

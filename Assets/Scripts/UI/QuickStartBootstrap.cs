@@ -15,19 +15,31 @@ namespace CDE2501.Wayfinding.UI
         [Header("Auto Setup")]
         [SerializeField] private bool autoCreateManagers = true;
         [SerializeField] private bool showStatusOverlay = true;
-        [SerializeField] private string startNodeId = "Cube1";
+        [SerializeField] private string startNodeId = "QTMRT";
         [SerializeField] private bool useNearestNodeAsStart = true;
         [SerializeField] private int destinationIndex = 1;
         [SerializeField] private bool autoDriveCubeFromSimulation = true;
         [SerializeField] private string simulationTargetObjectName = "Main Camera";
         [SerializeField] private bool forceCameraPerspectiveControl = true;
-        [SerializeField] private bool detachCameraChildrenAtStart = true;
+        [SerializeField] private bool detachCameraChildrenAtStart = false;
         [SerializeField] private bool autoCreateGraphPreview = false;
         [SerializeField] private bool autoCreateDestinationMarkers = true;
         [SerializeField] private bool autoCreateRoutePathPreview = true;
         [SerializeField] private bool resetPersistentDataOnStart = true;
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
         [SerializeField, Min(0.1f)] private float startNodeCheckIntervalSeconds = 0.5f;
+        [Header("Baritone-Inspired Pathing")]
+        [SerializeField] private bool baritoneStyleStartResolution = true;
+        [SerializeField, Min(0f)] private float startSnapExtraRadiusMeters = 2f;
+        [SerializeField, Min(0f)] private float startVerticalPenaltyWeight = 0.35f;
+        [SerializeField, Min(0f)] private float startForwardBiasMeters = 0.75f;
+        [SerializeField] private bool routeRevalidationEnabled = true;
+        [SerializeField, Min(0.05f)] private float routeRevalidationIntervalSeconds = 0.25f;
+        [SerializeField, Min(0f)] private float routeOffPathDistanceMeters = 2.5f;
+        [SerializeField, Min(1)] private int routeInvalidChecksBeforeRecalc = 2;
+        [SerializeField] private bool continuousRouteRefresh = true;
+        [SerializeField, Min(0.05f)] private float continuousRefreshIntervalSeconds = 0.25f;
+        [SerializeField, Min(0f)] private float continuousRefreshMinMoveMeters = 0f;
         [Header("Overlay")]
         [SerializeField, Range(0.8f, 2.5f)] private float overlayScale = 1.0f;
         [SerializeField, Range(14, 48)] private int titleFontSize = 28;
@@ -48,12 +60,17 @@ namespace CDE2501.Wayfinding.UI
         private DestinationMarkerVisualizer _destinationMarkerVisualizer;
 
         private string _status = "Initializing...";
-        private string _resolvedStartNodeId = "Cube1";
+        private string _resolvedStartNodeId = "QTMRT";
         private RouteResult _lastRouteResult;
         private bool _locationsLoaded;
         private bool _subscribed;
         private bool _isSeedingFallbackLocations;
         private float _nextStartNodeCheckTime;
+        private float _nextRouteRevalidationTime;
+        private float _nextContinuousRefreshTime;
+        private Vector3 _lastContinuousRefreshPosition;
+        private bool _hasContinuousRefreshBaseline;
+        private int _consecutiveInvalidRouteChecks;
         private string _lastAutoStartNodeId;
         private Vector2 _panelScroll;
         private GUIStyle _panelStyle;
@@ -125,6 +142,8 @@ namespace CDE2501.Wayfinding.UI
                 RecalculateCurrentRoute();
             }
 
+            MaybeContinuouslyRefreshRoute();
+            MaybeRevalidateRouteFromPlayer();
             MaybeAutoRecalculateFromMovement();
         }
 
@@ -208,6 +227,7 @@ namespace CDE2501.Wayfinding.UI
                 $"{_status}\n" +
                 $"Start node: ME -> {_resolvedStartNodeId} | Destination: {destinationName}\n" +
                 $"Mode: {(_routeCalculator != null ? _routeCalculator.CurrentMode.ToString() : "missing")} | Rain: {(_routeCalculator != null && _routeCalculator.RainMode)}\n" +
+                $"Baritone-style start: {baritoneStyleStartResolution} | Revalidation: {routeRevalidationEnabled}\n" +
                 $"Route engine ready: {(_routeCalculator != null && _routeCalculator.IsInitialized)}\n" +
                 $"GPS ready: {(_gpsManager != null && _gpsManager.IsReady)} (sim: {(_gpsManager != null && _gpsManager.IsUsingSimulation)})\n" +
                 $"Compass ready: {(_compassManager != null && _compassManager.IsReady)} (sim: {(_compassManager != null && _compassManager.IsUsingSimulation)})\n" +
@@ -464,6 +484,7 @@ namespace CDE2501.Wayfinding.UI
             _routePathVisualizer.SetGraphLoader(_graphLoader);
             _routePathVisualizer.SetRouteCalculator(_routeCalculator);
             _routePathVisualizer.SetStartReferenceTransform(GetStartReferenceTransform());
+            _routePathVisualizer.SetIncludeStartReferenceSegment(true);
         }
 
         private static void ResetPersistentDataFolder()
@@ -590,27 +611,27 @@ namespace CDE2501.Wayfinding.UI
             _isSeedingFallbackLocations = true;
             try
             {
-                if (_locationManager.GetByName("Cube1") == null)
+                if (_locationManager.GetByName("Queenstown MRT (EW19)") == null)
                 {
                     _locationManager.AddLocation(new LocationPoint
                     {
-                        name = "Cube1",
-                        type = "Demo",
-                        gps_lat = 1.3521000,
-                        gps_lon = 103.8198000,
-                        indoor_node_id = "Cube1"
+                        name = "Queenstown MRT (EW19)",
+                        type = "MRT",
+                        gps_lat = 1.294550851849307,
+                        gps_lon = 103.8060771559821,
+                        indoor_node_id = "QTMRT"
                     });
                 }
 
-                if (_locationManager.GetByName("Cube2") == null)
+                if (_locationManager.GetByName("7RV3+XH Singapore") == null)
                 {
                     _locationManager.AddLocation(new LocationPoint
                     {
-                        name = "Cube2",
-                        type = "Demo",
-                        gps_lat = 1.3522000,
-                        gps_lon = 103.8199000,
-                        indoor_node_id = "Cube2"
+                        name = "7RV3+XH Singapore",
+                        type = "Waypoint",
+                        gps_lat = 1.2949375,
+                        gps_lon = 103.8039375,
+                        indoor_node_id = "PC_7RV3_XH"
                     });
                 }
             }
@@ -705,6 +726,11 @@ namespace CDE2501.Wayfinding.UI
                 return startNodeId;
             }
 
+            if (baritoneStyleStartResolution)
+            {
+                return ResolveBaritoneStyleStartNode(reference);
+            }
+
             string nearest = FindNearestGraphNodeId(reference.position);
             return string.IsNullOrWhiteSpace(nearest) ? startNodeId : nearest;
         }
@@ -747,6 +773,72 @@ namespace CDE2501.Wayfinding.UI
             }
 
             return bestId;
+        }
+
+        private string ResolveBaritoneStyleStartNode(Transform reference)
+        {
+            // Mirrors Baritone's idea of "pathStart": choose a plausible nearby support point,
+            // not just raw nearest distance, with mild forward/vertical bias.
+            string nearestId = null;
+            float nearestDistance = float.PositiveInfinity;
+
+            foreach (var kvp in _graphLoader.NodesById)
+            {
+                float d = Vector3.Distance(reference.position, kvp.Value.position);
+                if (d < nearestDistance)
+                {
+                    nearestDistance = d;
+                    nearestId = kvp.Key;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(nearestId))
+            {
+                return startNodeId;
+            }
+
+            float maxCandidateDistance = nearestDistance + Mathf.Max(0f, startSnapExtraRadiusMeters);
+            float bestScore = float.PositiveInfinity;
+            string bestId = nearestId;
+
+            Vector3 forward = reference.forward;
+            forward.y = 0f;
+            if (forward.sqrMagnitude < 0.0001f)
+            {
+                forward = Vector3.forward;
+            }
+            forward.Normalize();
+
+            foreach (var kvp in _graphLoader.NodesById)
+            {
+                Node node = kvp.Value;
+                Vector3 delta = node.position - reference.position;
+                float dist3D = delta.magnitude;
+                if (dist3D > maxCandidateDistance)
+                {
+                    continue;
+                }
+
+                Vector3 deltaXZ = new Vector3(delta.x, 0f, delta.z);
+                float distXZ = deltaXZ.magnitude;
+                float verticalPenalty = Mathf.Abs(delta.y) * startVerticalPenaltyWeight;
+
+                float forwardBonus = 0f;
+                if (distXZ > 0.001f)
+                {
+                    float alignment = Mathf.Clamp01(Vector3.Dot(forward, deltaXZ / distXZ));
+                    forwardBonus = alignment * startForwardBiasMeters;
+                }
+
+                float score = distXZ + verticalPenalty - forwardBonus;
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestId = kvp.Key;
+                }
+            }
+
+            return string.IsNullOrWhiteSpace(bestId) ? nearestId : bestId;
         }
 
         private bool HasAnyRouteableDestination()
@@ -802,6 +894,128 @@ namespace CDE2501.Wayfinding.UI
 
             _lastAutoStartNodeId = currentStart;
             RecalculateCurrentRoute();
+        }
+
+        private void MaybeContinuouslyRefreshRoute()
+        {
+            if (!continuousRouteRefresh)
+            {
+                return;
+            }
+
+            if (Time.unscaledTime < _nextContinuousRefreshTime)
+            {
+                return;
+            }
+
+            _nextContinuousRefreshTime = Time.unscaledTime + Mathf.Max(0.05f, continuousRefreshIntervalSeconds);
+
+            if (_routeCalculator == null || !_routeCalculator.IsInitialized)
+            {
+                return;
+            }
+
+            if (_locationManager == null || _locationManager.Locations.Count == 0)
+            {
+                return;
+            }
+
+            Transform reference = GetStartReferenceTransform();
+            if (reference == null)
+            {
+                return;
+            }
+
+            if (!_hasContinuousRefreshBaseline)
+            {
+                _lastContinuousRefreshPosition = reference.position;
+                _hasContinuousRefreshBaseline = true;
+            }
+
+            bool movedEnough = continuousRefreshMinMoveMeters <= 0f ||
+                               Vector3.Distance(reference.position, _lastContinuousRefreshPosition) >= continuousRefreshMinMoveMeters;
+            if (!movedEnough)
+            {
+                return;
+            }
+
+            _lastContinuousRefreshPosition = reference.position;
+            RecalculateCurrentRoute();
+        }
+
+        private void MaybeRevalidateRouteFromPlayer()
+        {
+            if (!routeRevalidationEnabled)
+            {
+                return;
+            }
+
+            if (Time.unscaledTime < _nextRouteRevalidationTime)
+            {
+                return;
+            }
+
+            _nextRouteRevalidationTime = Time.unscaledTime + Mathf.Max(0.05f, routeRevalidationIntervalSeconds);
+
+            if (_lastRouteResult == null || !_lastRouteResult.success || _lastRouteResult.nodePath == null || _lastRouteResult.nodePath.Count == 0)
+            {
+                _consecutiveInvalidRouteChecks = 0;
+                return;
+            }
+
+            Transform reference = GetStartReferenceTransform();
+            if (reference == null)
+            {
+                _consecutiveInvalidRouteChecks = 0;
+                return;
+            }
+
+            string currentStart = ResolveStartNodeId();
+            bool routeContainsCurrentStart = !string.IsNullOrWhiteSpace(currentStart) && _lastRouteResult.nodePath.Contains(currentStart);
+            float distanceToRoute = ComputeDistanceToRouteNodes(reference.position, _lastRouteResult.nodePath);
+            bool closeToRoute = distanceToRoute <= routeOffPathDistanceMeters;
+
+            if (routeContainsCurrentStart || closeToRoute)
+            {
+                _consecutiveInvalidRouteChecks = 0;
+                return;
+            }
+
+            _consecutiveInvalidRouteChecks++;
+            if (_consecutiveInvalidRouteChecks < Mathf.Max(1, routeInvalidChecksBeforeRecalc))
+            {
+                return;
+            }
+
+            _consecutiveInvalidRouteChecks = 0;
+            _status = $"Route revalidation triggered (off-route {distanceToRoute:0.0}m).";
+            RecalculateCurrentRoute();
+        }
+
+        private float ComputeDistanceToRouteNodes(Vector3 position, System.Collections.Generic.List<string> nodePath)
+        {
+            if (_graphLoader == null || nodePath == null || nodePath.Count == 0)
+            {
+                return float.PositiveInfinity;
+            }
+
+            float best = float.PositiveInfinity;
+            for (int i = 0; i < nodePath.Count; i++)
+            {
+                Node node = _graphLoader.GetNode(nodePath[i]);
+                if (node == null)
+                {
+                    continue;
+                }
+
+                float d = Vector3.Distance(position, node.position);
+                if (d < best)
+                {
+                    best = d;
+                }
+            }
+
+            return best;
         }
     }
 }
