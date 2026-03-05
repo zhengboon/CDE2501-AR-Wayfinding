@@ -1,0 +1,16 @@
+[
+  {
+    "name": "Cube1",
+    "type": "Demo",
+    "gps_lat": 1.3521000,
+    "gps_lon": 103.8198000,
+    "indoor_node_id": "Cube1"
+  },
+  {
+    "name": "Cube2",
+    "type": "Demo",
+    "gps_lat": 1.3522000,
+    "gps_lon": 103.8199000,
+    "indoor_node_id": "Cube2"
+  }
+]

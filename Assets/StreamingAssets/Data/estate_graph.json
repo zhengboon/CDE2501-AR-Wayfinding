@@ -1,0 +1,87 @@
+{
+  "metadata": {
+    "estateName": "Cube Test Estate",
+    "version": "2.0-cube-demo"
+  },
+  "nodes": [
+    {
+      "id": "Cube1",
+      "position": { "x": 0.0, "y": 0.0, "z": 0.0 },
+      "elevationLevel": 3,
+      "hasStairs": false,
+      "slopeLevel": 0.0,
+      "lightingLevel": 0.9,
+      "clutterLevel": 0.0,
+      "widthLevel": 1.0,
+      "sheltered": true
+    },
+    {
+      "id": "Mid",
+      "position": { "x": 0.0, "y": 0.0, "z": 6.0 },
+      "elevationLevel": 3,
+      "hasStairs": false,
+      "slopeLevel": 0.1,
+      "lightingLevel": 0.8,
+      "clutterLevel": 0.1,
+      "widthLevel": 0.9,
+      "sheltered": true
+    },
+    {
+      "id": "Cube2",
+      "position": { "x": 0.0, "y": 0.0, "z": 12.0 },
+      "elevationLevel": 3,
+      "hasStairs": false,
+      "slopeLevel": 0.0,
+      "lightingLevel": 0.9,
+      "clutterLevel": 0.0,
+      "widthLevel": 1.0,
+      "sheltered": true
+    }
+  ],
+  "edges": [
+    {
+      "fromNode": "Cube1",
+      "toNode": "Mid",
+      "distance": 6.0,
+      "slope": 0.1,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.1,
+      "lighting": 0.8,
+      "width": 0.9
+    },
+    {
+      "fromNode": "Mid",
+      "toNode": "Cube2",
+      "distance": 6.0,
+      "slope": 0.1,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.1,
+      "lighting": 0.8,
+      "width": 0.9
+    },
+    {
+      "fromNode": "Cube2",
+      "toNode": "Mid",
+      "distance": 6.0,
+      "slope": 0.1,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.1,
+      "lighting": 0.8,
+      "width": 0.9
+    },
+    {
+      "fromNode": "Mid",
+      "toNode": "Cube1",
+      "distance": 6.0,
+      "slope": 0.1,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.1,
+      "lighting": 0.8,
+      "width": 0.9
+    }
+  ]
+}

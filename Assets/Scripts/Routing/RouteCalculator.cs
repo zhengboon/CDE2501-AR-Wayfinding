@@ -1,0 +1,567 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using CDE2501.Wayfinding.IndoorGraph;
+using CDE2501.Wayfinding.Profiles;
+using UnityEngine;
+using UnityEngine.Networking;
+
+namespace CDE2501.Wayfinding.Routing
+{
+    public enum ElevationLevel
+    {
+        Road = 0,
+        Deck = 1,
+        LiftLobby = 2,
+        Corridor = 3
+    }
+
+    [Serializable]
+    public class RouteRequest
+    {
+        public string startNodeId;
+        public string endNodeId;
+        public ElevationLevel currentLevel;
+        public RoutingMode mode;
+        public bool rainMode;
+    }
+
+    [Serializable]
+    public class RouteResult
+    {
+        public List<string> nodePath = new List<string>();
+        public float totalCost;
+        public float totalDistance;
+        public bool success;
+        public string message;
+
+        public static RouteResult Failed(string msg)
+        {
+            return new RouteResult { success = false, message = msg };
+        }
+
+        public static RouteResult Success(List<string> path, float cost)
+        {
+            return new RouteResult
+            {
+                success = true,
+                nodePath = path,
+                totalCost = cost,
+                message = "Route calculated"
+            };
+        }
+    }
+
+    public class RouteCalculator : MonoBehaviour
+    {
+        [SerializeField] private GraphLoader graphLoader;
+        [SerializeField] private string routingProfilesFileName = "routing_profiles.json";
+        [SerializeField] private bool rainMode;
+        [SerializeField] private RoutingMode routingMode = RoutingMode.NormalElderly;
+        [SerializeField] private bool autoInitializeOnStart = true;
+        [Header("Performance")]
+        [SerializeField] private bool enableRouteCache = true;
+        [SerializeField, Min(1)] private int maxCacheEntries = 64;
+        [SerializeField, Min(0f)] private float recalcCooldownSeconds = 2f;
+        [SerializeField] private bool queueRecalculationDuringCooldown = true;
+
+        private RoutingProfilesConfig _profilesConfig;
+        private AStarPathfinder _pathfinder;
+        private bool _isInitializing;
+        private float _lastRecalcTimestamp = float.NegativeInfinity;
+        private RouteResult _lastComputedResult;
+        private RouteRequest _queuedRequest;
+        private RoutingProfile _queuedProfile;
+        private string _queuedCacheKey;
+        private Coroutine _queuedRecalcCoroutine;
+        private string _lastRequestCacheKey;
+        private readonly Dictionary<string, RouteResult> _routeCache = new Dictionary<string, RouteResult>();
+        private readonly LinkedList<string> _routeCacheOrder = new LinkedList<string>();
+        private readonly Dictionary<string, LinkedListNode<string>> _cacheOrderIndex = new Dictionary<string, LinkedListNode<string>>();
+
+        public event Action<RouteResult> OnRouteUpdated;
+
+        public bool RainMode
+        {
+            get => rainMode;
+            set => rainMode = value;
+        }
+
+        public RoutingMode CurrentMode
+        {
+            get => routingMode;
+            set => routingMode = value;
+        }
+
+        public bool IsInitialized => !_isInitializing && _profilesConfig != null && _pathfinder != null;
+
+        private void Awake()
+        {
+            if (graphLoader == null)
+            {
+                graphLoader = GetComponent<GraphLoader>();
+            }
+        }
+
+        private void Start()
+        {
+            if (!autoInitializeOnStart || graphLoader == null)
+            {
+                return;
+            }
+
+            graphLoader.OnGraphLoaded += HandleGraphLoaded;
+            _isInitializing = true;
+            graphLoader.LoadGraph();
+        }
+
+        private void OnDestroy()
+        {
+            if (graphLoader != null)
+            {
+                graphLoader.OnGraphLoaded -= HandleGraphLoaded;
+            }
+
+            StopQueuedRecalculation();
+        }
+
+        private void OnDisable()
+        {
+            StopQueuedRecalculation();
+        }
+
+        private void StopQueuedRecalculation()
+        {
+            if (_queuedRecalcCoroutine != null)
+            {
+                StopCoroutine(_queuedRecalcCoroutine);
+                _queuedRecalcCoroutine = null;
+            }
+        }
+
+        public void Initialize(RoutingProfilesConfig profilesConfig)
+        {
+            _profilesConfig = profilesConfig;
+            _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
+            ClearRouteCache();
+        }
+
+        public void InitializeFromJson()
+        {
+            StartCoroutine(LoadProfilesAndInitializeRoutine());
+        }
+
+        public RouteResult CalculateIndoorRoute(string startNodeId, string endNodeId, ElevationLevel currentLevel)
+        {
+            if (_pathfinder == null)
+            {
+                RouteResult failed = RouteResult.Failed("Pathfinder not initialized.");
+                OnRouteUpdated?.Invoke(failed);
+                return failed;
+            }
+
+            RoutingProfile profile = _profilesConfig?.GetByMode(routingMode);
+            if (profile == null)
+            {
+                RouteResult failed = RouteResult.Failed("Routing profile unavailable.");
+                OnRouteUpdated?.Invoke(failed);
+                return failed;
+            }
+
+            var request = new RouteRequest
+            {
+                startNodeId = startNodeId,
+                endNodeId = endNodeId,
+                currentLevel = currentLevel,
+                mode = routingMode,
+                rainMode = rainMode
+            };
+
+            string cacheKey = BuildCacheKey(request, profile.profileName);
+            if (enableRouteCache && TryGetRouteFromCache(cacheKey, out RouteResult cached))
+            {
+                cached.message = "Route loaded from cache.";
+                OnRouteUpdated?.Invoke(cached);
+                return cached;
+            }
+
+            float cooldownRemaining = GetCooldownRemainingSeconds();
+            bool sameAsLastRequest = string.Equals(cacheKey, _lastRequestCacheKey, StringComparison.Ordinal);
+            bool cooldownActive = cooldownRemaining > 0f && sameAsLastRequest;
+            if (cooldownActive)
+            {
+                if (queueRecalculationDuringCooldown)
+                {
+                    QueueRecalculation(request, profile, cacheKey);
+
+                    if (_lastComputedResult != null)
+                    {
+                        RouteResult stale = CloneRouteResult(_lastComputedResult);
+                        stale.message = $"Reusing last route while recalculation is queued ({cooldownRemaining:0.0}s).";
+                        OnRouteUpdated?.Invoke(stale);
+                        return stale;
+                    }
+
+                    RouteResult queued = RouteResult.Failed($"Recalculation queued. Try again in {cooldownRemaining:0.0}s.");
+                    OnRouteUpdated?.Invoke(queued);
+                    return queued;
+                }
+
+                if (_lastComputedResult != null)
+                {
+                    RouteResult throttled = CloneRouteResult(_lastComputedResult);
+                    throttled.message = $"Recalculation throttled for {cooldownRemaining:0.0}s.";
+                    OnRouteUpdated?.Invoke(throttled);
+                    return throttled;
+                }
+            }
+
+            _lastRequestCacheKey = cacheKey;
+            return ComputeRouteNow(request, profile, cacheKey, raiseEvent: true);
+        }
+
+        public static float ComputeBearingDegrees(double fromLat, double fromLon, double toLat, double toLon)
+        {
+            double phi1 = fromLat * Mathf.Deg2Rad;
+            double phi2 = toLat * Mathf.Deg2Rad;
+            double dLon = (toLon - fromLon) * Mathf.Deg2Rad;
+
+            double y = Math.Sin(dLon) * Math.Cos(phi2);
+            double x = Math.Cos(phi1) * Math.Sin(phi2) - Math.Sin(phi1) * Math.Cos(phi2) * Math.Cos(dLon);
+            double bearing = Math.Atan2(y, x) * Mathf.Rad2Deg;
+
+            return (float)((bearing + 360.0) % 360.0);
+        }
+
+        public static float HaversineDistanceMeters(double fromLat, double fromLon, double toLat, double toLon)
+        {
+            const double earthRadius = 6371000.0;
+            double dLat = (toLat - fromLat) * Mathf.Deg2Rad;
+            double dLon = (toLon - fromLon) * Mathf.Deg2Rad;
+
+            double a =
+                Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(fromLat * Mathf.Deg2Rad) * Math.Cos(toLat * Mathf.Deg2Rad) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return (float)(earthRadius * c);
+        }
+
+        private float ComputePathDistance(List<string> nodePath)
+        {
+            if (nodePath == null || nodePath.Count < 2)
+            {
+                return 0f;
+            }
+
+            float distance = 0f;
+            for (int i = 0; i < nodePath.Count - 1; i++)
+            {
+                string from = nodePath[i];
+                string to = nodePath[i + 1];
+                Edge edge = graphLoader.Edges.Find(e => e.fromNode == from && e.toNode == to);
+                if (edge != null)
+                {
+                    distance += edge.distance;
+                }
+            }
+
+            return distance;
+        }
+
+        private IEnumerator LoadProfilesAndInitializeRoutine()
+        {
+            string persistentPath = Path.Combine(Application.persistentDataPath, "Data", routingProfilesFileName);
+            string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", routingProfilesFileName);
+
+            if (!File.Exists(persistentPath))
+            {
+                yield return CopyFromStreamingAssets(streamingPath, persistentPath);
+            }
+
+            if (!File.Exists(persistentPath))
+            {
+                Debug.LogError($"Missing routing profiles file at {persistentPath}");
+                yield break;
+            }
+
+            string raw = File.ReadAllText(persistentPath);
+            string wrapped = WrapTopLevelArrayIfNeeded(raw, "profiles");
+            _profilesConfig = JsonUtility.FromJson<RoutingProfilesConfig>(wrapped);
+
+            if (_profilesConfig == null)
+            {
+                Debug.LogError("Unable to parse routing profiles JSON.");
+                yield break;
+            }
+
+            _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
+            _isInitializing = false;
+            ClearRouteCache();
+        }
+
+        private void HandleGraphLoaded(bool success, string message)
+        {
+            if (!success)
+            {
+                Debug.LogError($"Graph load failed: {message}");
+                _isInitializing = false;
+                return;
+            }
+
+            if (_isInitializing)
+            {
+                InitializeFromJson();
+            }
+        }
+
+        public void ClearRouteCache()
+        {
+            _routeCache.Clear();
+            _routeCacheOrder.Clear();
+            _cacheOrderIndex.Clear();
+            _lastComputedResult = null;
+            _lastRecalcTimestamp = float.NegativeInfinity;
+            _queuedRequest = null;
+            _queuedProfile = null;
+            _queuedCacheKey = null;
+            _lastRequestCacheKey = null;
+        }
+
+        private RouteResult ComputeRouteNow(RouteRequest request, RoutingProfile profile, string cacheKey, bool raiseEvent)
+        {
+            RouteResult result = _pathfinder.FindPath(request, profile, _profilesConfig.rainSlopeMultiplier);
+            if (result.success)
+            {
+                result.totalDistance = ComputePathDistance(result.nodePath);
+                if (enableRouteCache)
+                {
+                    SaveRouteToCache(cacheKey, result);
+                }
+            }
+
+            _lastRecalcTimestamp = Time.unscaledTime;
+            _lastComputedResult = CloneRouteResult(result);
+
+            if (raiseEvent)
+            {
+                OnRouteUpdated?.Invoke(result);
+            }
+
+            return result;
+        }
+
+        private void QueueRecalculation(RouteRequest request, RoutingProfile profile, string cacheKey)
+        {
+            _queuedRequest = CloneRouteRequest(request);
+            _queuedProfile = profile;
+            _queuedCacheKey = cacheKey;
+
+            if (_queuedRecalcCoroutine == null)
+            {
+                _queuedRecalcCoroutine = StartCoroutine(ProcessQueuedRecalculation());
+            }
+        }
+
+        private IEnumerator ProcessQueuedRecalculation()
+        {
+            while (enabled)
+            {
+                float remaining = GetCooldownRemainingSeconds();
+                if (remaining > 0f)
+                {
+                    yield return new WaitForSeconds(remaining);
+                }
+
+                if (_queuedRequest == null || _queuedProfile == null || string.IsNullOrWhiteSpace(_queuedCacheKey))
+                {
+                    _queuedRecalcCoroutine = null;
+                    yield break;
+                }
+
+                RouteRequest request = _queuedRequest;
+                RoutingProfile profile = _queuedProfile;
+                string cacheKey = _queuedCacheKey;
+                _queuedRequest = null;
+                _queuedProfile = null;
+                _queuedCacheKey = null;
+
+                ComputeRouteNow(request, profile, cacheKey, raiseEvent: true);
+
+                if (_queuedRequest == null)
+                {
+                    _queuedRecalcCoroutine = null;
+                    yield break;
+                }
+            }
+
+            _queuedRecalcCoroutine = null;
+        }
+
+        private float GetCooldownRemainingSeconds()
+        {
+            if (recalcCooldownSeconds <= 0f)
+            {
+                return 0f;
+            }
+
+            float elapsed = Time.unscaledTime - _lastRecalcTimestamp;
+            return Mathf.Max(0f, recalcCooldownSeconds - elapsed);
+        }
+
+        private bool TryGetRouteFromCache(string cacheKey, out RouteResult routeResult)
+        {
+            routeResult = null;
+            if (!_routeCache.TryGetValue(cacheKey, out RouteResult cached))
+            {
+                return false;
+            }
+
+            if (_cacheOrderIndex.TryGetValue(cacheKey, out LinkedListNode<string> node))
+            {
+                _routeCacheOrder.Remove(node);
+                _routeCacheOrder.AddLast(node);
+            }
+
+            routeResult = CloneRouteResult(cached);
+            return true;
+        }
+
+        private void SaveRouteToCache(string cacheKey, RouteResult result)
+        {
+            if (maxCacheEntries < 1)
+            {
+                return;
+            }
+
+            RouteResult cachedCopy = CloneRouteResult(result);
+            if (_routeCache.ContainsKey(cacheKey))
+            {
+                _routeCache[cacheKey] = cachedCopy;
+
+                if (_cacheOrderIndex.TryGetValue(cacheKey, out LinkedListNode<string> existingNode))
+                {
+                    _routeCacheOrder.Remove(existingNode);
+                    _routeCacheOrder.AddLast(existingNode);
+                }
+
+                return;
+            }
+
+            _routeCache[cacheKey] = cachedCopy;
+            LinkedListNode<string> orderNode = _routeCacheOrder.AddLast(cacheKey);
+            _cacheOrderIndex[cacheKey] = orderNode;
+
+            while (_routeCacheOrder.Count > maxCacheEntries)
+            {
+                LinkedListNode<string> first = _routeCacheOrder.First;
+                if (first == null)
+                {
+                    break;
+                }
+
+                string removeKey = first.Value;
+                _routeCacheOrder.RemoveFirst();
+                _cacheOrderIndex.Remove(removeKey);
+                _routeCache.Remove(removeKey);
+            }
+        }
+
+        private string BuildCacheKey(RouteRequest request, string profileName)
+        {
+            string graphVersion = graphLoader?.GraphData?.metadata?.version ?? "unknown";
+            string mode = ((int)request.mode).ToString();
+            string level = ((int)request.currentLevel).ToString();
+            string rain = request.rainMode ? "1" : "0";
+            return $"{graphVersion}|{request.startNodeId}|{request.endNodeId}|{level}|{mode}|{rain}|{profileName}";
+        }
+
+        private static RouteRequest CloneRouteRequest(RouteRequest request)
+        {
+            if (request == null)
+            {
+                return null;
+            }
+
+            return new RouteRequest
+            {
+                startNodeId = request.startNodeId,
+                endNodeId = request.endNodeId,
+                currentLevel = request.currentLevel,
+                mode = request.mode,
+                rainMode = request.rainMode
+            };
+        }
+
+        private static RouteResult CloneRouteResult(RouteResult result)
+        {
+            if (result == null)
+            {
+                return null;
+            }
+
+            return new RouteResult
+            {
+                success = result.success,
+                totalCost = result.totalCost,
+                totalDistance = result.totalDistance,
+                message = result.message,
+                nodePath = result.nodePath != null ? new List<string>(result.nodePath) : new List<string>()
+            };
+        }
+
+        private static string WrapTopLevelArrayIfNeeded(string rawJson, string key)
+        {
+            if (string.IsNullOrWhiteSpace(rawJson))
+            {
+                return "{}";
+            }
+
+            string trimmed = rawJson.TrimStart();
+            if (trimmed.StartsWith("["))
+            {
+                return "{\"" + key + "\":" + rawJson + "}";
+            }
+
+            return rawJson;
+        }
+
+        private static IEnumerator CopyFromStreamingAssets(string sourcePath, string destinationPath)
+        {
+            string folder = Path.GetDirectoryName(destinationPath);
+            if (!Directory.Exists(folder))
+            {
+                Directory.CreateDirectory(folder);
+            }
+
+            UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath));
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                File.WriteAllText(destinationPath, request.downloadHandler.text);
+            }
+            else
+            {
+                Debug.LogError($"Unable to copy routing profiles JSON: {request.error}");
+            }
+
+            request.Dispose();
+        }
+
+        private static string ToUnityWebRequestPath(string path)
+        {
+            if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("://"))
+            {
+                return path;
+            }
+
+            return "file://" + path;
+        }
+    }
+}

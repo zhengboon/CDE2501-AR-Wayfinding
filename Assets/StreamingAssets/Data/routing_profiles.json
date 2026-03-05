@@ -1,0 +1,30 @@
+{
+  "smartPromptDefault": true,
+  "rainSlopeMultiplier": 1.25,
+  "profiles": [
+    {
+      "profileName": "NormalElderly",
+      "wDistance": 1.0,
+      "wSlope": 2.0,
+      "wStairs": 3.0,
+      "wClutter": 2.0,
+      "wDarkness": 3.5,
+      "wNarrowWidth": 2.5,
+      "wUnshelteredRain": 3.0,
+      "wheelchairStairsBlockCost": 10000.0,
+      "minWidthPassable": 0.35
+    },
+    {
+      "profileName": "Wheelchair",
+      "wDistance": 1.0,
+      "wSlope": 3.5,
+      "wStairs": 10000.0,
+      "wClutter": 1.5,
+      "wDarkness": 2.5,
+      "wNarrowWidth": 4.0,
+      "wUnshelteredRain": 3.0,
+      "wheelchairStairsBlockCost": 10000.0,
+      "minWidthPassable": 0.35
+    }
+  ]
+}

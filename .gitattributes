@@ -1,0 +1,35 @@
+# Default text handling
+* text=auto
+
+# Unity text assets should stay LF for stable diffs across platforms
+*.cs text eol=lf
+*.meta text eol=lf
+*.unity text eol=lf
+*.prefab text eol=lf
+*.asset text eol=lf
+*.anim text eol=lf
+*.controller text eol=lf
+*.json text eol=lf
+*.asmdef text eol=lf
+*.shader text eol=lf
+*.cginc text eol=lf
+*.hlsl text eol=lf
+*.uxml text eol=lf
+*.uss text eol=lf
+
+# Keep common binary assets binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.tga binary
+*.psd binary
+*.exr binary
+*.fbx binary
+*.mp3 binary
+*.wav binary
+*.ogg binary
+*.mp4 binary
+*.mov binary
+*.zip binary
+*.dll binary
