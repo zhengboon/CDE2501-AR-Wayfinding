@@ -76,7 +76,7 @@ namespace CDE2501.Wayfinding.UI
                 : Profiles.RoutingMode.NormalElderly;
             routeCalculator.RainMode = rainModeEnabled;
 
-            routeCalculator.CalculateIndoorRoute(resolvedStart, destination.indoor_node_id, levelManager.CurrentLevel);
+            routeCalculator.CalculateIndoorRoute(resolvedStart, destination.indoor_node_id, levelManager.CurrentLevel, forceRefresh: true);
         }
 
         private void RefreshDestinationList()

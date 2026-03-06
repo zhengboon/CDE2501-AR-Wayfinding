@@ -11,6 +11,9 @@ namespace CDE2501.Wayfinding.Routing
         [SerializeField] private Transform startReferenceTransform;
         [SerializeField] private bool includeStartReferenceSegment = true;
         [SerializeField] private bool followMainCameraIfReferenceMissing = true;
+        [SerializeField] private bool renderAtUserFeet = true;
+        [SerializeField] private float feetYOffset = -1.6f;
+        [SerializeField] private float feetClearance = 0.05f;
         [SerializeField] private float yOffset = 0.12f;
         [SerializeField] private float lineWidth = 0.22f;
         [SerializeField] private Color lineColor = new Color(1f, 0.85f, 0.2f, 1f);
@@ -123,11 +126,8 @@ namespace CDE2501.Wayfinding.Routing
 
             if (!result.success || result.nodePath == null || result.nodePath.Count < 1)
             {
-                // Keep rendering the last successful route during transient recompute failures.
-                if (_lastRoute == null || !_lastRoute.success)
-                {
-                    _line.positionCount = 0;
-                }
+                _lastRoute = null;
+                _line.positionCount = 0;
                 return;
             }
 
@@ -139,11 +139,13 @@ namespace CDE2501.Wayfinding.Routing
         {
             int startOffset = includeStartReferenceSegment && startReferenceTransform != null ? 1 : 0;
             _line.positionCount = result.nodePath.Count + startOffset;
+            float routeY = ResolveRouteY();
 
             int writeIndex = 0;
             if (startOffset == 1)
             {
-                Vector3 startPos = startReferenceTransform.position + new Vector3(0f, yOffset, 0f);
+                Vector3 startPos = startReferenceTransform.position;
+                startPos.y = routeY;
                 _line.SetPosition(writeIndex++, startPos);
             }
 
@@ -156,8 +158,20 @@ namespace CDE2501.Wayfinding.Routing
                     return;
                 }
 
-                _line.SetPosition(writeIndex++, node.position + new Vector3(0f, yOffset, 0f));
+                Vector3 nodePos = node.position;
+                nodePos.y = routeY;
+                _line.SetPosition(writeIndex++, nodePos);
             }
+        }
+
+        private float ResolveRouteY()
+        {
+            if (renderAtUserFeet && startReferenceTransform != null)
+            {
+                return startReferenceTransform.position.y + feetYOffset + feetClearance;
+            }
+
+            return (startReferenceTransform != null ? startReferenceTransform.position.y : 0f) + yOffset;
         }
     }
 }

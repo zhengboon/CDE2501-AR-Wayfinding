@@ -50,12 +50,29 @@ namespace CDE2501.Wayfinding.Data
 
         public void AddLocation(LocationPoint point)
         {
-            if (point == null || string.IsNullOrWhiteSpace(point.name))
+            if (point == null)
             {
                 return;
             }
 
-            _locations.Add(point);
+            point.name = point.name != null ? point.name.Trim() : string.Empty;
+            point.indoor_node_id = point.indoor_node_id != null ? point.indoor_node_id.Trim() : string.Empty;
+            if (string.IsNullOrWhiteSpace(point.name) || string.IsNullOrWhiteSpace(point.indoor_node_id))
+            {
+                return;
+            }
+
+            int existingIndex = _locations.FindIndex(l => l != null &&
+                                                          string.Equals(l.name, point.name, StringComparison.OrdinalIgnoreCase));
+            if (existingIndex >= 0)
+            {
+                _locations[existingIndex] = point;
+            }
+            else
+            {
+                _locations.Add(point);
+            }
+
             SaveLocations();
             OnLocationsChanged?.Invoke();
         }
@@ -64,6 +81,13 @@ namespace CDE2501.Wayfinding.Data
         {
             int index = _locations.FindIndex(l => l.name == originalName);
             if (index < 0 || updated == null)
+            {
+                return false;
+            }
+
+            updated.name = updated.name != null ? updated.name.Trim() : string.Empty;
+            updated.indoor_node_id = updated.indoor_node_id != null ? updated.indoor_node_id.Trim() : string.Empty;
+            if (string.IsNullOrWhiteSpace(updated.name) || string.IsNullOrWhiteSpace(updated.indoor_node_id))
             {
                 return false;
             }
@@ -119,7 +143,42 @@ namespace CDE2501.Wayfinding.Data
                 _locations.AddRange(wrapper.locations);
             }
 
+            NormalizeLoadedLocations();
+
             OnLocationsChanged?.Invoke();
+        }
+
+        private void NormalizeLoadedLocations()
+        {
+            var normalized = new List<LocationPoint>(_locations.Count);
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < _locations.Count; i++)
+            {
+                LocationPoint location = _locations[i];
+                if (location == null)
+                {
+                    continue;
+                }
+
+                location.name = location.name != null ? location.name.Trim() : string.Empty;
+                location.indoor_node_id = location.indoor_node_id != null ? location.indoor_node_id.Trim() : string.Empty;
+                if (string.IsNullOrWhiteSpace(location.name) || string.IsNullOrWhiteSpace(location.indoor_node_id))
+                {
+                    continue;
+                }
+
+                string dedupeKey = location.name + "|" + location.indoor_node_id;
+                if (!seen.Add(dedupeKey))
+                {
+                    continue;
+                }
+
+                normalized.Add(location);
+            }
+
+            _locations.Clear();
+            _locations.AddRange(normalized);
         }
 
         private static string WrapTopLevelArrayIfNeeded(string rawJson, string key)

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
 using CDE2501.Wayfinding.Data;
 using CDE2501.Wayfinding.Elevation;
@@ -23,23 +24,30 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool forceCameraPerspectiveControl = true;
         [SerializeField] private bool detachCameraChildrenAtStart = false;
         [SerializeField] private bool autoCreateGraphPreview = false;
+        [SerializeField] private bool autoCreateMapReference = true;
         [SerializeField] private bool autoCreateDestinationMarkers = true;
         [SerializeField] private bool autoCreateRoutePathPreview = true;
+        [SerializeField] private bool autoCreateMiniMap = true;
         [SerializeField] private bool resetPersistentDataOnStart = true;
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
+        [SerializeField] private bool alwaysRouteFromCurrentPosition = true;
+        [SerializeField] private bool forceImmediateRouteRefresh = true;
         [SerializeField, Min(0.1f)] private float startNodeCheckIntervalSeconds = 0.5f;
         [Header("Baritone-Inspired Pathing")]
         [SerializeField] private bool baritoneStyleStartResolution = true;
+        [SerializeField] private bool preferCurrentLevelForStartNode = true;
         [SerializeField, Min(0f)] private float startSnapExtraRadiusMeters = 2f;
         [SerializeField, Min(0f)] private float startVerticalPenaltyWeight = 0.35f;
         [SerializeField, Min(0f)] private float startForwardBiasMeters = 0.75f;
+        [SerializeField, Min(0f)] private float startNodeSwitchAdvantageMeters = 0.45f;
+        [SerializeField, Min(0f)] private float startNodeMaxHoldDistanceMeters = 2.4f;
         [SerializeField] private bool routeRevalidationEnabled = true;
         [SerializeField, Min(0.05f)] private float routeRevalidationIntervalSeconds = 0.25f;
         [SerializeField, Min(0f)] private float routeOffPathDistanceMeters = 2.5f;
         [SerializeField, Min(1)] private int routeInvalidChecksBeforeRecalc = 2;
         [SerializeField] private bool continuousRouteRefresh = true;
         [SerializeField, Min(0.05f)] private float continuousRefreshIntervalSeconds = 0.25f;
-        [SerializeField, Min(0f)] private float continuousRefreshMinMoveMeters = 0f;
+        [SerializeField, Min(0f)] private float continuousRefreshMinMoveMeters = 0.2f;
         [Header("Overlay")]
         [SerializeField, Range(0.8f, 2.5f)] private float overlayScale = 1.0f;
         [SerializeField, Range(14, 48)] private int titleFontSize = 28;
@@ -56,8 +64,10 @@ namespace CDE2501.Wayfinding.UI
         private LevelManager _levelManager;
         private SimulatedObjectDriver _simulatedObjectDriver;
         private GraphRuntimeVisualizer _graphRuntimeVisualizer;
+        private MapReferenceTileVisualizer _mapReferenceTileVisualizer;
         private RoutePathVisualizer _routePathVisualizer;
         private DestinationMarkerVisualizer _destinationMarkerVisualizer;
+        private MiniMapOverlay _miniMapOverlay;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
@@ -72,15 +82,38 @@ namespace CDE2501.Wayfinding.UI
         private bool _hasContinuousRefreshBaseline;
         private int _consecutiveInvalidRouteChecks;
         private string _lastAutoStartNodeId;
+        private string _stableStartNodeId;
+        private int _stableStartLevel = int.MinValue;
         private Vector2 _panelScroll;
         private GUIStyle _panelStyle;
         private GUIStyle _bodyStyle;
         private Texture2D _panelTexture;
         private Rect _panelRect;
         private bool _panelRectInitialized;
+        private bool _destinationDropdownExpanded;
+        private Vector2 _destinationDropdownScroll;
+        private readonly List<LocationPoint> _uiDestinations = new List<LocationPoint>();
+        private bool _uiDestinationsDirty = true;
+        private string _selectedDestinationNodeId;
+        private string _selectedDestinationName;
 
         private void Awake()
         {
+            if (continuousRefreshMinMoveMeters < 0.2f)
+            {
+                continuousRefreshMinMoveMeters = 0.2f;
+            }
+
+            if (startNodeSwitchAdvantageMeters < 0.2f)
+            {
+                startNodeSwitchAdvantageMeters = 0.2f;
+            }
+
+            if (startNodeMaxHoldDistanceMeters < 1f)
+            {
+                startNodeMaxHoldDistanceMeters = 1f;
+            }
+
             EnsureManagers();
         }
 
@@ -140,6 +173,11 @@ namespace CDE2501.Wayfinding.UI
             {
                 _routeCalculator.RainMode = !_routeCalculator.RainMode;
                 RecalculateCurrentRoute();
+            }
+
+            if (_miniMapOverlay != null)
+            {
+                _miniMapOverlay.SetStartReferenceTransform(GetStartReferenceTransform());
             }
 
             MaybeContinuouslyRefreshRoute();
@@ -205,16 +243,69 @@ namespace CDE2501.Wayfinding.UI
                 shouldRecalculate = true;
             }
 
+            _resolvedStartNodeId = ResolveStartNodeId();
+            RefreshUIDestinations();
+            string destinationName = GetCurrentDestinationName();
+
+            float destinationRowY = 64f;
+            GUI.Label(new Rect(12f, destinationRowY, 108f, 24f), "Destination:", _bodyStyle);
+            Rect destinationButtonRect = new Rect(122f, destinationRowY, 344f, 24f);
+            if (GUI.Button(destinationButtonRect, destinationName))
+            {
+                _destinationDropdownExpanded = !_destinationDropdownExpanded;
+            }
+
+            bool hasDestinations = _locationsLoaded && _uiDestinations.Count > 0;
+            if (hasDestinations)
+            {
+                if (GUI.Button(new Rect(476f, destinationRowY, 92f, 24f), "Prev"))
+                {
+                    CycleDestination(-1);
+                }
+
+                if (GUI.Button(new Rect(572f, destinationRowY, 92f, 24f), "Next"))
+                {
+                    CycleDestination(1);
+                }
+            }
+
+            float dropdownHeight = 0f;
+            if (_destinationDropdownExpanded && hasDestinations)
+            {
+                float rowHeight = Mathf.Max(30f, bodyFontSize + 8f);
+                float maxDropdownHeight = Mathf.Min(180f, _panelRect.height * 0.4f);
+                dropdownHeight = Mathf.Min(maxDropdownHeight, (_uiDestinations.Count * rowHeight) + 8f);
+
+                Rect dropdownRect = new Rect(122f, destinationRowY + 28f, 344f, dropdownHeight);
+                if (Event.current.type == EventType.MouseDown &&
+                    !destinationButtonRect.Contains(Event.current.mousePosition) &&
+                    !dropdownRect.Contains(Event.current.mousePosition))
+                {
+                    _destinationDropdownExpanded = false;
+                }
+
+                GUI.Box(dropdownRect, GUIContent.none);
+
+                Rect viewport = new Rect(dropdownRect.x + 4f, dropdownRect.y + 4f, dropdownRect.width - 8f, dropdownRect.height - 8f);
+                Rect content = new Rect(0f, 0f, viewport.width - 16f, _uiDestinations.Count * rowHeight);
+                _destinationDropdownScroll = GUI.BeginScrollView(viewport, _destinationDropdownScroll, content);
+                for (int i = 0; i < _uiDestinations.Count; i++)
+                {
+                    string itemName = _uiDestinations[i].name;
+                    string itemLabel = i == destinationIndex ? $"[x] {itemName}" : itemName;
+                    if (GUI.Button(new Rect(0f, i * rowHeight, content.width, rowHeight - 2f), itemLabel))
+                    {
+                        SetDestinationIndex(i, recalculate: true);
+                        _destinationDropdownExpanded = false;
+                    }
+                }
+
+                GUI.EndScrollView();
+            }
+
             if (shouldRecalculate)
             {
                 RecalculateCurrentRoute();
-            }
-
-            _resolvedStartNodeId = ResolveStartNodeId();
-            string destinationName = "none";
-            if (_locationsLoaded && _locationManager.Locations.Count > 0 && destinationIndex >= 0 && destinationIndex < _locationManager.Locations.Count)
-            {
-                destinationName = _locationManager.Locations[destinationIndex].name;
             }
 
             string routeMessage = _lastRouteResult == null
@@ -231,17 +322,20 @@ namespace CDE2501.Wayfinding.UI
                 $"Route engine ready: {(_routeCalculator != null && _routeCalculator.IsInitialized)}\n" +
                 $"GPS ready: {(_gpsManager != null && _gpsManager.IsReady)} (sim: {(_gpsManager != null && _gpsManager.IsUsingSimulation)})\n" +
                 $"Compass ready: {(_compassManager != null && _compassManager.IsReady)} (sim: {(_compassManager != null && _compassManager.IsUsingSimulation)})\n" +
-                $"Locations loaded: {_locationsLoaded} (count: {(_locationManager != null ? _locationManager.Locations.Count : 0)})\n" +
+                $"Locations loaded: {_locationsLoaded} (raw: {(_locationManager != null ? _locationManager.Locations.Count : 0)}, usable: {_uiDestinations.Count})\n" +
                 $"Graph preview: {(_graphRuntimeVisualizer != null)}\n" +
+                $"Map reference: {(_mapReferenceTileVisualizer != null)}\n" +
                 $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
+                $"Mini map: {(_miniMapOverlay != null)}\n" +
                 $"{routeMessage}\n" +
                 "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: Arrows, look: A/D + W/S.";
 
-            Rect viewport = new Rect(12f, 64f, _panelRect.width - 24f, _panelRect.height - 72f);
-            float contentHeight = Mathf.Max(viewport.height, _bodyStyle.CalcHeight(new GUIContent(text), viewport.width - 24f) + 12f);
-            Rect contentRect = new Rect(0f, 0f, viewport.width - 20f, contentHeight);
-            _panelScroll = GUI.BeginScrollView(viewport, _panelScroll, contentRect);
+            float infoTop = destinationRowY + 32f + dropdownHeight + 4f;
+            Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
+            float contentHeight = Mathf.Max(infoViewport.height, _bodyStyle.CalcHeight(new GUIContent(text), infoViewport.width - 24f) + 12f);
+            Rect contentRect = new Rect(0f, 0f, infoViewport.width - 20f, contentHeight);
+            _panelScroll = GUI.BeginScrollView(infoViewport, _panelScroll, contentRect);
             GUI.Label(new Rect(0f, 0f, contentRect.width, contentRect.height), text, _bodyStyle);
             GUI.EndScrollView();
             GUI.DragWindow(new Rect(0f, 0f, _panelRect.width, 30f));
@@ -374,6 +468,11 @@ namespace CDE2501.Wayfinding.UI
                 SetupGraphPreview();
             }
 
+            if (autoCreateMapReference)
+            {
+                SetupMapReferencePreview();
+            }
+
             if (autoCreateDestinationMarkers)
             {
                 SetupDestinationMarkers();
@@ -382,6 +481,11 @@ namespace CDE2501.Wayfinding.UI
             if (autoCreateRoutePathPreview)
             {
                 SetupRoutePathPreview();
+            }
+
+            if (autoCreateMiniMap)
+            {
+                SetupMiniMap();
             }
         }
 
@@ -473,6 +577,18 @@ namespace CDE2501.Wayfinding.UI
             _destinationMarkerVisualizer.SetLocationManager(_locationManager);
         }
 
+        private void SetupMapReferencePreview()
+        {
+            _mapReferenceTileVisualizer = FindObjectOfType<MapReferenceTileVisualizer>();
+            if (_mapReferenceTileVisualizer == null)
+            {
+                _mapReferenceTileVisualizer = gameObject.AddComponent<MapReferenceTileVisualizer>();
+            }
+
+            _mapReferenceTileVisualizer.SetGraphLoader(_graphLoader);
+            _mapReferenceTileVisualizer.SetStartReferenceTransform(GetStartReferenceTransform());
+        }
+
         private void SetupRoutePathPreview()
         {
             _routePathVisualizer = FindObjectOfType<RoutePathVisualizer>();
@@ -485,6 +601,20 @@ namespace CDE2501.Wayfinding.UI
             _routePathVisualizer.SetRouteCalculator(_routeCalculator);
             _routePathVisualizer.SetStartReferenceTransform(GetStartReferenceTransform());
             _routePathVisualizer.SetIncludeStartReferenceSegment(true);
+        }
+
+        private void SetupMiniMap()
+        {
+            _miniMapOverlay = FindObjectOfType<MiniMapOverlay>();
+            if (_miniMapOverlay == null)
+            {
+                _miniMapOverlay = gameObject.AddComponent<MiniMapOverlay>();
+            }
+
+            _miniMapOverlay.SetGraphLoader(_graphLoader);
+            _miniMapOverlay.SetRouteCalculator(_routeCalculator);
+            _miniMapOverlay.SetLocationManager(_locationManager);
+            _miniMapOverlay.SetStartReferenceTransform(GetStartReferenceTransform());
         }
 
         private static void ResetPersistentDataFolder()
@@ -569,6 +699,7 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            _uiDestinationsDirty = true;
             _locationsLoaded = _locationManager != null && _locationManager.Locations.Count > 0;
             if (!_locationsLoaded)
             {
@@ -580,7 +711,9 @@ namespace CDE2501.Wayfinding.UI
                     return;
                 }
 
-                destinationIndex = Mathf.Clamp(destinationIndex, 0, _locationManager.Locations.Count - 1);
+                RefreshUIDestinations();
+                destinationIndex = Mathf.Clamp(destinationIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
+                _destinationDropdownExpanded = _destinationDropdownExpanded && _uiDestinations.Count > 0;
                 UpdateSelectedDestinationMarker();
                 _status = "Fallback cube locations seeded.";
                 return;
@@ -590,13 +723,17 @@ namespace CDE2501.Wayfinding.UI
             {
                 SeedFallbackCubeLocations();
                 _locationsLoaded = _locationManager != null && _locationManager.Locations.Count > 0;
-                destinationIndex = Mathf.Clamp(destinationIndex, 0, _locationManager.Locations.Count - 1);
+                RefreshUIDestinations();
+                destinationIndex = Mathf.Clamp(destinationIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
+                _destinationDropdownExpanded = _destinationDropdownExpanded && _uiDestinations.Count > 0;
                 UpdateSelectedDestinationMarker();
                 _status = "No routeable destinations found in data. Fallback cube locations seeded.";
                 return;
             }
 
-            destinationIndex = Mathf.Clamp(destinationIndex, 0, _locationManager.Locations.Count - 1);
+            RefreshUIDestinations();
+            destinationIndex = Mathf.Clamp(destinationIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
+            _destinationDropdownExpanded = _destinationDropdownExpanded && _uiDestinations.Count > 0;
             UpdateSelectedDestinationMarker();
             _status = "Locations loaded.";
         }
@@ -647,23 +784,171 @@ namespace CDE2501.Wayfinding.UI
             _status = result != null && result.success ? "Route updated." : "Route update failed.";
         }
 
+        private void RefreshUIDestinations()
+        {
+            if (!_uiDestinationsDirty && _uiDestinations.Count > 0)
+            {
+                return;
+            }
+
+            string previousNodeId = _selectedDestinationNodeId;
+            string previousName = _selectedDestinationName;
+            int previousIndex = destinationIndex;
+            if (_uiDestinations.Count > 0 && destinationIndex >= 0 && destinationIndex < _uiDestinations.Count)
+            {
+                LocationPoint previous = _uiDestinations[destinationIndex];
+                if (previous != null)
+                {
+                    if (string.IsNullOrWhiteSpace(previousNodeId))
+                    {
+                        previousNodeId = previous.indoor_node_id;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(previousName))
+                    {
+                        previousName = previous.name;
+                    }
+                }
+            }
+
+            _uiDestinations.Clear();
+            if (_locationManager == null)
+            {
+                _selectedDestinationNodeId = null;
+                _selectedDestinationName = null;
+                _uiDestinationsDirty = false;
+                return;
+            }
+
+            var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < _locationManager.Locations.Count; i++)
+            {
+                LocationPoint location = _locationManager.Locations[i];
+                if (location == null)
+                {
+                    continue;
+                }
+
+                string name = location.name != null ? location.name.Trim() : string.Empty;
+                string nodeId = location.indoor_node_id != null ? location.indoor_node_id.Trim() : string.Empty;
+                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(nodeId))
+                {
+                    continue;
+                }
+
+                if (_graphLoader != null && _graphLoader.NodesById.Count > 0 && _graphLoader.GetNode(nodeId) == null)
+                {
+                    continue;
+                }
+
+                string dedupeKey = name + "|" + nodeId;
+                if (!seen.Add(dedupeKey))
+                {
+                    continue;
+                }
+
+                _uiDestinations.Add(location);
+            }
+
+            _uiDestinations.Sort((a, b) => string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase));
+
+            if (_uiDestinations.Count == 0)
+            {
+                destinationIndex = 0;
+                _selectedDestinationNodeId = null;
+                _selectedDestinationName = null;
+                _uiDestinationsDirty = false;
+                return;
+            }
+
+            int resolvedIndex = -1;
+            if (!string.IsNullOrWhiteSpace(previousNodeId))
+            {
+                resolvedIndex = _uiDestinations.FindIndex(l =>
+                    l != null &&
+                    string.Equals(l.indoor_node_id, previousNodeId, System.StringComparison.OrdinalIgnoreCase) &&
+                    (string.IsNullOrWhiteSpace(previousName) ||
+                     string.Equals(l.name, previousName, System.StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (resolvedIndex < 0 && !string.IsNullOrWhiteSpace(previousName))
+            {
+                resolvedIndex = _uiDestinations.FindIndex(l => l != null &&
+                                                               string.Equals(l.name, previousName, System.StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (resolvedIndex < 0)
+            {
+                resolvedIndex = Mathf.Clamp(previousIndex, 0, _uiDestinations.Count - 1);
+            }
+
+            destinationIndex = resolvedIndex;
+            LocationPoint selected = _uiDestinations[destinationIndex];
+            _selectedDestinationNodeId = selected != null ? selected.indoor_node_id : null;
+            _selectedDestinationName = selected != null ? selected.name : null;
+            _uiDestinationsDirty = false;
+        }
+
+        private string GetCurrentDestinationName()
+        {
+            if (!_locationsLoaded)
+            {
+                return "none";
+            }
+
+            RefreshUIDestinations();
+            if (_uiDestinations.Count == 0)
+            {
+                return "none";
+            }
+
+            int safeIndex = Mathf.Clamp(destinationIndex, 0, _uiDestinations.Count - 1);
+            string name = _uiDestinations[safeIndex].name;
+            return string.IsNullOrWhiteSpace(name) ? "(Unnamed Destination)" : name;
+        }
+
+        private void SetDestinationIndex(int newIndex, bool recalculate)
+        {
+            RefreshUIDestinations();
+            if (_uiDestinations.Count == 0)
+            {
+                return;
+            }
+
+            int clamped = Mathf.Clamp(newIndex, 0, _uiDestinations.Count - 1);
+            if (clamped == destinationIndex && !recalculate)
+            {
+                return;
+            }
+
+            destinationIndex = clamped;
+            LocationPoint selected = _uiDestinations[destinationIndex];
+            _selectedDestinationNodeId = selected != null ? selected.indoor_node_id : null;
+            _selectedDestinationName = selected != null ? selected.name : null;
+            UpdateSelectedDestinationMarker();
+            if (recalculate)
+            {
+                RecalculateCurrentRoute();
+            }
+        }
+
         private void CycleDestination(int step)
         {
-            if (!_locationsLoaded || _locationManager.Locations.Count == 0)
+            RefreshUIDestinations();
+            if (!_locationsLoaded || _uiDestinations.Count == 0)
             {
                 _status = "No destinations available yet.";
                 return;
             }
 
-            int count = _locationManager.Locations.Count;
+            int count = _uiDestinations.Count;
             destinationIndex = (destinationIndex + step) % count;
             if (destinationIndex < 0)
             {
                 destinationIndex += count;
             }
 
-            UpdateSelectedDestinationMarker();
-            RecalculateCurrentRoute();
+            SetDestinationIndex(destinationIndex, recalculate: true);
         }
 
         private void RecalculateCurrentRoute()
@@ -680,13 +965,15 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
-            if (_locationManager == null || _locationManager.Locations.Count == 0)
+            RefreshUIDestinations();
+            if (_uiDestinations.Count == 0)
             {
                 _status = "No destinations loaded yet.";
                 return;
             }
 
-            var destination = _locationManager.Locations[destinationIndex];
+            destinationIndex = Mathf.Clamp(destinationIndex, 0, _uiDestinations.Count - 1);
+            var destination = _uiDestinations[destinationIndex];
             if (_graphLoader != null && _graphLoader.GetNode(destination.indoor_node_id) == null)
             {
                 _status = $"Destination '{destination.name}' has no matching graph node.";
@@ -694,28 +981,58 @@ namespace CDE2501.Wayfinding.UI
             }
 
             ElevationLevel level = _levelManager != null ? _levelManager.CurrentLevel : ElevationLevel.Deck;
-            _resolvedStartNodeId = ResolveStartNodeId();
-            _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destination.indoor_node_id, level);
+            _resolvedStartNodeId = ResolveStartNodeIdForRoute();
+            _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destination.indoor_node_id, level, forceImmediateRouteRefresh);
         }
 
         private void UpdateSelectedDestinationMarker()
         {
-            if (_destinationMarkerVisualizer == null || _locationManager == null || _locationManager.Locations.Count == 0)
+            RefreshUIDestinations();
+            if (_uiDestinations.Count == 0)
             {
                 return;
             }
 
-            if (destinationIndex < 0 || destinationIndex >= _locationManager.Locations.Count)
+            if (destinationIndex < 0 || destinationIndex >= _uiDestinations.Count)
             {
                 return;
             }
 
-            _destinationMarkerVisualizer.SetSelectedDestination(_locationManager.Locations[destinationIndex].name);
+            LocationPoint selected = _uiDestinations[destinationIndex];
+            if (_destinationMarkerVisualizer != null)
+            {
+                _destinationMarkerVisualizer.SetSelectedDestination(selected.name);
+            }
+
+            if (_miniMapOverlay != null)
+            {
+                _miniMapOverlay.SetSelectedDestinationNodeId(selected.indoor_node_id);
+            }
+
+            _selectedDestinationNodeId = selected.indoor_node_id;
+            _selectedDestinationName = selected.name;
+        }
+
+        private string ResolveStartNodeIdForRoute()
+        {
+            string resolved = ResolveStartNodeId();
+            if (!string.IsNullOrWhiteSpace(resolved))
+            {
+                return resolved;
+            }
+
+            return startNodeId;
         }
 
         private string ResolveStartNodeId()
         {
-            if (!useNearestNodeAsStart || _graphLoader == null || _graphLoader.NodesById.Count == 0)
+            if (_graphLoader == null || _graphLoader.NodesById.Count == 0)
+            {
+                return startNodeId;
+            }
+
+            bool useDynamicStart = alwaysRouteFromCurrentPosition || useNearestNodeAsStart;
+            if (!useDynamicStart)
             {
                 return startNodeId;
             }
@@ -726,13 +1043,34 @@ namespace CDE2501.Wayfinding.UI
                 return startNodeId;
             }
 
-            if (baritoneStyleStartResolution)
+            bool filterToCurrentLevel = preferCurrentLevelForStartNode && _levelManager != null;
+            int currentLevel = _levelManager != null ? (int)_levelManager.CurrentLevel : int.MinValue;
+            if (_stableStartLevel != currentLevel)
             {
-                return ResolveBaritoneStyleStartNode(reference);
+                _stableStartNodeId = null;
+                _stableStartLevel = currentLevel;
             }
 
-            string nearest = FindNearestGraphNodeId(reference.position);
-            return string.IsNullOrWhiteSpace(nearest) ? startNodeId : nearest;
+            string candidate;
+            if (baritoneStyleStartResolution)
+            {
+                candidate = ResolveBaritoneStyleStartNode(reference, filterToCurrentLevel);
+                if (string.IsNullOrWhiteSpace(candidate) && filterToCurrentLevel)
+                {
+                    candidate = ResolveBaritoneStyleStartNode(reference, onlyCurrentLevel: false);
+                }
+            }
+            else
+            {
+                candidate = FindNearestGraphNodeId(reference.position, filterToCurrentLevel);
+                if (string.IsNullOrWhiteSpace(candidate) && filterToCurrentLevel)
+                {
+                    candidate = FindNearestGraphNodeId(reference.position, onlyCurrentLevel: false);
+                }
+            }
+
+            string stabilized = StabilizeStartNode(candidate, reference.position);
+            return string.IsNullOrWhiteSpace(stabilized) ? startNodeId : stabilized;
         }
 
         private Transform GetStartReferenceTransform()
@@ -756,7 +1094,7 @@ namespace CDE2501.Wayfinding.UI
             return null;
         }
 
-        private string FindNearestGraphNodeId(Vector3 position)
+        private string FindNearestGraphNodeId(Vector3 position, bool onlyCurrentLevel)
         {
             string bestId = null;
             float bestDist = float.PositiveInfinity;
@@ -764,7 +1102,12 @@ namespace CDE2501.Wayfinding.UI
             foreach (var kvp in _graphLoader.NodesById)
             {
                 Node node = kvp.Value;
-                float d = Vector3.Distance(position, node.position);
+                if (!IsNodeEligibleForStart(node, onlyCurrentLevel))
+                {
+                    continue;
+                }
+
+                float d = HorizontalDistance(position, node.position);
                 if (d < bestDist)
                 {
                     bestDist = d;
@@ -775,7 +1118,7 @@ namespace CDE2501.Wayfinding.UI
             return bestId;
         }
 
-        private string ResolveBaritoneStyleStartNode(Transform reference)
+        private string ResolveBaritoneStyleStartNode(Transform reference, bool onlyCurrentLevel)
         {
             // Mirrors Baritone's idea of "pathStart": choose a plausible nearby support point,
             // not just raw nearest distance, with mild forward/vertical bias.
@@ -784,7 +1127,12 @@ namespace CDE2501.Wayfinding.UI
 
             foreach (var kvp in _graphLoader.NodesById)
             {
-                float d = Vector3.Distance(reference.position, kvp.Value.position);
+                if (!IsNodeEligibleForStart(kvp.Value, onlyCurrentLevel))
+                {
+                    continue;
+                }
+
+                float d = HorizontalDistance(reference.position, kvp.Value.position);
                 if (d < nearestDistance)
                 {
                     nearestDistance = d;
@@ -812,15 +1160,19 @@ namespace CDE2501.Wayfinding.UI
             foreach (var kvp in _graphLoader.NodesById)
             {
                 Node node = kvp.Value;
+                if (!IsNodeEligibleForStart(node, onlyCurrentLevel))
+                {
+                    continue;
+                }
+
                 Vector3 delta = node.position - reference.position;
-                float dist3D = delta.magnitude;
-                if (dist3D > maxCandidateDistance)
+                float distXZ = HorizontalDistance(reference.position, node.position);
+                if (distXZ > maxCandidateDistance)
                 {
                     continue;
                 }
 
                 Vector3 deltaXZ = new Vector3(delta.x, 0f, delta.z);
-                float distXZ = deltaXZ.magnitude;
                 float verticalPenalty = Mathf.Abs(delta.y) * startVerticalPenaltyWeight;
 
                 float forwardBonus = 0f;
@@ -841,25 +1193,71 @@ namespace CDE2501.Wayfinding.UI
             return string.IsNullOrWhiteSpace(bestId) ? nearestId : bestId;
         }
 
-        private bool HasAnyRouteableDestination()
+        private string StabilizeStartNode(string candidateId, Vector3 referencePosition)
         {
-            if (_locationManager == null || _graphLoader == null || _graphLoader.NodesById.Count == 0)
+            if (string.IsNullOrWhiteSpace(candidateId))
+            {
+                return _stableStartNodeId;
+            }
+
+            if (string.IsNullOrWhiteSpace(_stableStartNodeId))
+            {
+                _stableStartNodeId = candidateId;
+                return _stableStartNodeId;
+            }
+
+            if (string.Equals(_stableStartNodeId, candidateId, System.StringComparison.Ordinal))
+            {
+                return _stableStartNodeId;
+            }
+
+            Node currentStable = _graphLoader.GetNode(_stableStartNodeId);
+            Node candidate = _graphLoader.GetNode(candidateId);
+            if (currentStable == null || candidate == null)
+            {
+                _stableStartNodeId = candidateId;
+                return _stableStartNodeId;
+            }
+
+            float stableDist = HorizontalDistance(referencePosition, currentStable.position);
+            float candidateDist = HorizontalDistance(referencePosition, candidate.position);
+            bool stableTooFar = stableDist > startNodeMaxHoldDistanceMeters;
+            bool candidateSignificantlyBetter = candidateDist + startNodeSwitchAdvantageMeters < stableDist;
+
+            if (stableTooFar || candidateSignificantlyBetter)
+            {
+                _stableStartNodeId = candidateId;
+            }
+
+            return _stableStartNodeId;
+        }
+
+        private bool IsNodeEligibleForStart(Node node, bool onlyCurrentLevel)
+        {
+            if (node == null)
             {
                 return false;
             }
 
-            for (int i = 0; i < _locationManager.Locations.Count; i++)
+            if (!onlyCurrentLevel || _levelManager == null)
             {
-                LocationPoint location = _locationManager.Locations[i];
-                if (location != null &&
-                    !string.IsNullOrWhiteSpace(location.indoor_node_id) &&
-                    _graphLoader.GetNode(location.indoor_node_id) != null)
-                {
-                    return true;
-                }
+                return true;
             }
 
-            return false;
+            return node.elevationLevel == (int)_levelManager.CurrentLevel;
+        }
+
+        private static float HorizontalDistance(Vector3 from, Vector3 to)
+        {
+            Vector2 a = new Vector2(from.x, from.z);
+            Vector2 b = new Vector2(to.x, to.z);
+            return Vector2.Distance(a, b);
+        }
+
+        private bool HasAnyRouteableDestination()
+        {
+            RefreshUIDestinations();
+            return _uiDestinations.Count > 0;
         }
 
         private void MaybeAutoRecalculateFromMovement()
@@ -876,7 +1274,8 @@ namespace CDE2501.Wayfinding.UI
 
             _nextStartNodeCheckTime = Time.unscaledTime + Mathf.Max(0.1f, startNodeCheckIntervalSeconds);
 
-            if (_locationManager == null || _locationManager.Locations.Count == 0)
+            RefreshUIDestinations();
+            if (_uiDestinations.Count == 0)
             {
                 return;
             }
@@ -915,7 +1314,8 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
-            if (_locationManager == null || _locationManager.Locations.Count == 0)
+            RefreshUIDestinations();
+            if (_uiDestinations.Count == 0)
             {
                 return;
             }
@@ -932,8 +1332,8 @@ namespace CDE2501.Wayfinding.UI
                 _hasContinuousRefreshBaseline = true;
             }
 
-            bool movedEnough = continuousRefreshMinMoveMeters <= 0f ||
-                               Vector3.Distance(reference.position, _lastContinuousRefreshPosition) >= continuousRefreshMinMoveMeters;
+            float minMove = Mathf.Max(0.2f, continuousRefreshMinMoveMeters);
+            bool movedEnough = HorizontalDistance(reference.position, _lastContinuousRefreshPosition) >= minMove;
             if (!movedEnough)
             {
                 return;
@@ -1008,7 +1408,7 @@ namespace CDE2501.Wayfinding.UI
                     continue;
                 }
 
-                float d = Vector3.Distance(position, node.position);
+                float d = HorizontalDistance(position, node.position);
                 if (d < best)
                 {
                     best = d;

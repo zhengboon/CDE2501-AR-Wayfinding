@@ -63,7 +63,7 @@ namespace CDE2501.Wayfinding.Routing
         [Header("Performance")]
         [SerializeField] private bool enableRouteCache = true;
         [SerializeField, Min(1)] private int maxCacheEntries = 64;
-        [SerializeField, Min(0f)] private float recalcCooldownSeconds = 2f;
+        [SerializeField, Min(0f)] private float recalcCooldownSeconds = 0f;
         [SerializeField] private bool queueRecalculationDuringCooldown = true;
 
         private RoutingProfilesConfig _profilesConfig;
@@ -154,6 +154,11 @@ namespace CDE2501.Wayfinding.Routing
 
         public RouteResult CalculateIndoorRoute(string startNodeId, string endNodeId, ElevationLevel currentLevel)
         {
+            return CalculateIndoorRoute(startNodeId, endNodeId, currentLevel, forceRefresh: false);
+        }
+
+        public RouteResult CalculateIndoorRoute(string startNodeId, string endNodeId, ElevationLevel currentLevel, bool forceRefresh)
+        {
             if (_pathfinder == null)
             {
                 RouteResult failed = RouteResult.Failed("Pathfinder not initialized.");
@@ -179,7 +184,7 @@ namespace CDE2501.Wayfinding.Routing
             };
 
             string cacheKey = BuildCacheKey(request, profile.profileName);
-            if (enableRouteCache && TryGetRouteFromCache(cacheKey, out RouteResult cached))
+            if (!forceRefresh && enableRouteCache && TryGetRouteFromCache(cacheKey, out RouteResult cached))
             {
                 cached.message = "Route loaded from cache.";
                 OnRouteUpdated?.Invoke(cached);
@@ -188,7 +193,7 @@ namespace CDE2501.Wayfinding.Routing
 
             float cooldownRemaining = GetCooldownRemainingSeconds();
             bool sameAsLastRequest = string.Equals(cacheKey, _lastRequestCacheKey, StringComparison.Ordinal);
-            bool cooldownActive = cooldownRemaining > 0f && sameAsLastRequest;
+            bool cooldownActive = !forceRefresh && cooldownRemaining > 0f && sameAsLastRequest;
             if (cooldownActive)
             {
                 if (queueRecalculationDuringCooldown)

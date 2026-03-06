@@ -16,7 +16,7 @@ namespace CDE2501.Wayfinding.Location
         [Header("Movement")]
         [SerializeField] private float moveSpeedMetersPerSecond = 1.2f;
         [SerializeField] private float verticalSpeedMetersPerSecond = 1.2f;
-        [SerializeField, Min(1f)] private float sprintMultiplier = 2.5f;
+        [SerializeField, Min(1f)] private float sprintMultiplier = 8f;
         [SerializeField] private float turnSpeedDegreesPerSecond = 90f;
         [SerializeField] private float pitchSpeedDegreesPerSecond = 80f;
         [SerializeField] private float minPitchDegrees = -80f;
@@ -56,6 +56,11 @@ namespace CDE2501.Wayfinding.Location
 
         private void Awake()
         {
+            if (sprintMultiplier < 8f)
+            {
+                sprintMultiplier = 8f;
+            }
+
             _currentPoint = new GeoPoint(startLatitude, startLongitude);
             _currentHeading = NormalizeHeading(startHeading);
             _currentPitch = 0f;
