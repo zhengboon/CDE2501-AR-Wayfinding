@@ -9,6 +9,30 @@ using UnityEngine.Networking;
 
 namespace CDE2501.Wayfinding.UI
 {
+    [Serializable]
+    public class MapImageMetadata
+    {
+        public int version;
+        public int zoom;
+        public int minTileX;
+        public int maxTileX;
+        public int minTileY;
+        public int maxTileY;
+        public int tileSize = 256;
+        public int tilesX = 1;
+        public int tilesY = 1;
+        public MapGeoBounds geoBounds;
+    }
+
+    [Serializable]
+    public class MapGeoBounds
+    {
+        public double minLat;
+        public double maxLat;
+        public double minLon;
+        public double maxLon;
+    }
+
     public class MiniMapOverlay : MonoBehaviour
     {
         [Header("Data Sources")]
@@ -30,7 +54,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(0f)] private float boundsPaddingMeters = 2f;
         [Header("Map Image")]
         [SerializeField] private bool showMapImage = true;
-        [SerializeField] private string mapImageFileName = "map_tile_z16_x51664_y32532.png";
+        [SerializeField] private string mapImageFileName = "queenstown_map_z18_x206656-206662_y130126-130132.png";
         [SerializeField, Range(0.05f, 1f)] private float mapImageAlpha = 0.75f;
         [Header("Interaction")]
         [SerializeField] private bool enableMapInteraction = true;
@@ -88,8 +112,15 @@ namespace CDE2501.Wayfinding.UI
         private bool _geoMappingReady;
         private bool _tileMetadataReady;
         private int _tileZoom;
-        private int _tileX;
-        private int _tileY;
+        private int _tileMinX;
+        private int _tileMaxX;
+        private int _tileMinY;
+        private int _tileMaxY;
+        private bool _mapMetadataGeoBoundsReady;
+        private double _mapMetadataMinLat;
+        private double _mapMetadataMaxLat;
+        private double _mapMetadataMinLon;
+        private double _mapMetadataMaxLon;
         private bool _geoBoundsFallbackReady;
         private double _geoBoundsMinLat;
         private double _geoBoundsMaxLat;
@@ -178,6 +209,7 @@ namespace CDE2501.Wayfinding.UI
                 RecomputeBounds();
             }
 
+            PreferHigherResolutionMapIfAvailable();
             TryLoadMapTexture();
         }
 
@@ -683,6 +715,50 @@ namespace CDE2501.Wayfinding.UI
             StartCoroutine(LoadMapTextureRoutine());
         }
 
+        private void PreferHigherResolutionMapIfAvailable()
+        {
+            try
+            {
+                if (!mapImageFileName.StartsWith("map_tile_", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                string dataDir = Path.Combine(Application.streamingAssetsPath, "Data");
+                if (!Directory.Exists(dataDir))
+                {
+                    return;
+                }
+
+                string[] candidates = Directory.GetFiles(dataDir, "queenstown_map_z*.png");
+                if (candidates == null || candidates.Length == 0)
+                {
+                    return;
+                }
+
+                string chosenPath = candidates[0];
+                for (int i = 1; i < candidates.Length; i++)
+                {
+                    string candidate = candidates[i];
+                    if (string.Compare(Path.GetFileName(candidate), Path.GetFileName(chosenPath), StringComparison.OrdinalIgnoreCase) > 0)
+                    {
+                        chosenPath = candidate;
+                    }
+                }
+
+                string chosenName = Path.GetFileName(chosenPath);
+                if (!string.IsNullOrWhiteSpace(chosenName))
+                {
+                    mapImageFileName = chosenName;
+                    _geoMappingDirty = true;
+                }
+            }
+            catch (Exception)
+            {
+                // Keep the configured map file if discovery fails.
+            }
+        }
+
         private IEnumerator LoadMapTextureRoutine()
         {
             _isMapTextureLoading = true;
@@ -712,7 +788,153 @@ namespace CDE2501.Wayfinding.UI
                 if (request.result == UnityWebRequest.Result.Success)
                 {
                     _mapTexture = DownloadHandlerTexture.GetContent(request);
+                    ConfigureMapTexture(_mapTexture);
+                    yield return LoadMapMetadataFromPathRoutine(path);
                 }
+            }
+        }
+
+        private static void ConfigureMapTexture(Texture2D texture)
+        {
+            if (texture == null)
+            {
+                return;
+            }
+
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.filterMode = FilterMode.Bilinear;
+            texture.anisoLevel = 4;
+        }
+
+        private IEnumerator LoadMapMetadataFromPathRoutine(string imagePath)
+        {
+            _tileMetadataReady = false;
+            _mapMetadataGeoBoundsReady = false;
+
+            if (!string.IsNullOrWhiteSpace(imagePath))
+            {
+                string metaPath = Path.ChangeExtension(imagePath, ".json");
+                if (!string.IsNullOrWhiteSpace(metaPath))
+                {
+                    using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(metaPath)))
+                    {
+                        yield return request.SendWebRequest();
+                        if (request.result == UnityWebRequest.Result.Success &&
+                            TryParseMapMetadataJson(
+                                request.downloadHandler.text,
+                                out int zoom,
+                                out int minTileX,
+                                out int maxTileX,
+                                out int minTileY,
+                                out int maxTileY,
+                                out bool hasGeoBounds,
+                                out double minLat,
+                                out double maxLat,
+                                out double minLon,
+                                out double maxLon))
+                        {
+                            _tileZoom = zoom;
+                            _tileMinX = minTileX;
+                            _tileMaxX = maxTileX;
+                            _tileMinY = minTileY;
+                            _tileMaxY = maxTileY;
+                            _tileMetadataReady = true;
+                            _mapMetadataGeoBoundsReady = hasGeoBounds;
+                            _mapMetadataMinLat = minLat;
+                            _mapMetadataMaxLat = maxLat;
+                            _mapMetadataMinLon = minLon;
+                            _mapMetadataMaxLon = maxLon;
+                            _geoMappingDirty = true;
+                            yield break;
+                        }
+                    }
+                }
+            }
+
+            if (TryParseTileMetadata(mapImageFileName, out int fileZoom, out int tileX, out int tileY))
+            {
+                _tileZoom = fileZoom;
+                _tileMinX = tileX;
+                _tileMaxX = tileX;
+                _tileMinY = tileY;
+                _tileMaxY = tileY;
+                _tileMetadataReady = true;
+            }
+
+            _geoMappingDirty = true;
+        }
+
+        private static bool TryParseMapMetadataJson(
+            string json,
+            out int zoom,
+            out int minTileX,
+            out int maxTileX,
+            out int minTileY,
+            out int maxTileY,
+            out bool hasGeoBounds,
+            out double minLat,
+            out double maxLat,
+            out double minLon,
+            out double maxLon)
+        {
+            zoom = 0;
+            minTileX = maxTileX = minTileY = maxTileY = 0;
+            hasGeoBounds = false;
+            minLat = maxLat = minLon = maxLon = 0.0;
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return false;
+            }
+
+            try
+            {
+                MapImageMetadata metadata = JsonUtility.FromJson<MapImageMetadata>(json);
+                if (metadata == null)
+                {
+                    return false;
+                }
+
+                zoom = metadata.zoom;
+                minTileX = metadata.minTileX;
+                maxTileX = metadata.maxTileX;
+                minTileY = metadata.minTileY;
+                maxTileY = metadata.maxTileY;
+
+                if (maxTileX < minTileX)
+                {
+                    (minTileX, maxTileX) = (maxTileX, minTileX);
+                }
+
+                if (maxTileY < minTileY)
+                {
+                    (minTileY, maxTileY) = (maxTileY, minTileY);
+                }
+
+                if (zoom <= 0 || minTileX < 0 || minTileY < 0 || maxTileX < minTileX || maxTileY < minTileY)
+                {
+                    return false;
+                }
+
+                MapGeoBounds geoBounds = metadata.geoBounds;
+                if (geoBounds != null &&
+                    !double.IsNaN(geoBounds.minLat) &&
+                    !double.IsNaN(geoBounds.maxLat) &&
+                    !double.IsNaN(geoBounds.minLon) &&
+                    !double.IsNaN(geoBounds.maxLon))
+                {
+                    minLat = Math.Min(geoBounds.minLat, geoBounds.maxLat);
+                    maxLat = Math.Max(geoBounds.minLat, geoBounds.maxLat);
+                    minLon = Math.Min(geoBounds.minLon, geoBounds.maxLon);
+                    maxLon = Math.Max(geoBounds.minLon, geoBounds.maxLon);
+                    hasGeoBounds = (maxLat - minLat) > 1e-9 && (maxLon - minLon) > 1e-9;
+                }
+
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
 
@@ -739,13 +961,32 @@ namespace CDE2501.Wayfinding.UI
             _geoMappingDirty = false;
             _geoMappingReady = false;
             _geoBoundsFallbackReady = false;
-            _tileMetadataReady = TryParseTileMetadata(mapImageFileName, out _tileZoom, out _tileX, out _tileY);
+            if (!_tileMetadataReady)
+            {
+                _tileMetadataReady = TryParseTileMetadata(mapImageFileName, out _tileZoom, out int tileX, out int tileY);
+                if (_tileMetadataReady)
+                {
+                    _tileMinX = tileX;
+                    _tileMaxX = tileX;
+                    _tileMinY = tileY;
+                    _tileMaxY = tileY;
+                }
+            }
+
             if (!useGeoAnchoredAlignment || graphLoader == null || graphLoader.NodesById == null || locationManager == null)
             {
                 return;
             }
 
-            if (useGraphAreaBoundsGeoFallback)
+            if (_mapMetadataGeoBoundsReady)
+            {
+                _geoBoundsFallbackReady = true;
+                _geoBoundsMinLat = _mapMetadataMinLat;
+                _geoBoundsMaxLat = _mapMetadataMaxLat;
+                _geoBoundsMinLon = _mapMetadataMinLon;
+                _geoBoundsMaxLon = _mapMetadataMaxLon;
+            }
+            else if (useGraphAreaBoundsGeoFallback)
             {
                 TryExtractGraphAreaBounds(out _geoBoundsFallbackReady, out _geoBoundsMinLat, out _geoBoundsMaxLat, out _geoBoundsMinLon, out _geoBoundsMaxLon);
             }
@@ -825,7 +1066,7 @@ namespace CDE2501.Wayfinding.UI
             double lon = _lonBias + (_lonXCoef * world.x) + (_lonZCoef * world.z);
             if (_tileMetadataReady)
             {
-                if (!TryLatLonToTileNormalized(lat, lon, _tileZoom, _tileX, _tileY, out tileUV))
+                if (!TryLatLonToTileNormalized(lat, lon, _tileZoom, _tileMinX, _tileMaxX, _tileMinY, _tileMaxY, out tileUV))
                 {
                     return false;
                 }
@@ -856,7 +1097,7 @@ namespace CDE2501.Wayfinding.UI
             double lon;
             if (_tileMetadataReady)
             {
-                if (!TryTileNormalizedToLatLon(tileUV, _tileZoom, _tileX, _tileY, out lat, out lon))
+                if (!TryTileNormalizedToLatLon(tileUV, _tileZoom, _tileMinX, _tileMaxX, _tileMinY, _tileMaxY, out lat, out lon))
                 {
                     return false;
                 }
@@ -1050,10 +1291,23 @@ namespace CDE2501.Wayfinding.UI
             return true;
         }
 
-        private static bool TryLatLonToTileNormalized(double lat, double lon, int zoom, int tileX, int tileY, out Vector2 uv)
+        private static bool TryLatLonToTileNormalized(
+            double lat,
+            double lon,
+            int zoom,
+            int minTileX,
+            int maxTileX,
+            int minTileY,
+            int maxTileY,
+            out Vector2 uv)
         {
             uv = Vector2.zero;
             if (double.IsNaN(lat) || double.IsNaN(lon))
+            {
+                return false;
+            }
+
+            if (maxTileX < minTileX || maxTileY < minTileY)
             {
                 return false;
             }
@@ -1067,20 +1321,45 @@ namespace CDE2501.Wayfinding.UI
             double mercatorY = Math.Log(Math.Tan(latRad) + (1.0 / Math.Cos(latRad)));
             double pixelY = (1.0 - (mercatorY / Math.PI)) * 0.5 * (256.0 * n);
 
-            double localX = pixelX - (tileX * 256.0);
-            double localY = pixelY - (tileY * 256.0);
-            uv = new Vector2((float)(localX / 256.0), (float)(localY / 256.0));
+            double spanX = (maxTileX - minTileX + 1) * 256.0;
+            double spanY = (maxTileY - minTileY + 1) * 256.0;
+            double localX = pixelX - (minTileX * 256.0);
+            double localY = pixelY - (minTileY * 256.0);
+
+            uv = new Vector2(
+                (float)(localX / Math.Max(1.0, spanX)),
+                (float)(localY / Math.Max(1.0, spanY)));
             return true;
         }
 
-        private static bool TryTileNormalizedToLatLon(Vector2 uv, int zoom, int tileX, int tileY, out double lat, out double lon)
+        private static bool TryTileNormalizedToLatLon(
+            Vector2 uv,
+            int zoom,
+            int minTileX,
+            int maxTileX,
+            int minTileY,
+            int maxTileY,
+            out double lat,
+            out double lon)
         {
             lat = 0;
             lon = 0;
 
+            if (maxTileX < minTileX || maxTileY < minTileY)
+            {
+                return false;
+            }
+
+            double spanX = (maxTileX - minTileX + 1) * 256.0;
+            double spanY = (maxTileY - minTileY + 1) * 256.0;
+            if (spanX < 1.0 || spanY < 1.0)
+            {
+                return false;
+            }
+
             double n = Math.Pow(2.0, zoom);
-            double pixelX = (tileX * 256.0) + (Math.Max(0.0, Math.Min(1.0, uv.x)) * 256.0);
-            double pixelY = (tileY * 256.0) + (Math.Max(0.0, Math.Min(1.0, uv.y)) * 256.0);
+            double pixelX = (minTileX * 256.0) + (Math.Max(0.0, Math.Min(1.0, uv.x)) * spanX);
+            double pixelY = (minTileY * 256.0) + (Math.Max(0.0, Math.Min(1.0, uv.y)) * spanY);
 
             lon = (pixelX / (256.0 * n)) * 360.0 - 180.0;
             double mercN = Math.PI - (2.0 * Math.PI * pixelY) / (256.0 * n);

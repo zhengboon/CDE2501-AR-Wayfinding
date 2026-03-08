@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.IO;
 using CDE2501.Wayfinding.IndoorGraph;
@@ -13,8 +14,8 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool followMainCameraIfReferenceMissing = true;
 
         [Header("Tile Source")]
-        [SerializeField] private string tileFileName = "map_tile_z16_x51664_y32532.png";
-        [SerializeField] private int zoomLevel = 16;
+        [SerializeField] private string tileFileName = "queenstown_map_z18_x206656-206662_y130126-130132.png";
+        [SerializeField] private int zoomLevel = 18;
         [SerializeField] private float tileCenterLatitude = 1.2935302390f;
 
         [Header("Placement")]
@@ -33,6 +34,8 @@ namespace CDE2501.Wayfinding.UI
         private Texture2D _texture;
         private bool _graphReady;
         private bool _loadingTexture;
+        private int _tilesX = 1;
+        private int _tilesY = 1;
 
         private void Awake()
         {
@@ -52,6 +55,7 @@ namespace CDE2501.Wayfinding.UI
 
         private void Start()
         {
+            PreferHigherResolutionTileIfAvailable();
             _graphReady = graphLoader != null && graphLoader.NodesById.Count > 0;
             if (_graphReady)
             {
@@ -195,8 +199,8 @@ namespace CDE2501.Wayfinding.UI
             }
 
             float tileMeters = ComputeTileMetersAtLatitude(zoomLevel, tileCenterLatitude);
-            float width = tileMeters;
-            float depth = tileMeters;
+            float width = tileMeters * Mathf.Max(1, _tilesX);
+            float depth = tileMeters * Mathf.Max(1, _tilesY);
 
             if (fitToGraphBounds)
             {
@@ -213,6 +217,7 @@ namespace CDE2501.Wayfinding.UI
             _loadingTexture = true;
             string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", tileFileName);
             string url = ToUnityWebRequestPath(streamingPath);
+            yield return LoadAtlasMetadataRoutine(streamingPath);
 
             using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
             {
@@ -220,7 +225,14 @@ namespace CDE2501.Wayfinding.UI
                 if (request.result == UnityWebRequest.Result.Success)
                 {
                     _texture = DownloadHandlerTexture.GetContent(request);
+                    if (_texture != null)
+                    {
+                        _texture.wrapMode = TextureWrapMode.Clamp;
+                        _texture.filterMode = FilterMode.Bilinear;
+                        _texture.anisoLevel = 4;
+                    }
                     ApplyTexture();
+                    FitQuadToGraph();
                 }
             }
 
@@ -258,6 +270,112 @@ namespace CDE2501.Wayfinding.UI
             const double earthCircumference = 40075016.686;
             double metersPerPixel = System.Math.Cos(latitude * Mathf.Deg2Rad) * earthCircumference / (System.Math.Pow(2, zoom) * 256.0);
             return (float)(metersPerPixel * 256.0);
+        }
+
+        private void PreferHigherResolutionTileIfAvailable()
+        {
+            try
+            {
+                if (!tileFileName.StartsWith("map_tile_", StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                string dataDir = Path.Combine(Application.streamingAssetsPath, "Data");
+                if (!Directory.Exists(dataDir))
+                {
+                    return;
+                }
+
+                string[] candidates = Directory.GetFiles(dataDir, "queenstown_map_z*.png");
+                if (candidates == null || candidates.Length == 0)
+                {
+                    return;
+                }
+
+                string chosen = candidates[0];
+                for (int i = 1; i < candidates.Length; i++)
+                {
+                    if (string.Compare(Path.GetFileName(candidates[i]), Path.GetFileName(chosen), StringComparison.OrdinalIgnoreCase) > 0)
+                    {
+                        chosen = candidates[i];
+                    }
+                }
+
+                string chosenName = Path.GetFileName(chosen);
+                if (!string.IsNullOrWhiteSpace(chosenName))
+                {
+                    tileFileName = chosenName;
+                }
+            }
+            catch (Exception)
+            {
+                // Keep configured tile when discovery fails.
+            }
+        }
+
+        private IEnumerator LoadAtlasMetadataRoutine(string imagePath)
+        {
+            _tilesX = 1;
+            _tilesY = 1;
+            if (string.IsNullOrWhiteSpace(imagePath))
+            {
+                yield break;
+            }
+
+            string metadataPath = Path.ChangeExtension(imagePath, ".json");
+            if (string.IsNullOrWhiteSpace(metadataPath))
+            {
+                yield break;
+            }
+
+            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(metadataPath)))
+            {
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    yield break;
+                }
+
+                try
+                {
+                    MapImageMetadata metadata = JsonUtility.FromJson<MapImageMetadata>(request.downloadHandler.text);
+                    if (metadata == null)
+                    {
+                        yield break;
+                    }
+
+                    if (metadata.zoom > 0)
+                    {
+                        zoomLevel = metadata.zoom;
+                    }
+
+                    int tilesX = metadata.tilesX;
+                    int tilesY = metadata.tilesY;
+                    if (tilesX <= 0 && metadata.maxTileX >= metadata.minTileX)
+                    {
+                        tilesX = (metadata.maxTileX - metadata.minTileX) + 1;
+                    }
+
+                    if (tilesY <= 0 && metadata.maxTileY >= metadata.minTileY)
+                    {
+                        tilesY = (metadata.maxTileY - metadata.minTileY) + 1;
+                    }
+
+                    _tilesX = Mathf.Max(1, tilesX);
+                    _tilesY = Mathf.Max(1, tilesY);
+
+                    if (metadata.geoBounds != null)
+                    {
+                        tileCenterLatitude = (float)((metadata.geoBounds.minLat + metadata.geoBounds.maxLat) * 0.5);
+                    }
+                }
+                catch (Exception)
+                {
+                    _tilesX = 1;
+                    _tilesY = 1;
+                }
+            }
         }
 
         private static string ToUnityWebRequestPath(string path)

@@ -11,6 +11,7 @@ namespace CDE2501.Wayfinding.Routing
         [SerializeField] private GraphLoader graphLoader;
         [SerializeField] private Transform startReferenceTransform;
         [SerializeField] private bool includeStartReferenceSegment = true;
+        [SerializeField] private bool anchorPathStartToPlayer = true;
         [SerializeField] private bool followMainCameraIfReferenceMissing = true;
         [SerializeField] private bool renderAtUserFeet = true;
         [SerializeField] private float feetYOffset = -1.6f;
@@ -161,11 +162,23 @@ namespace CDE2501.Wayfinding.Routing
             }
 
             int currentIndex = FindNearestPathIndex(_compressedPathPoints, startReferenceTransform);
-            int segmentStart = Mathf.Clamp(currentIndex - Mathf.Max(0, lookBackNodes), 0, Mathf.Max(0, _compressedPathPoints.Count - 1));
+            int segmentStart = anchorPathStartToPlayer
+                ? Mathf.Clamp(currentIndex, 0, Mathf.Max(0, _compressedPathPoints.Count - 1))
+                : Mathf.Clamp(currentIndex - Mathf.Max(0, lookBackNodes), 0, Mathf.Max(0, _compressedPathPoints.Count - 1));
             int segmentEnd = Mathf.Clamp(currentIndex + Mathf.Max(1, lookAheadNodes), 0, Mathf.Max(0, _compressedPathPoints.Count - 1));
 
             FillSegment(_compressedPathPoints, segmentStart, segmentEnd, _currentSegmentPoints);
             FillSegment(_compressedPathPoints, segmentEnd, _compressedPathPoints.Count - 1, _futureSegmentPoints);
+
+            if (anchorPathStartToPlayer && startReferenceTransform != null && _currentSegmentPoints.Count > 0)
+            {
+                Vector3 startPos = startReferenceTransform.position;
+                startPos.y = routeY;
+                if (HorizontalDistance(startPos, _currentSegmentPoints[0]) > 0.02f)
+                {
+                    _currentSegmentPoints.Insert(0, startPos);
+                }
+            }
 
             ApplySegmentToLine(_currentLine, _currentSegmentPoints, currentLineWidth, currentPathColor, enableFade: false);
             ApplySegmentToLine(_futureLine, _futureSegmentPoints, futureLineWidth, futurePathColor, fadeFuturePath);
@@ -174,7 +187,7 @@ namespace CDE2501.Wayfinding.Routing
 
         private void DrawConnector(float routeY, int nearestPathIndex)
         {
-            if (!includeStartReferenceSegment || startReferenceTransform == null || _compressedPathPoints.Count == 0)
+            if (!includeStartReferenceSegment || anchorPathStartToPlayer || startReferenceTransform == null || _compressedPathPoints.Count == 0)
             {
                 _connectorLine.positionCount = 0;
                 return;
