@@ -15,6 +15,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private GraphLoader graphLoader;
         [SerializeField] private RouteCalculator routeCalculator;
         [SerializeField] private LocationManager locationManager;
+        [SerializeField] private BoundaryConstraintManager boundaryConstraintManager;
         [SerializeField] private Transform startReferenceTransform;
         [SerializeField] private bool followMainCameraIfReferenceMissing = true;
 
@@ -33,12 +34,18 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Range(0.05f, 1f)] private float mapImageAlpha = 0.75f;
         [Header("Interaction")]
         [SerializeField] private bool enableMapInteraction = true;
+        [SerializeField] private bool allowRightDragToMoveWindow = true;
         [SerializeField, Min(1f)] private float minMapZoom = 1f;
         [SerializeField, Min(1f)] private float maxMapZoom = 6f;
         [SerializeField, Range(0.01f, 1f)] private float zoomStep = 0.2f;
+        [SerializeField] private bool followPlayer = true;
+        [SerializeField] private bool disableFollowWhileDragging = true;
+        [SerializeField, Min(1f)] private float zoomSmoothSpeed = 14f;
+        [SerializeField, Min(1f)] private float panSmoothSpeed = 16f;
         [Header("Alignment")]
         [SerializeField] private bool useGeoAnchoredAlignment = true;
         [SerializeField] private bool enableManualAlignment = true;
+        [SerializeField] private bool useGraphAreaBoundsGeoFallback = true;
         [SerializeField] private float worldToMapRotationDegrees = 0f;
         [SerializeField] private Vector2 worldToMapScale = Vector2.one;
         [SerializeField] private Vector2 worldToMapOffsetMeters = Vector2.zero;
@@ -47,6 +54,9 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(0f)] private float miniMapHoverSearchRadiusMeters = 14f;
         [SerializeField, Min(1f)] private float screenHoverPixelRadius = 26f;
         [SerializeField] private Vector2 hoverTooltipOffset = new Vector2(14f, 16f);
+        [SerializeField, Min(0f)] private float miniMapClickSelectRadiusMeters = 22f;
+        [SerializeField, Min(0.05f)] private float miniMapClickMaxDurationSeconds = 0.35f;
+        [SerializeField, Min(1f)] private float miniMapClickDragThresholdPixels = 8f;
 
         [Header("Style")]
         [SerializeField] private Color mapBackgroundColor = new Color(0f, 0f, 0f, 0.58f);
@@ -66,7 +76,9 @@ namespace CDE2501.Wayfinding.UI
         private Rect _panelRect;
         private bool _panelRectInitialized;
         private float _mapZoom = 1f;
+        private float _targetMapZoom = 1f;
         private Vector2 _mapPanPixels;
+        private Vector2 _targetMapPanPixels;
         private bool _isPanningMap;
         private Vector2 _lastPanMousePosition;
         private bool _isResizingPanel;
@@ -78,6 +90,11 @@ namespace CDE2501.Wayfinding.UI
         private int _tileZoom;
         private int _tileX;
         private int _tileY;
+        private bool _geoBoundsFallbackReady;
+        private double _geoBoundsMinLat;
+        private double _geoBoundsMaxLat;
+        private double _geoBoundsMinLon;
+        private double _geoBoundsMaxLon;
         private double _latBias;
         private double _latXCoef;
         private double _latZCoef;
@@ -96,6 +113,12 @@ namespace CDE2501.Wayfinding.UI
         private float _minZ;
         private float _maxZ;
         private bool _boundsValid;
+        private bool _clickCandidate;
+        private Vector2 _clickDownMousePosition;
+        private float _clickDownTime;
+        private bool _isWindowDragFromMap;
+
+        public event Action<string, string> OnDestinationNodeClicked;
 
         private void Awake()
         {
@@ -114,7 +137,15 @@ namespace CDE2501.Wayfinding.UI
                 locationManager = FindObjectOfType<LocationManager>();
             }
 
+            if (boundaryConstraintManager == null)
+            {
+                boundaryConstraintManager = FindObjectOfType<BoundaryConstraintManager>();
+            }
+
             EnsurePixelTexture();
+            _mapZoom = Mathf.Max(1f, _mapZoom);
+            _targetMapZoom = _mapZoom;
+            _targetMapPanPixels = _mapPanPixels;
         }
 
         private void OnEnable()
@@ -132,6 +163,11 @@ namespace CDE2501.Wayfinding.UI
             if (locationManager != null)
             {
                 locationManager.OnLocationsChanged += HandleLocationsChanged;
+            }
+
+            if (boundaryConstraintManager != null)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated += HandleBoundaryUpdated;
             }
         }
 
@@ -155,6 +191,10 @@ namespace CDE2501.Wayfinding.UI
 
         private void OnDisable()
         {
+            _isWindowDragFromMap = false;
+            _isPanningMap = false;
+            _clickCandidate = false;
+
             if (graphLoader != null)
             {
                 graphLoader.OnGraphLoaded -= HandleGraphLoaded;
@@ -168,6 +208,11 @@ namespace CDE2501.Wayfinding.UI
             if (locationManager != null)
             {
                 locationManager.OnLocationsChanged -= HandleLocationsChanged;
+            }
+
+            if (boundaryConstraintManager != null)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated -= HandleBoundaryUpdated;
             }
         }
 
@@ -221,6 +266,20 @@ namespace CDE2501.Wayfinding.UI
             _geoMappingDirty = true;
         }
 
+        public void SetBoundaryConstraintManager(BoundaryConstraintManager manager)
+        {
+            if (boundaryConstraintManager != null)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated -= HandleBoundaryUpdated;
+            }
+
+            boundaryConstraintManager = manager;
+            if (boundaryConstraintManager != null && isActiveAndEnabled)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated += HandleBoundaryUpdated;
+            }
+        }
+
         public void SetSelectedDestinationNodeId(string nodeId)
         {
             _selectedDestinationNodeId = nodeId;
@@ -236,6 +295,11 @@ namespace CDE2501.Wayfinding.UI
         }
 
         private void HandleLocationsChanged()
+        {
+            _geoMappingDirty = true;
+        }
+
+        private void HandleBoundaryUpdated()
         {
             _geoMappingDirty = true;
         }
@@ -271,9 +335,9 @@ namespace CDE2501.Wayfinding.UI
         {
             HandleWindowResize();
 
-            Rect mapRect = new Rect(8f, 24f, _panelRect.width - 16f, _panelRect.height - 32f);
+            Rect mapRect = new Rect(8f, 28f, _panelRect.width - 16f, _panelRect.height - 36f);
             HandleMapInteraction(mapRect);
-            ClampMapPan(mapRect.size);
+            UpdateMapView(mapRect.size);
 
             DrawFilledRect(mapRect, mapBackgroundColor);
             DrawMapImageBackground(mapRect);
@@ -289,7 +353,7 @@ namespace CDE2501.Wayfinding.UI
             DrawMapControlButtons(mapRect);
             DrawResizeHandle();
 
-            GUI.DragWindow(new Rect(0f, 0f, _panelRect.width, 22f));
+            GUI.DragWindow(new Rect(0f, 0f, _panelRect.width, 28f));
         }
 
         private void HandleWindowResize()
@@ -384,6 +448,11 @@ namespace CDE2501.Wayfinding.UI
                     continue;
                 }
 
+                if (!IsNodeVisible(edge.fromNode) || !IsNodeVisible(edge.toNode))
+                {
+                    continue;
+                }
+
                 Vector2 a = WorldToMiniMap(from.position, mapSize);
                 Vector2 b = WorldToMiniMap(to.position, mapSize);
                 DrawLine(a, b, edgeColor, edgeLineThickness);
@@ -398,7 +467,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             Node firstNode = graphLoader.GetNode(_lastRoute.nodePath[0]);
-            if (firstNode != null && startReferenceTransform != null)
+            if (firstNode != null && startReferenceTransform != null && IsNodeVisible(_lastRoute.nodePath[0]))
             {
                 Vector2 player = WorldToMiniMap(startReferenceTransform.position, mapSize);
                 Vector2 first = WorldToMiniMap(firstNode.position, mapSize);
@@ -410,6 +479,11 @@ namespace CDE2501.Wayfinding.UI
                 Node from = graphLoader.GetNode(_lastRoute.nodePath[i]);
                 Node to = graphLoader.GetNode(_lastRoute.nodePath[i + 1]);
                 if (from == null || to == null)
+                {
+                    continue;
+                }
+
+                if (!IsNodeVisible(_lastRoute.nodePath[i]) || !IsNodeVisible(_lastRoute.nodePath[i + 1]))
                 {
                     continue;
                 }
@@ -443,6 +517,11 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            if (!IsNodeVisible(destinationNodeId))
+            {
+                return;
+            }
+
             Vector2 p = WorldToMiniMap(destinationNode.position, mapSize);
             DrawCircle(p, markerRadius + 1f, destinationColor);
         }
@@ -460,22 +539,7 @@ namespace CDE2501.Wayfinding.UI
 
         private Vector2 WorldToMiniMap(Vector3 world, Vector2 mapSize)
         {
-            Vector2 basePoint;
-            if (useGeoAnchoredAlignment && TryWorldToTileNormalized(world, out Vector2 uv))
-            {
-                basePoint = new Vector2(
-                    Mathf.Clamp01(uv.x) * mapSize.x,
-                    Mathf.Clamp01(uv.y) * mapSize.y);
-            }
-            else
-            {
-                Vector2 adjustedWorld = ApplyWorldToMapAlignment(new Vector2(world.x, world.z));
-                float nx = Mathf.InverseLerp(_minX, _maxX, adjustedWorld.x);
-                float nz = Mathf.InverseLerp(_minZ, _maxZ, adjustedWorld.y);
-                basePoint = new Vector2(nx * mapSize.x, (1f - nz) * mapSize.y);
-            }
-
-            return ApplyMapViewTransform(basePoint, mapSize);
+            return ApplyMapViewTransform(WorldToMiniMapBase(world, mapSize), mapSize);
         }
 
         private void RecomputeBounds()
@@ -674,8 +738,19 @@ namespace CDE2501.Wayfinding.UI
 
             _geoMappingDirty = false;
             _geoMappingReady = false;
+            _geoBoundsFallbackReady = false;
             _tileMetadataReady = TryParseTileMetadata(mapImageFileName, out _tileZoom, out _tileX, out _tileY);
-            if (!useGeoAnchoredAlignment || !_tileMetadataReady || graphLoader == null || graphLoader.NodesById == null || locationManager == null)
+            if (!useGeoAnchoredAlignment || graphLoader == null || graphLoader.NodesById == null || locationManager == null)
+            {
+                return;
+            }
+
+            if (useGraphAreaBoundsGeoFallback)
+            {
+                TryExtractGraphAreaBounds(out _geoBoundsFallbackReady, out _geoBoundsMinLat, out _geoBoundsMaxLat, out _geoBoundsMinLon, out _geoBoundsMaxLon);
+            }
+
+            if (!_tileMetadataReady && !_geoBoundsFallbackReady)
             {
                 return;
             }
@@ -710,17 +785,27 @@ namespace CDE2501.Wayfinding.UI
 
             if (worldSamples.Count < 3)
             {
-                return;
+                if (!TryBuildAffineFromBounds(worldSamples, geoSamples))
+                {
+                    return;
+                }
             }
-
-            if (!TryFitAffine(worldSamples, geoSamples, out _latBias, out _latXCoef, out _latZCoef,
-                              out _lonBias, out _lonXCoef, out _lonZCoef))
+            else if (!TryFitAffine(worldSamples, geoSamples, out _latBias, out _latXCoef, out _latZCoef,
+                                   out _lonBias, out _lonXCoef, out _lonZCoef))
             {
                 return;
             }
 
-            if (!TryFitAffine(geoSamples, worldSamples, out _xBias, out _xLatCoef, out _xLonCoef,
+            if (worldSamples.Count >= 3 &&
+                !TryFitAffine(geoSamples, worldSamples, out _xBias, out _xLatCoef, out _xLonCoef,
                               out _zBias, out _zLatCoef, out _zLonCoef))
+            {
+                if (!TryBuildInverseAffineFromBounds())
+                {
+                    return;
+                }
+            }
+            else if (worldSamples.Count < 3 && !TryBuildInverseAffineFromBounds())
             {
                 return;
             }
@@ -731,14 +816,27 @@ namespace CDE2501.Wayfinding.UI
         private bool TryWorldToTileNormalized(Vector3 world, out Vector2 tileUV)
         {
             tileUV = Vector2.zero;
-            if (!_geoMappingReady || !_tileMetadataReady)
+            if (!_geoMappingReady)
             {
                 return false;
             }
 
             double lat = _latBias + (_latXCoef * world.x) + (_latZCoef * world.z);
             double lon = _lonBias + (_lonXCoef * world.x) + (_lonZCoef * world.z);
-            if (!TryLatLonToTileNormalized(lat, lon, _tileZoom, _tileX, _tileY, out tileUV))
+            if (_tileMetadataReady)
+            {
+                if (!TryLatLonToTileNormalized(lat, lon, _tileZoom, _tileX, _tileY, out tileUV))
+                {
+                    return false;
+                }
+            }
+            else if (_geoBoundsFallbackReady)
+            {
+                float u = Mathf.InverseLerp((float)_geoBoundsMinLon, (float)_geoBoundsMaxLon, (float)lon);
+                float v = 1f - Mathf.InverseLerp((float)_geoBoundsMinLat, (float)_geoBoundsMaxLat, (float)lat);
+                tileUV = new Vector2(u, v);
+            }
+            else
             {
                 return false;
             }
@@ -749,12 +847,28 @@ namespace CDE2501.Wayfinding.UI
         private bool TryTileNormalizedToWorld(Vector2 tileUV, out Vector3 world)
         {
             world = Vector3.zero;
-            if (!_geoMappingReady || !_tileMetadataReady)
+            if (!_geoMappingReady)
             {
                 return false;
             }
 
-            if (!TryTileNormalizedToLatLon(tileUV, _tileZoom, _tileX, _tileY, out double lat, out double lon))
+            double lat;
+            double lon;
+            if (_tileMetadataReady)
+            {
+                if (!TryTileNormalizedToLatLon(tileUV, _tileZoom, _tileX, _tileY, out lat, out lon))
+                {
+                    return false;
+                }
+            }
+            else if (_geoBoundsFallbackReady)
+            {
+                float u = Mathf.Clamp01(tileUV.x);
+                float v = Mathf.Clamp01(tileUV.y);
+                lon = Mathf.Lerp((float)_geoBoundsMinLon, (float)_geoBoundsMaxLon, u);
+                lat = Mathf.Lerp((float)_geoBoundsMaxLat, (float)_geoBoundsMinLat, v);
+            }
+            else
             {
                 return false;
             }
@@ -797,6 +911,143 @@ namespace CDE2501.Wayfinding.UI
             return int.TryParse(zStr, out zoom) &&
                    int.TryParse(xStr, out x) &&
                    int.TryParse(yStr, out y);
+        }
+
+        private void TryExtractGraphAreaBounds(
+            out bool ready,
+            out double minLat,
+            out double maxLat,
+            out double minLon,
+            out double maxLon)
+        {
+            ready = false;
+            minLat = maxLat = minLon = maxLon = 0.0;
+
+            GraphData data = graphLoader != null ? graphLoader.GraphData : null;
+            GraphMetadata metadata = data != null ? data.metadata : null;
+            GraphAreaBounds area = metadata != null ? metadata.areaBounds : null;
+            if (area == null)
+            {
+                return;
+            }
+
+            if (double.IsNaN(area.minLat) || double.IsNaN(area.maxLat) || double.IsNaN(area.minLon) || double.IsNaN(area.maxLon))
+            {
+                return;
+            }
+
+            minLat = Math.Min(area.minLat, area.maxLat);
+            maxLat = Math.Max(area.minLat, area.maxLat);
+            minLon = Math.Min(area.minLon, area.maxLon);
+            maxLon = Math.Max(area.minLon, area.maxLon);
+            if ((maxLat - minLat) < 1e-9 || (maxLon - minLon) < 1e-9)
+            {
+                return;
+            }
+
+            ready = true;
+        }
+
+        private bool TryBuildAffineFromBounds(
+            System.Collections.Generic.List<Vector2> worldSamples,
+            System.Collections.Generic.List<Vector2> geoSamples)
+        {
+            if (!_geoBoundsFallbackReady || !_boundsValid)
+            {
+                return false;
+            }
+
+            float spanX = _maxX - _minX;
+            float spanZ = _maxZ - _minZ;
+            if (spanX < 0.0001f || spanZ < 0.0001f)
+            {
+                return false;
+            }
+
+            bool invertX = false;
+            bool invertZ = false;
+            if (worldSamples != null && geoSamples != null && worldSamples.Count > 0 && worldSamples.Count == geoSamples.Count)
+            {
+                float errXDirect = 0f;
+                float errXInvert = 0f;
+                float errZDirect = 0f;
+                float errZInvert = 0f;
+
+                for (int i = 0; i < worldSamples.Count; i++)
+                {
+                    float nx = Mathf.InverseLerp(_minX, _maxX, worldSamples[i].x);
+                    float nz = Mathf.InverseLerp(_minZ, _maxZ, worldSamples[i].y);
+
+                    float lonDirect = Mathf.Lerp((float)_geoBoundsMinLon, (float)_geoBoundsMaxLon, nx);
+                    float lonInvert = Mathf.Lerp((float)_geoBoundsMaxLon, (float)_geoBoundsMinLon, nx);
+                    float latDirect = Mathf.Lerp((float)_geoBoundsMinLat, (float)_geoBoundsMaxLat, nz);
+                    float latInvert = Mathf.Lerp((float)_geoBoundsMaxLat, (float)_geoBoundsMinLat, nz);
+
+                    errXDirect += Mathf.Abs(lonDirect - geoSamples[i].y);
+                    errXInvert += Mathf.Abs(lonInvert - geoSamples[i].y);
+                    errZDirect += Mathf.Abs(latDirect - geoSamples[i].x);
+                    errZInvert += Mathf.Abs(latInvert - geoSamples[i].x);
+                }
+
+                invertX = errXInvert < errXDirect;
+                invertZ = errZInvert < errZDirect;
+            }
+
+            double lonMin = invertX ? _geoBoundsMaxLon : _geoBoundsMinLon;
+            double lonMax = invertX ? _geoBoundsMinLon : _geoBoundsMaxLon;
+            double latMin = invertZ ? _geoBoundsMaxLat : _geoBoundsMinLat;
+            double latMax = invertZ ? _geoBoundsMinLat : _geoBoundsMaxLat;
+
+            _lonXCoef = (lonMax - lonMin) / spanX;
+            _lonZCoef = 0.0;
+            _lonBias = lonMin - (_lonXCoef * _minX);
+
+            _latXCoef = 0.0;
+            _latZCoef = (latMax - latMin) / spanZ;
+            _latBias = latMin - (_latZCoef * _minZ);
+            return true;
+        }
+
+        private bool TryBuildInverseAffineFromBounds()
+        {
+            if (!_boundsValid)
+            {
+                return false;
+            }
+
+            double det = (_latXCoef * _lonZCoef) - (_latZCoef * _lonXCoef);
+            if (Math.Abs(det) < 1e-12)
+            {
+                if (!_geoBoundsFallbackReady)
+                {
+                    return false;
+                }
+
+                double lonSpan = _geoBoundsMaxLon - _geoBoundsMinLon;
+                double latSpan = _geoBoundsMaxLat - _geoBoundsMinLat;
+                if (Math.Abs(lonSpan) < 1e-12 || Math.Abs(latSpan) < 1e-12)
+                {
+                    return false;
+                }
+
+                _xLatCoef = 0.0;
+                _xLonCoef = (_maxX - _minX) / lonSpan;
+                _xBias = _minX - (_xLonCoef * _geoBoundsMinLon);
+
+                _zLonCoef = 0.0;
+                _zLatCoef = (_maxZ - _minZ) / latSpan;
+                _zBias = _minZ - (_zLatCoef * _geoBoundsMinLat);
+                return true;
+            }
+
+            _xLatCoef = _lonZCoef / det;
+            _xLonCoef = -_latZCoef / det;
+            _zLatCoef = -_lonXCoef / det;
+            _zLonCoef = _latXCoef / det;
+
+            _xBias = -((_xLatCoef * _latBias) + (_xLonCoef * _lonBias));
+            _zBias = -((_zLatCoef * _latBias) + (_zLonCoef * _lonBias));
+            return true;
         }
 
         private static bool TryLatLonToTileNormalized(double lat, double lon, int zoom, int tileX, int tileY, out Vector2 uv)
@@ -1007,18 +1258,26 @@ namespace CDE2501.Wayfinding.UI
 
             if (GUI.Button(plusRect, "+"))
             {
-                SetMapZoom(_mapZoom * (1f + zoomStep), mapRect.size, mapRect.size * 0.5f);
+                SetMapZoom(_targetMapZoom * (1f + zoomStep), mapRect.size, mapRect.size * 0.5f);
             }
 
             if (GUI.Button(minusRect, "-"))
             {
-                SetMapZoom(_mapZoom / (1f + zoomStep), mapRect.size, mapRect.size * 0.5f);
+                SetMapZoom(_targetMapZoom / (1f + zoomStep), mapRect.size, mapRect.size * 0.5f);
             }
 
             if (GUI.Button(centerRect, "C"))
             {
                 _mapPanPixels = Vector2.zero;
+                _targetMapPanPixels = Vector2.zero;
                 SetMapZoom(1f, mapRect.size, mapRect.size * 0.5f);
+            }
+
+            Rect followRect = new Rect(mapRect.x + 6f, mapRect.y + 6f, 34f, 20f);
+            bool newFollow = GUI.Toggle(followRect, followPlayer, "F");
+            if (newFollow != followPlayer)
+            {
+                followPlayer = newFollow;
             }
         }
 
@@ -1039,12 +1298,36 @@ namespace CDE2501.Wayfinding.UI
             bool mouseInsideMap = mapRect.Contains(mouse);
             bool mouseOnControls = IsPointOnMapControls(mapRect, mouse);
 
+            if (allowRightDragToMoveWindow)
+            {
+                if (e.type == EventType.MouseDown && e.button == 1 && mouseInsideMap && !mouseOnControls)
+                {
+                    _isWindowDragFromMap = true;
+                    e.Use();
+                    return;
+                }
+
+                if (e.type == EventType.MouseDrag && _isWindowDragFromMap)
+                {
+                    _panelRect.position += e.delta;
+                    e.Use();
+                    return;
+                }
+
+                if (e.type == EventType.MouseUp && _isWindowDragFromMap && e.button == 1)
+                {
+                    _isWindowDragFromMap = false;
+                    e.Use();
+                    return;
+                }
+            }
+
             if (mouseInsideMap && !mouseOnControls && e.type == EventType.ScrollWheel)
             {
                 float direction = -Mathf.Sign(e.delta.y);
                 float targetZoom = direction > 0f
-                    ? _mapZoom * (1f + zoomStep)
-                    : _mapZoom / (1f + zoomStep);
+                    ? _targetMapZoom * (1f + zoomStep)
+                    : _targetMapZoom / (1f + zoomStep);
 
                 Vector2 pivotLocal = mouse - mapRect.position;
                 SetMapZoom(targetZoom, mapRect.size, pivotLocal);
@@ -1055,6 +1338,13 @@ namespace CDE2501.Wayfinding.UI
             if (e.type == EventType.MouseDown && e.button == 0 && mouseInsideMap && !mouseOnControls)
             {
                 _isPanningMap = true;
+                _clickCandidate = true;
+                _clickDownMousePosition = mouse;
+                _clickDownTime = Time.unscaledTime;
+                if (disableFollowWhileDragging)
+                {
+                    followPlayer = false;
+                }
                 _lastPanMousePosition = mouse;
                 e.Use();
                 return;
@@ -1064,15 +1354,36 @@ namespace CDE2501.Wayfinding.UI
             {
                 Vector2 delta = mouse - _lastPanMousePosition;
                 _lastPanMousePosition = mouse;
-                _mapPanPixels += delta;
-                ClampMapPan(mapRect.size);
+                _targetMapPanPixels += delta;
+                ClampMapPan(ref _targetMapPanPixels, _targetMapZoom, mapRect.size);
+
+                if (_clickCandidate &&
+                    Vector2.Distance(mouse, _clickDownMousePosition) > Mathf.Max(1f, miniMapClickDragThresholdPixels))
+                {
+                    _clickCandidate = false;
+                }
+
                 e.Use();
                 return;
             }
 
             if (e.type == EventType.MouseUp && _isPanningMap)
             {
+                bool isClick =
+                    _clickCandidate &&
+                    mouseInsideMap &&
+                    !mouseOnControls &&
+                    (Time.unscaledTime - _clickDownTime) <= Mathf.Max(0.05f, miniMapClickMaxDurationSeconds);
+
                 _isPanningMap = false;
+                _clickCandidate = false;
+
+                if (isClick)
+                {
+                    Vector2 local = mouse - mapRect.position;
+                    TrySelectDestinationFromMiniMap(local, mapRect.size);
+                }
+
                 e.Use();
             }
         }
@@ -1084,7 +1395,8 @@ namespace CDE2501.Wayfinding.UI
             Rect plusRect = new Rect(mapRect.xMax - (buttonSize * 3f) - (padding * 2f), mapRect.y + padding, buttonSize, buttonSize);
             Rect minusRect = new Rect(mapRect.xMax - (buttonSize * 2f) - padding, mapRect.y + padding, buttonSize, buttonSize);
             Rect centerRect = new Rect(mapRect.xMax - buttonSize - 1f, mapRect.y + padding, buttonSize, buttonSize);
-            return plusRect.Contains(point) || minusRect.Contains(point) || centerRect.Contains(point);
+            Rect followRect = new Rect(mapRect.x + 6f, mapRect.y + 6f, 34f, 20f);
+            return plusRect.Contains(point) || minusRect.Contains(point) || centerRect.Contains(point) || followRect.Contains(point);
         }
 
         private void SetMapZoom(float targetZoom, Vector2 mapSize, Vector2 pivotLocal)
@@ -1092,32 +1404,56 @@ namespace CDE2501.Wayfinding.UI
             float clampedMin = Mathf.Max(1f, minMapZoom);
             float clampedMax = Mathf.Max(clampedMin, maxMapZoom);
             float newZoom = Mathf.Clamp(targetZoom, clampedMin, clampedMax);
-            if (Mathf.Approximately(newZoom, _mapZoom))
+            if (Mathf.Approximately(newZoom, _targetMapZoom))
             {
                 return;
             }
 
             Vector2 center = mapSize * 0.5f;
-            Vector2 before = pivotLocal - center - _mapPanPixels;
-            Vector2 scaledBefore = before * (newZoom / _mapZoom);
-            _mapPanPixels = pivotLocal - center - scaledBefore;
-            _mapZoom = newZoom;
-            ClampMapPan(mapSize);
+            Vector2 before = pivotLocal - center - _targetMapPanPixels;
+            float oldZoom = Mathf.Max(0.0001f, _targetMapZoom);
+            Vector2 scaledBefore = before * (newZoom / oldZoom);
+            _targetMapPanPixels = pivotLocal - center - scaledBefore;
+            _targetMapZoom = newZoom;
+            ClampMapPan(ref _targetMapPanPixels, _targetMapZoom, mapSize);
         }
 
-        private void ClampMapPan(Vector2 mapSize)
+        private void UpdateMapView(Vector2 mapSize)
         {
-            if (_mapZoom <= 1.0001f)
+            float clampedMin = Mathf.Max(1f, minMapZoom);
+            float clampedMax = Mathf.Max(clampedMin, maxMapZoom);
+            _targetMapZoom = Mathf.Clamp(_targetMapZoom, clampedMin, clampedMax);
+
+            bool allowFollow = followPlayer && !_isPanningMap && !_isResizingPanel;
+            if (allowFollow && startReferenceTransform != null)
             {
-                _mapZoom = 1f;
-                _mapPanPixels = Vector2.zero;
+                Vector2 center = mapSize * 0.5f;
+                Vector2 playerBasePoint = WorldToMiniMapBase(startReferenceTransform.position, mapSize);
+                _targetMapPanPixels = -((playerBasePoint - center) * _targetMapZoom);
+            }
+
+            ClampMapPan(ref _targetMapPanPixels, _targetMapZoom, mapSize);
+
+            float zoomLerp = 1f - Mathf.Exp(-Mathf.Max(1f, zoomSmoothSpeed) * Time.unscaledDeltaTime);
+            float panLerp = 1f - Mathf.Exp(-Mathf.Max(1f, panSmoothSpeed) * Time.unscaledDeltaTime);
+
+            _mapZoom = Mathf.Lerp(_mapZoom, _targetMapZoom, zoomLerp);
+            _mapPanPixels = Vector2.Lerp(_mapPanPixels, _targetMapPanPixels, panLerp);
+            ClampMapPan(ref _mapPanPixels, _mapZoom, mapSize);
+        }
+
+        private static void ClampMapPan(ref Vector2 pan, float zoom, Vector2 mapSize)
+        {
+            if (zoom <= 1.0001f)
+            {
+                pan = Vector2.zero;
                 return;
             }
 
-            float maxPanX = Mathf.Max(0f, (mapSize.x * _mapZoom - mapSize.x) * 0.5f);
-            float maxPanY = Mathf.Max(0f, (mapSize.y * _mapZoom - mapSize.y) * 0.5f);
-            _mapPanPixels.x = Mathf.Clamp(_mapPanPixels.x, -maxPanX, maxPanX);
-            _mapPanPixels.y = Mathf.Clamp(_mapPanPixels.y, -maxPanY, maxPanY);
+            float maxPanX = Mathf.Max(0f, (mapSize.x * zoom - mapSize.x) * 0.5f);
+            float maxPanY = Mathf.Max(0f, (mapSize.y * zoom - mapSize.y) * 0.5f);
+            pan.x = Mathf.Clamp(pan.x, -maxPanX, maxPanX);
+            pan.y = Mathf.Clamp(pan.y, -maxPanY, maxPanY);
         }
 
         private Rect GetMapContentRect(Vector2 mapSize)
@@ -1141,6 +1477,21 @@ namespace CDE2501.Wayfinding.UI
             Vector2 center = mapSize * 0.5f;
             float zoom = Mathf.Max(0.0001f, _mapZoom);
             return center + ((mappedPoint - center - _mapPanPixels) / zoom);
+        }
+
+        private Vector2 WorldToMiniMapBase(Vector3 world, Vector2 mapSize)
+        {
+            if (useGeoAnchoredAlignment && TryWorldToTileNormalized(world, out Vector2 uv))
+            {
+                return new Vector2(
+                    Mathf.Clamp01(uv.x) * mapSize.x,
+                    Mathf.Clamp01(uv.y) * mapSize.y);
+            }
+
+            Vector2 adjustedWorld = ApplyWorldToMapAlignment(new Vector2(world.x, world.z));
+            float nx = Mathf.InverseLerp(_minX, _maxX, adjustedWorld.x);
+            float nz = Mathf.InverseLerp(_minZ, _maxZ, adjustedWorld.y);
+            return new Vector2(nx * mapSize.x, (1f - nz) * mapSize.y);
         }
 
         private Vector2 ApplyWorldToMapAlignment(Vector2 worldXZ)
@@ -1219,6 +1570,75 @@ namespace CDE2501.Wayfinding.UI
             return new Vector3(worldXZ.x, y, worldXZ.y);
         }
 
+        private void TrySelectDestinationFromMiniMap(Vector2 localPoint, Vector2 mapSize)
+        {
+            if (graphLoader == null || locationManager == null || locationManager.Locations == null)
+            {
+                return;
+            }
+
+            Vector3 worldEstimate = MiniMapPointToWorld(localPoint, mapSize);
+            float maxDistance = Mathf.Max(0f, miniMapClickSelectRadiusMeters);
+            string bestNodeId = null;
+            string bestLocationName = null;
+            float bestDistance = float.PositiveInfinity;
+            var seenNodeIds = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            for (int i = 0; i < locationManager.Locations.Count; i++)
+            {
+                LocationPoint location = locationManager.Locations[i];
+                if (location == null || string.IsNullOrWhiteSpace(location.indoor_node_id))
+                {
+                    continue;
+                }
+
+                string nodeId = location.indoor_node_id.Trim();
+                if (!seenNodeIds.Add(nodeId))
+                {
+                    continue;
+                }
+
+                if (!IsNodeVisible(nodeId))
+                {
+                    continue;
+                }
+
+                Node node = graphLoader.GetNode(nodeId);
+                if (node == null)
+                {
+                    continue;
+                }
+
+                float distance = HorizontalDistanceXZ(worldEstimate, node.position);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestNodeId = nodeId;
+                    bestLocationName = location.name;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(bestNodeId))
+            {
+                return;
+            }
+
+            if (maxDistance > 0f && bestDistance > maxDistance)
+            {
+                return;
+            }
+
+            _selectedDestinationNodeId = bestNodeId;
+            OnDestinationNodeClicked?.Invoke(bestNodeId, bestLocationName);
+        }
+
+        private static float HorizontalDistanceXZ(Vector3 a, Vector3 b)
+        {
+            Vector2 av = new Vector2(a.x, a.z);
+            Vector2 bv = new Vector2(b.x, b.z);
+            return Vector2.Distance(av, bv);
+        }
+
         private void DrawMiniMapHoverTooltip(Rect mapRect)
         {
             if (!showHoverDetails || graphLoader == null || graphLoader.NodesById == null || graphLoader.NodesById.Count == 0)
@@ -1295,6 +1715,11 @@ namespace CDE2501.Wayfinding.UI
 
             foreach (var kvp in graphLoader.NodesById)
             {
+                if (!IsNodeVisible(kvp.Key))
+                {
+                    continue;
+                }
+
                 Node node = kvp.Value;
                 Vector3 screen = Camera.main.WorldToScreenPoint(node.position);
                 if (screen.z <= 0f)
@@ -1326,6 +1751,11 @@ namespace CDE2501.Wayfinding.UI
             Vector2 worldXZ = new Vector2(worldPosition.x, worldPosition.z);
             foreach (var kvp in graphLoader.NodesById)
             {
+                if (!IsNodeVisible(kvp.Key))
+                {
+                    continue;
+                }
+
                 Node node = kvp.Value;
                 Vector2 nodeXZ = new Vector2(node.position.x, node.position.z);
                 float d = Vector2.Distance(worldXZ, nodeXZ);
@@ -1337,6 +1767,16 @@ namespace CDE2501.Wayfinding.UI
             }
 
             return nearestNode != null;
+        }
+
+        private bool IsNodeVisible(string nodeId)
+        {
+            if (string.IsNullOrWhiteSpace(nodeId))
+            {
+                return false;
+            }
+
+            return boundaryConstraintManager == null || boundaryConstraintManager.IsNodeAllowed(nodeId);
         }
 
         private string BuildLocationLabel(string nodeId)

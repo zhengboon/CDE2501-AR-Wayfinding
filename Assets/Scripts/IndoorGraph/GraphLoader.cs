@@ -12,6 +12,18 @@ namespace CDE2501.Wayfinding.IndoorGraph
     {
         public string estateName;
         public string version;
+        public GraphAreaBounds areaBounds;
+    }
+
+    [Serializable]
+    public class GraphAreaBounds
+    {
+        public string description;
+        public double minLat;
+        public double maxLat;
+        public double minLon;
+        public double maxLon;
+        public string boundaryGeoJson;
     }
 
     [Serializable]

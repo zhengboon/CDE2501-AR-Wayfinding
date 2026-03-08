@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using CDE2501.Wayfinding.Data;
 using CDE2501.Wayfinding.IndoorGraph;
 using CDE2501.Wayfinding.Profiles;
 using UnityEngine;
@@ -25,6 +26,7 @@ namespace CDE2501.Wayfinding.Routing
         public ElevationLevel currentLevel;
         public RoutingMode mode;
         public bool rainMode;
+        public int boundaryRevision;
     }
 
     [Serializable]
@@ -56,6 +58,7 @@ namespace CDE2501.Wayfinding.Routing
     public class RouteCalculator : MonoBehaviour
     {
         [SerializeField] private GraphLoader graphLoader;
+        [SerializeField] private BoundaryConstraintManager boundaryConstraintManager;
         [SerializeField] private string routingProfilesFileName = "routing_profiles.json";
         [SerializeField] private bool rainMode;
         [SerializeField] private RoutingMode routingMode = RoutingMode.NormalElderly;
@@ -102,6 +105,16 @@ namespace CDE2501.Wayfinding.Routing
             {
                 graphLoader = GetComponent<GraphLoader>();
             }
+
+            if (boundaryConstraintManager == null)
+            {
+                boundaryConstraintManager = FindObjectOfType<BoundaryConstraintManager>();
+            }
+
+            if (boundaryConstraintManager != null)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated += HandleBoundaryUpdated;
+            }
         }
 
         private void Start()
@@ -121,6 +134,11 @@ namespace CDE2501.Wayfinding.Routing
             if (graphLoader != null)
             {
                 graphLoader.OnGraphLoaded -= HandleGraphLoaded;
+            }
+
+            if (boundaryConstraintManager != null)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated -= HandleBoundaryUpdated;
             }
 
             StopQueuedRecalculation();
@@ -144,6 +162,28 @@ namespace CDE2501.Wayfinding.Routing
         {
             _profilesConfig = profilesConfig;
             _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
+            ClearRouteCache();
+        }
+
+        public void SetBoundaryConstraintManager(BoundaryConstraintManager manager)
+        {
+            if (ReferenceEquals(boundaryConstraintManager, manager))
+            {
+                return;
+            }
+
+            if (boundaryConstraintManager != null)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated -= HandleBoundaryUpdated;
+            }
+
+            boundaryConstraintManager = manager;
+
+            if (boundaryConstraintManager != null)
+            {
+                boundaryConstraintManager.OnBoundaryUpdated += HandleBoundaryUpdated;
+            }
+
             ClearRouteCache();
         }
 
@@ -180,8 +220,26 @@ namespace CDE2501.Wayfinding.Routing
                 endNodeId = endNodeId,
                 currentLevel = currentLevel,
                 mode = routingMode,
-                rainMode = rainMode
+                rainMode = rainMode,
+                boundaryRevision = boundaryConstraintManager != null ? boundaryConstraintManager.BoundaryRevision : 0
             };
+
+            if (boundaryConstraintManager != null && boundaryConstraintManager.HasBoundary)
+            {
+                if (!boundaryConstraintManager.IsNodeAllowed(startNodeId))
+                {
+                    RouteResult failed = RouteResult.Failed("Start node is outside boundary.");
+                    OnRouteUpdated?.Invoke(failed);
+                    return failed;
+                }
+
+                if (!boundaryConstraintManager.IsNodeAllowed(endNodeId))
+                {
+                    RouteResult failed = RouteResult.Failed("Destination is outside boundary.");
+                    OnRouteUpdated?.Invoke(failed);
+                    return failed;
+                }
+            }
 
             string cacheKey = BuildCacheKey(request, profile.profileName);
             if (!forceRefresh && enableRouteCache && TryGetRouteFromCache(cacheKey, out RouteResult cached))
@@ -337,7 +395,11 @@ namespace CDE2501.Wayfinding.Routing
 
         private RouteResult ComputeRouteNow(RouteRequest request, RoutingProfile profile, string cacheKey, bool raiseEvent)
         {
-            RouteResult result = _pathfinder.FindPath(request, profile, _profilesConfig.rainSlopeMultiplier);
+            Func<string, bool> nodeEligibility = boundaryConstraintManager != null && boundaryConstraintManager.HasBoundary
+                ? new Func<string, bool>(boundaryConstraintManager.IsNodeAllowed)
+                : null;
+
+            RouteResult result = _pathfinder.FindPath(request, profile, _profilesConfig.rainSlopeMultiplier, nodeEligibility);
             if (result.success)
             {
                 result.totalDistance = ComputePathDistance(result.nodePath);
@@ -480,7 +542,8 @@ namespace CDE2501.Wayfinding.Routing
             string mode = ((int)request.mode).ToString();
             string level = ((int)request.currentLevel).ToString();
             string rain = request.rainMode ? "1" : "0";
-            return $"{graphVersion}|{request.startNodeId}|{request.endNodeId}|{level}|{mode}|{rain}|{profileName}";
+            string boundaryRev = request.boundaryRevision.ToString();
+            return $"{graphVersion}|{request.startNodeId}|{request.endNodeId}|{level}|{mode}|{rain}|{profileName}|b{boundaryRev}";
         }
 
         private static RouteRequest CloneRouteRequest(RouteRequest request)
@@ -496,8 +559,14 @@ namespace CDE2501.Wayfinding.Routing
                 endNodeId = request.endNodeId,
                 currentLevel = request.currentLevel,
                 mode = request.mode,
-                rainMode = request.rainMode
+                rainMode = request.rainMode,
+                boundaryRevision = request.boundaryRevision
             };
+        }
+
+        private void HandleBoundaryUpdated()
+        {
+            ClearRouteCache();
         }
 
         private static RouteResult CloneRouteResult(RouteResult result)

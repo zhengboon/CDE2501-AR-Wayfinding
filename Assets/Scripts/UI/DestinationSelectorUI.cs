@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using CDE2501.Wayfinding.Data;
 using CDE2501.Wayfinding.Elevation;
 using CDE2501.Wayfinding.IndoorGraph;
+using CDE2501.Wayfinding.Profiles;
 using CDE2501.Wayfinding.Routing;
 using TMPro;
 using UnityEngine;
@@ -22,11 +23,17 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private LevelManager levelManager;
         [SerializeField] private RouteCalculator routeCalculator;
         [SerializeField] private GraphLoader graphLoader;
+        [SerializeField] private BoundaryConstraintManager boundaryConstraintManager;
 
         private readonly List<LocationPoint> _cachedLocations = new List<LocationPoint>();
 
         private void Start()
         {
+            if (boundaryConstraintManager == null)
+            {
+                boundaryConstraintManager = FindObjectOfType<BoundaryConstraintManager>();
+            }
+
             if (locationManager != null)
             {
                 locationManager.OnLocationsChanged += RefreshDestinationList;
@@ -65,6 +72,16 @@ namespace CDE2501.Wayfinding.UI
             }
 
             var destination = _cachedLocations[index];
+            if (boundaryConstraintManager != null && !boundaryConstraintManager.IsNodeAllowed(destination.indoor_node_id))
+            {
+                if (distanceText != null)
+                {
+                    distanceText.text = "Destination outside boundary";
+                }
+
+                return;
+            }
+
             string resolvedStart = ResolveStartNodeId();
             if (string.IsNullOrWhiteSpace(resolvedStart))
             {
@@ -72,8 +89,8 @@ namespace CDE2501.Wayfinding.UI
             }
 
             routeCalculator.CurrentMode = wheelchairModeEnabled
-                ? Profiles.RoutingMode.Wheelchair
-                : Profiles.RoutingMode.NormalElderly;
+                ? RoutingMode.Wheelchair
+                : RoutingMode.NormalElderly;
             routeCalculator.RainMode = rainModeEnabled;
 
             routeCalculator.CalculateIndoorRoute(resolvedStart, destination.indoor_node_id, levelManager.CurrentLevel, forceRefresh: true);
@@ -86,7 +103,21 @@ namespace CDE2501.Wayfinding.UI
             {
                 return;
             }
-            _cachedLocations.AddRange(locationManager.Locations);
+
+            foreach (var location in locationManager.Locations)
+            {
+                if (location == null || string.IsNullOrWhiteSpace(location.indoor_node_id))
+                {
+                    continue;
+                }
+
+                if (boundaryConstraintManager != null && !boundaryConstraintManager.IsNodeAllowed(location.indoor_node_id))
+                {
+                    continue;
+                }
+
+                _cachedLocations.Add(location);
+            }
 
             if (destinationDropdown == null)
             {
@@ -148,6 +179,11 @@ namespace CDE2501.Wayfinding.UI
             float bestDist = float.PositiveInfinity;
             foreach (var kvp in graphLoader.NodesById)
             {
+                if (boundaryConstraintManager != null && !boundaryConstraintManager.IsNodeAllowed(kvp.Key))
+                {
+                    continue;
+                }
+
                 float d = Vector3.Distance(reference.position, kvp.Value.position);
                 if (d < bestDist)
                 {

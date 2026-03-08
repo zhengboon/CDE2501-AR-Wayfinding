@@ -19,7 +19,11 @@ namespace CDE2501.Wayfinding.Routing
             _adjacency = BuildAdjacency(edges ?? new List<Edge>());
         }
 
-        public RouteResult FindPath(RouteRequest request, RoutingProfile profile, float rainSlopeMultiplier = 1.25f)
+        public RouteResult FindPath(
+            RouteRequest request,
+            RoutingProfile profile,
+            float rainSlopeMultiplier = 1.25f,
+            Func<string, bool> nodeEligibility = null)
         {
             if (request == null)
             {
@@ -36,13 +40,29 @@ namespace CDE2501.Wayfinding.Routing
                 return RouteResult.Failed("Start or end node not found.");
             }
 
+            if (nodeEligibility != null &&
+                (!nodeEligibility(request.startNodeId) || !nodeEligibility(request.endNodeId)))
+            {
+                return RouteResult.Failed("Start or destination is outside the active boundary.");
+            }
+
             var openSet = new MinHeap();
             var cameFrom = new Dictionary<string, string>();
             var gScore = new Dictionary<string, float>();
 
             foreach (var nodeId in _nodes.Keys)
             {
+                if (nodeEligibility != null && !nodeEligibility(nodeId))
+                {
+                    continue;
+                }
+
                 gScore[nodeId] = float.PositiveInfinity;
+            }
+
+            if (!gScore.ContainsKey(request.startNodeId) || !gScore.ContainsKey(request.endNodeId))
+            {
+                return RouteResult.Failed("Start or destination is outside the active boundary.");
             }
 
             gScore[request.startNodeId] = 0f;
@@ -51,6 +71,11 @@ namespace CDE2501.Wayfinding.Routing
             while (openSet.Count > 0)
             {
                 string current = openSet.Pop();
+                if (nodeEligibility != null && !nodeEligibility(current))
+                {
+                    continue;
+                }
+
                 if (current == request.endNodeId)
                 {
                     return BuildResult(current, cameFrom, gScore[current]);
@@ -64,6 +89,16 @@ namespace CDE2501.Wayfinding.Routing
                 foreach (Edge edge in neighbors)
                 {
                     string neighbor = edge.toNode;
+                    if (nodeEligibility != null && !nodeEligibility(neighbor))
+                    {
+                        continue;
+                    }
+
+                    if (!gScore.ContainsKey(neighbor))
+                    {
+                        continue;
+                    }
+
                     float tentativeG = gScore[current] + ComputeEdgeCost(edge, request, profile, rainSlopeMultiplier);
 
                     if (tentativeG >= gScore[neighbor])

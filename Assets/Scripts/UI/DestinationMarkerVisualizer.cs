@@ -9,6 +9,7 @@ namespace CDE2501.Wayfinding.UI
     {
         [SerializeField] private GraphLoader graphLoader;
         [SerializeField] private LocationManager locationManager;
+        [SerializeField] private BoundaryConstraintManager boundaryConstraintManager;
         [SerializeField] private PrimitiveType markerPrimitive = PrimitiveType.Cube;
         [SerializeField] private float markerScale = 0.6f;
         [SerializeField] private float yOffset = 0.2f;
@@ -32,6 +33,11 @@ namespace CDE2501.Wayfinding.UI
             if (locationManager == null)
             {
                 locationManager = FindObjectOfType<LocationManager>();
+            }
+
+            if (boundaryConstraintManager == null)
+            {
+                boundaryConstraintManager = FindObjectOfType<BoundaryConstraintManager>();
             }
         }
 
@@ -145,6 +151,11 @@ namespace CDE2501.Wayfinding.UI
             foreach (LocationPoint location in locationManager.Locations)
             {
                 if (string.IsNullOrWhiteSpace(location.indoor_node_id))
+                {
+                    continue;
+                }
+
+                if (boundaryConstraintManager != null && !boundaryConstraintManager.IsNodeAllowed(location.indoor_node_id))
                 {
                     continue;
                 }

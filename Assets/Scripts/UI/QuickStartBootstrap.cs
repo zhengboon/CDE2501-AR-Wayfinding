@@ -68,6 +68,7 @@ namespace CDE2501.Wayfinding.UI
         private RoutePathVisualizer _routePathVisualizer;
         private DestinationMarkerVisualizer _destinationMarkerVisualizer;
         private MiniMapOverlay _miniMapOverlay;
+        private BoundaryConstraintManager _boundaryConstraintManager;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
@@ -99,19 +100,29 @@ namespace CDE2501.Wayfinding.UI
 
         private void Awake()
         {
-            if (continuousRefreshMinMoveMeters < 0.2f)
+            if (continuousRefreshMinMoveMeters < 0.5f)
             {
-                continuousRefreshMinMoveMeters = 0.2f;
+                continuousRefreshMinMoveMeters = 0.5f;
             }
 
-            if (startNodeSwitchAdvantageMeters < 0.2f)
+            if (continuousRefreshIntervalSeconds < 0.5f)
             {
-                startNodeSwitchAdvantageMeters = 0.2f;
+                continuousRefreshIntervalSeconds = 0.5f;
             }
 
-            if (startNodeMaxHoldDistanceMeters < 1f)
+            if (routeRevalidationIntervalSeconds < 0.4f)
             {
-                startNodeMaxHoldDistanceMeters = 1f;
+                routeRevalidationIntervalSeconds = 0.4f;
+            }
+
+            if (startNodeSwitchAdvantageMeters < 1f)
+            {
+                startNodeSwitchAdvantageMeters = 1f;
+            }
+
+            if (startNodeMaxHoldDistanceMeters < 4f)
+            {
+                startNodeMaxHoldDistanceMeters = 4f;
             }
 
             EnsureManagers();
@@ -323,13 +334,14 @@ namespace CDE2501.Wayfinding.UI
                 $"GPS ready: {(_gpsManager != null && _gpsManager.IsReady)} (sim: {(_gpsManager != null && _gpsManager.IsUsingSimulation)})\n" +
                 $"Compass ready: {(_compassManager != null && _compassManager.IsReady)} (sim: {(_compassManager != null && _compassManager.IsUsingSimulation)})\n" +
                 $"Locations loaded: {_locationsLoaded} (raw: {(_locationManager != null ? _locationManager.Locations.Count : 0)}, usable: {_uiDestinations.Count})\n" +
+                $"Boundary active: {(_boundaryConstraintManager != null && _boundaryConstraintManager.HasBoundary)} (rev: {(_boundaryConstraintManager != null ? _boundaryConstraintManager.BoundaryRevision : 0)})\n" +
                 $"Graph preview: {(_graphRuntimeVisualizer != null)}\n" +
                 $"Map reference: {(_mapReferenceTileVisualizer != null)}\n" +
                 $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
                 $"{routeMessage}\n" +
-                "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: Arrows, look: A/D + W/S.";
+                "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: Arrows, look: A/D + W/S. MiniMap: wheel zoom, left-drag pan/click select, right-drag move window, F follow.";
 
             float infoTop = destinationRowY + 32f + dropdownHeight + 4f;
             Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
@@ -417,6 +429,7 @@ namespace CDE2501.Wayfinding.UI
             _routeCalculator = FindObjectOfType<RouteCalculator>();
             _locationManager = FindObjectOfType<LocationManager>();
             _levelManager = FindObjectOfType<LevelManager>();
+            _boundaryConstraintManager = FindObjectOfType<BoundaryConstraintManager>();
 
             if (!autoCreateManagers)
             {
@@ -456,6 +469,22 @@ namespace CDE2501.Wayfinding.UI
             if (_levelManager == null)
             {
                 _levelManager = gameObject.AddComponent<LevelManager>();
+            }
+
+            if (_boundaryConstraintManager == null)
+            {
+                _boundaryConstraintManager = gameObject.AddComponent<BoundaryConstraintManager>();
+            }
+
+            if (_boundaryConstraintManager != null)
+            {
+                _boundaryConstraintManager.SetGraphLoader(_graphLoader);
+                _boundaryConstraintManager.SetLocationManager(_locationManager);
+            }
+
+            if (_routeCalculator != null)
+            {
+                _routeCalculator.SetBoundaryConstraintManager(_boundaryConstraintManager);
             }
 
             if (autoDriveCubeFromSimulation)
@@ -614,6 +643,7 @@ namespace CDE2501.Wayfinding.UI
             _miniMapOverlay.SetGraphLoader(_graphLoader);
             _miniMapOverlay.SetRouteCalculator(_routeCalculator);
             _miniMapOverlay.SetLocationManager(_locationManager);
+            _miniMapOverlay.SetBoundaryConstraintManager(_boundaryConstraintManager);
             _miniMapOverlay.SetStartReferenceTransform(GetStartReferenceTransform());
         }
 
@@ -650,6 +680,11 @@ namespace CDE2501.Wayfinding.UI
                 _routeCalculator.OnRouteUpdated += OnRouteUpdated;
             }
 
+            if (_miniMapOverlay != null)
+            {
+                _miniMapOverlay.OnDestinationNodeClicked += HandleMiniMapDestinationClicked;
+            }
+
             _subscribed = true;
         }
 
@@ -668,6 +703,11 @@ namespace CDE2501.Wayfinding.UI
             if (_routeCalculator != null)
             {
                 _routeCalculator.OnRouteUpdated -= OnRouteUpdated;
+            }
+
+            if (_miniMapOverlay != null)
+            {
+                _miniMapOverlay.OnDestinationNodeClicked -= HandleMiniMapDestinationClicked;
             }
 
             _subscribed = false;
@@ -784,6 +824,42 @@ namespace CDE2501.Wayfinding.UI
             _status = result != null && result.success ? "Route updated." : "Route update failed.";
         }
 
+        private void HandleMiniMapDestinationClicked(string nodeId, string locationName)
+        {
+            if (string.IsNullOrWhiteSpace(nodeId))
+            {
+                return;
+            }
+
+            RefreshUIDestinations();
+            if (_uiDestinations.Count == 0)
+            {
+                return;
+            }
+
+            int matchedIndex = _uiDestinations.FindIndex(location =>
+                location != null &&
+                !string.IsNullOrWhiteSpace(location.indoor_node_id) &&
+                string.Equals(location.indoor_node_id.Trim(), nodeId.Trim(), System.StringComparison.OrdinalIgnoreCase));
+
+            if (matchedIndex < 0 && !string.IsNullOrWhiteSpace(locationName))
+            {
+                matchedIndex = _uiDestinations.FindIndex(location =>
+                    location != null &&
+                    !string.IsNullOrWhiteSpace(location.name) &&
+                    string.Equals(location.name.Trim(), locationName.Trim(), System.StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (matchedIndex < 0)
+            {
+                _status = $"Mini map click selected '{nodeId}', but no matching destination was found.";
+                return;
+            }
+
+            SetDestinationIndex(matchedIndex, recalculate: true);
+            _status = $"Mini map destination selected: {_uiDestinations[matchedIndex].name}";
+        }
+
         private void RefreshUIDestinations()
         {
             if (!_uiDestinationsDirty && _uiDestinations.Count > 0)
@@ -837,6 +913,11 @@ namespace CDE2501.Wayfinding.UI
                 }
 
                 if (_graphLoader != null && _graphLoader.NodesById.Count > 0 && _graphLoader.GetNode(nodeId) == null)
+                {
+                    continue;
+                }
+
+                if (_boundaryConstraintManager != null && !_boundaryConstraintManager.IsNodeAllowed(nodeId))
                 {
                     continue;
                 }
@@ -1235,6 +1316,11 @@ namespace CDE2501.Wayfinding.UI
         private bool IsNodeEligibleForStart(Node node, bool onlyCurrentLevel)
         {
             if (node == null)
+            {
+                return false;
+            }
+
+            if (_boundaryConstraintManager != null && !_boundaryConstraintManager.IsNodeAllowed(node.id))
             {
                 return false;
             }
