@@ -46,3 +46,12 @@ desktop.ini
 # Local scratch / external references
 Untitled-1.py
 baritone-example/
+
+# Large ARCI Queenstown PDFs
+**/arci_queenstown*.pdf
+**/arci_queenstown*.PDF
+**/*arci_site*.pdf
+**/*arci_site*.PDF
+
+# Python cache
+**/__pycache__/
