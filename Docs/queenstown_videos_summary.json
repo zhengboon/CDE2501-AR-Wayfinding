@@ -1,0 +1,9 @@
+{
+  "shortlist_count": 40,
+  "primary_count": 21,
+  "final_count": 24,
+  "target_count": 24,
+  "primary_file": "Docs/queenstown_videos_primary.tsv",
+  "final_file": "Docs/queenstown_videos_final.tsv",
+  "rule": "Primary uses good videos + thumbnail available. Fallback fills from full set when needed."
+}

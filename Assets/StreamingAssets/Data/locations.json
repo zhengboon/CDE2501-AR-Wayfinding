@@ -1,44 +1,58 @@
 [
   {
-    "name": "Queenstown MRT (EW19)",
+    "name": "Temple",
+    "type": "Temple",
+    "gps_lat": 1.291191112655604,
+    "gps_lon": 103.8039638287502,
+    "indoor_node_id": "OSM_5133555909"
+  },
+  {
+    "name": "Queenstown MRT",
     "type": "MRT",
-    "gps_lat": 1.294550851849307,
-    "gps_lon": 103.8060771559821,
+    "gps_lat": 1.294658331723519,
+    "gps_lon": 103.8060244317907,
     "indoor_node_id": "QTMRT"
   },
   {
-    "name": "7RV3+85 Singapore",
-    "type": "Waypoint",
-    "gps_lat": 1.2933125,
-    "gps_lon": 103.8029375,
-    "indoor_node_id": "PC_7RV3_85"
-  },
-  {
-    "name": "7RR3+MC Singapore",
-    "type": "Waypoint",
-    "gps_lat": 1.2916875,
-    "gps_lon": 103.8035625,
+    "name": "Block 161(home)",
+    "type": "Home",
+    "gps_lat": 1.291592719538088,
+    "gps_lon": 103.8035063638544,
     "indoor_node_id": "PC_7RR3_MC"
   },
   {
-    "name": "7RV3+J8 Singapore",
-    "type": "Waypoint",
-    "gps_lat": 1.2940625,
-    "gps_lon": 103.8033125,
-    "indoor_node_id": "PC_7RV3_J8"
+    "name": "Church",
+    "type": "Church",
+    "gps_lat": 1.293744142894921,
+    "gps_lon": 103.8055051028074,
+    "indoor_node_id": "OSM_1842169698"
   },
   {
-    "name": "7RV3+5C Singapore",
-    "type": "Waypoint",
-    "gps_lat": 1.2929375,
-    "gps_lon": 103.8035625,
-    "indoor_node_id": "PC_7RV3_5C"
+    "name": "Lions Befrienders",
+    "type": "Social Service",
+    "gps_lat": 1.294487946670959,
+    "gps_lon": 103.8030664722826,
+    "indoor_node_id": "OSM_1842170067"
   },
   {
-    "name": "7RV3+XH Singapore",
-    "type": "Waypoint",
-    "gps_lat": 1.2949375,
-    "gps_lon": 103.8039375,
-    "indoor_node_id": "PC_7RV3_XH"
+    "name": "Market",
+    "type": "Essential",
+    "gps_lat": 1.293273559844809,
+    "gps_lon": 103.802885381613,
+    "indoor_node_id": "PC_7RV3_85"
+  },
+  {
+    "name": "Clinic",
+    "type": "Healthcare",
+    "gps_lat": 1.292694280131887,
+    "gps_lon": 103.8027085832887,
+    "indoor_node_id": "OSM_10830965796"
+  },
+  {
+    "name": "Sparkle Tots",
+    "type": "Childcare",
+    "gps_lat": 1.293921278178258,
+    "gps_lon": 103.8050982690521,
+    "indoor_node_id": "OSM_6745311675"
   }
 ]

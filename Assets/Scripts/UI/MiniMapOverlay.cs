@@ -64,8 +64,10 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Range(0.01f, 1f)] private float zoomStep = 0.2f;
         [SerializeField] private bool followPlayer = true;
         [SerializeField] private bool disableFollowWhileDragging = true;
+        [SerializeField] private bool autoRecenterOnRouteUpdate = true;
         [SerializeField, Min(1f)] private float zoomSmoothSpeed = 14f;
         [SerializeField, Min(1f)] private float panSmoothSpeed = 16f;
+        [SerializeField, Min(0)] private int routeProgressLookBackNodes = 0;
         [Header("Alignment")]
         [SerializeField] private bool useGeoAnchoredAlignment = true;
         [SerializeField] private bool enableManualAlignment = true;
@@ -339,6 +341,10 @@ namespace CDE2501.Wayfinding.UI
         private void HandleRouteUpdated(RouteResult result)
         {
             _lastRoute = result;
+            if (autoRecenterOnRouteUpdate && result != null && result.success)
+            {
+                followPlayer = true;
+            }
         }
 
         private void OnGUI()
@@ -498,15 +504,23 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
-            Node firstNode = graphLoader.GetNode(_lastRoute.nodePath[0]);
-            if (firstNode != null && startReferenceTransform != null && IsNodeVisible(_lastRoute.nodePath[0]))
+            int startIndex = 0;
+            if (startReferenceTransform != null)
+            {
+                startIndex = FindNearestRouteNodeIndex(_lastRoute.nodePath, startReferenceTransform.position);
+            }
+
+            int drawStartIndex = Mathf.Clamp(startIndex - Mathf.Max(0, routeProgressLookBackNodes), 0, _lastRoute.nodePath.Count - 1);
+
+            Node firstNode = graphLoader.GetNode(_lastRoute.nodePath[drawStartIndex]);
+            if (firstNode != null && startReferenceTransform != null && IsNodeVisible(_lastRoute.nodePath[drawStartIndex]))
             {
                 Vector2 player = WorldToMiniMap(startReferenceTransform.position, mapSize);
                 Vector2 first = WorldToMiniMap(firstNode.position, mapSize);
                 DrawLine(player, first, routeColor, routeLineThickness);
             }
 
-            for (int i = 0; i < _lastRoute.nodePath.Count - 1; i++)
+            for (int i = drawStartIndex; i < _lastRoute.nodePath.Count - 1; i++)
             {
                 Node from = graphLoader.GetNode(_lastRoute.nodePath[i]);
                 Node to = graphLoader.GetNode(_lastRoute.nodePath[i + 1]);
@@ -524,6 +538,43 @@ namespace CDE2501.Wayfinding.UI
                 Vector2 b = WorldToMiniMap(to.position, mapSize);
                 DrawLine(a, b, routeColor, routeLineThickness);
             }
+        }
+
+        private int FindNearestRouteNodeIndex(System.Collections.Generic.IList<string> routeNodePath, Vector3 referencePosition)
+        {
+            if (routeNodePath == null || routeNodePath.Count == 0 || graphLoader == null)
+            {
+                return 0;
+            }
+
+            int bestIndex = 0;
+            float bestDistance = float.PositiveInfinity;
+            Vector2 referenceXZ = new Vector2(referencePosition.x, referencePosition.z);
+
+            for (int i = 0; i < routeNodePath.Count; i++)
+            {
+                string nodeId = routeNodePath[i];
+                if (!IsNodeVisible(nodeId))
+                {
+                    continue;
+                }
+
+                Node node = graphLoader.GetNode(nodeId);
+                if (node == null)
+                {
+                    continue;
+                }
+
+                Vector2 nodeXZ = new Vector2(node.position.x, node.position.z);
+                float distance = Vector2.Distance(referenceXZ, nodeXZ);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestIndex = i;
+                }
+            }
+
+            return bestIndex;
         }
 
         private void DrawDestinationMarker(Vector2 mapSize)

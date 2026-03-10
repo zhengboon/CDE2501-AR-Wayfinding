@@ -55,3 +55,8 @@ baritone-example/
 
 # Python cache
 **/__pycache__/
+
+# Local virtual env / scan outputs
+.tmp-yt/
+Docs/queenstown_youtube_scan_all.json
+Docs/queenstown_youtube_scan_shortlist.tsv
