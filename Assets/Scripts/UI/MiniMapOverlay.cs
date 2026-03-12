@@ -85,6 +85,11 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(0.05f)] private float miniMapClickMaxDurationSeconds = 0.35f;
         [SerializeField, Min(1f)] private float miniMapClickDragThresholdPixels = 8f;
 
+        [Header("Video Mapping")]
+        [SerializeField] private bool showVideoFrames = true;
+        [SerializeField] private Color videoMarkerColor = new Color(1f, 0.2f, 0.2f, 1f);
+        [SerializeField, Min(1f)] private float videoMarkerRadius = 6f;
+
         [Header("Style")]
         [SerializeField] private Color mapBackgroundColor = new Color(0f, 0f, 0f, 0.58f);
         [SerializeField] private Color edgeColor = new Color(1f, 1f, 1f, 0.24f);
@@ -152,6 +157,9 @@ namespace CDE2501.Wayfinding.UI
         private float _clickDownTime;
         private bool _isWindowDragFromMap;
 
+        private VideoFrameMapManifest _videoFrameManifest;
+        private bool _isVideoFrameManifestLoading;
+
         public event Action<string, string> OnDestinationNodeClicked;
 
         private void Awake()
@@ -214,6 +222,7 @@ namespace CDE2501.Wayfinding.UI
 
             PreferHigherResolutionMapIfAvailable();
             TryLoadMapTexture();
+            TryLoadVideoFrameManifest();
         }
 
         private void Update()
@@ -397,6 +406,7 @@ namespace CDE2501.Wayfinding.UI
             GUI.BeginGroup(mapRect);
             DrawGraphEdges(mapRect.size);
             DrawActiveRoute(mapRect.size);
+            DrawVideoMarkers(mapRect.size);
             DrawDestinationMarker(mapRect.size);
             DrawPlayerMarker(mapRect.size);
             GUI.EndGroup();
@@ -637,6 +647,30 @@ namespace CDE2501.Wayfinding.UI
             DrawCircle(p, markerRadius, playerColor);
         }
 
+        private void DrawVideoMarkers(Vector2 mapSize)
+        {
+            if (!showVideoFrames || _videoFrameManifest == null || _videoFrameManifest.videos == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _videoFrameManifest.videos.Count; i++)
+            {
+                var video = _videoFrameManifest.videos[i];
+                if (video.frames == null) continue;
+
+                for (int j = 0; j < video.frames.Count; j++)
+                {
+                    var frame = video.frames[j];
+                    if (frame.position == null) continue;
+
+                    Vector3 worldPos = new Vector3(frame.position.x, frame.position.y, frame.position.z);
+                    Vector2 p = WorldToMiniMap(worldPos, mapSize);
+                    DrawCircle(p, videoMarkerRadius, videoMarkerColor);
+                }
+            }
+        }
+
         private Vector2 WorldToMiniMap(Vector3 world, Vector2 mapSize)
         {
             return ApplyMapViewTransform(WorldToMiniMapBase(world, mapSize), mapSize);
@@ -841,6 +875,40 @@ namespace CDE2501.Wayfinding.UI
             }
 
             _isMapTextureLoading = false;
+        }
+
+        private void TryLoadVideoFrameManifest()
+        {
+            if (_videoFrameManifest != null || _isVideoFrameManifestLoading)
+            {
+                return;
+            }
+
+            StartCoroutine(LoadVideoFrameManifestRoutine());
+        }
+
+        private IEnumerator LoadVideoFrameManifestRoutine()
+        {
+            _isVideoFrameManifestLoading = true;
+
+            string path = Path.Combine(Application.streamingAssetsPath, "Data", "video_frame_map.json");
+            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(path)))
+            {
+                yield return request.SendWebRequest();
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        _videoFrameManifest = JsonUtility.FromJson<VideoFrameMapManifest>(request.downloadHandler.text);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"Failed to parse video frame manifest: {e.Message}");
+                    }
+                }
+            }
+
+            _isVideoFrameManifestLoading = false;
         }
 
         private IEnumerator LoadTextureFromPathRoutine(string path)
@@ -1620,6 +1688,12 @@ namespace CDE2501.Wayfinding.UI
                 SetMapZoom(1f, mapRect.size, mapRect.size * 0.5f);
             }
 
+            Rect videoToggleRect = new Rect(mapRect.xMax - (buttonSize * 4f) - (padding * 3f), mapRect.y + padding, buttonSize, buttonSize);
+            if (GUI.Button(videoToggleRect, "V"))
+            {
+                showVideoFrames = !showVideoFrames;
+            }
+
             Rect followRect = new Rect(mapRect.x + 6f, mapRect.y + 6f, 34f, 20f);
             bool newFollow = GUI.Toggle(followRect, followPlayer, "F");
             if (newFollow != followPlayer)
@@ -1735,7 +1809,11 @@ namespace CDE2501.Wayfinding.UI
                 if (isClick)
                 {
                     Vector2 local = mouse - mapRect.position;
-                    TrySelectDestinationFromMiniMap(local, mapRect.size);
+
+                    if (!TrySelectVideoFromMiniMap(local, mapRect.size))
+                    {
+                        TrySelectDestinationFromMiniMap(local, mapRect.size);
+                    }
                 }
 
                 e.Use();
@@ -1748,10 +1826,11 @@ namespace CDE2501.Wayfinding.UI
             float padding = 6f;
             Rect plusRect = new Rect(mapRect.xMax - (buttonSize * 3f) - (padding * 2f), mapRect.y + padding, buttonSize, buttonSize);
             Rect minusRect = new Rect(mapRect.xMax - (buttonSize * 2f) - padding, mapRect.y + padding, buttonSize, buttonSize);
+            Rect videoToggleRect = new Rect(mapRect.xMax - (buttonSize * 4f) - (padding * 3f), mapRect.y + padding, buttonSize, buttonSize);
             Rect centerRect = new Rect(mapRect.xMax - buttonSize - 1f, mapRect.y + padding, buttonSize, buttonSize);
             Rect followRect = new Rect(mapRect.x + 6f, mapRect.y + 6f, 34f, 20f);
             Rect headingRect = new Rect(mapRect.x + 46f, mapRect.y + 6f, 110f, 20f);
-            return plusRect.Contains(point) || minusRect.Contains(point) || centerRect.Contains(point) || followRect.Contains(point) || headingRect.Contains(point);
+            return plusRect.Contains(point) || minusRect.Contains(point) || centerRect.Contains(point) || followRect.Contains(point) || headingRect.Contains(point) || videoToggleRect.Contains(point);
         }
 
         private void SetMapZoom(float targetZoom, Vector2 mapSize, Vector2 pivotLocal)
@@ -1987,6 +2066,52 @@ namespace CDE2501.Wayfinding.UI
             OnDestinationNodeClicked?.Invoke(bestNodeId, bestLocationName);
         }
 
+        private bool TrySelectVideoFromMiniMap(Vector2 localPoint, Vector2 mapSize)
+        {
+            if (!showVideoFrames || _videoFrameManifest == null || _videoFrameManifest.videos == null)
+            {
+                return false;
+            }
+
+            Vector3 worldEstimate = MiniMapPointToWorld(localPoint, mapSize);
+            float maxDistance = Mathf.Max(0f, miniMapClickSelectRadiusMeters);
+            
+            VideoEntry bestVideo = null;
+            float bestDistance = float.PositiveInfinity;
+            
+            for (int i = 0; i < _videoFrameManifest.videos.Count; i++)
+            {
+                var video = _videoFrameManifest.videos[i];
+                if (video.frames == null) continue;
+
+                for (int j = 0; j < video.frames.Count; j++)
+                {
+                    var frame = video.frames[j];
+                    if (frame.position == null) continue;
+                    
+                    Vector3 worldPos = new Vector3(frame.position.x, frame.position.y, frame.position.z);
+                    float distance = HorizontalDistanceXZ(worldEstimate, worldPos);
+                    
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestVideo = video;
+                    }
+                }
+            }
+
+            if (bestVideo != null && (maxDistance <= 0f || bestDistance <= maxDistance))
+            {
+                if (!string.IsNullOrWhiteSpace(bestVideo.url))
+                {
+                    Application.OpenURL(bestVideo.url);
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
         private static float HorizontalDistanceXZ(Vector3 a, Vector3 b)
         {
             Vector2 av = new Vector2(a.x, a.z);
@@ -2020,6 +2145,16 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            if (TryGetNearestVideoFrame(worldEstimate, out VideoEntry nearestVideo, out float videoDist))
+            {
+                if (videoDist <= miniMapHoverSearchRadiusMeters && videoDist < distanceMeters)
+                {
+                    Vector2 vTooltipPos = mouse + hoverTooltipOffset;
+                    DrawTooltip(vTooltipPos, $"Video: {nearestVideo.title}\n{nearestVideo.duration}");
+                    return;
+                }
+            }
+
             if (distanceMeters > miniMapHoverSearchRadiusMeters)
             {
                 return;
@@ -2027,6 +2162,38 @@ namespace CDE2501.Wayfinding.UI
 
             Vector2 tooltipPos = mouse + hoverTooltipOffset;
             DrawTooltip(tooltipPos, BuildNodeTooltipText(nearestNode, "MiniMap", distanceMeters));
+        }
+
+        private bool TryGetNearestVideoFrame(Vector3 worldPosition, out VideoEntry nearestVideo, out float distanceMeters)
+        {
+            nearestVideo = null;
+            distanceMeters = float.PositiveInfinity;
+            if (!showVideoFrames || _videoFrameManifest == null || _videoFrameManifest.videos == null) 
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _videoFrameManifest.videos.Count; i++)
+            {
+                var video = _videoFrameManifest.videos[i];
+                if (video.frames == null) continue;
+
+                for (int j = 0; j < video.frames.Count; j++)
+                {
+                    var frame = video.frames[j];
+                    if (frame.position == null) continue;
+
+                    Vector3 worldPos = new Vector3(frame.position.x, frame.position.y, frame.position.z);
+                    float d = HorizontalDistanceXZ(worldPosition, worldPos);
+                    if (d < distanceMeters)
+                    {
+                        distanceMeters = d;
+                        nearestVideo = video;
+                    }
+                }
+            }
+            
+            return nearestVideo != null;
         }
 
         private void DrawScreenHoverTooltip(float scale)
