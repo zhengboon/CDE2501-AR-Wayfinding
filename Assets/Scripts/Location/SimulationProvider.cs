@@ -54,6 +54,24 @@ namespace CDE2501.Wayfinding.Location
             set => forceSimulationMode = value;
         }
 
+        public void TeleportTo(GeoPoint point, float headingDegrees, float pitchDegrees, float? verticalOffsetMeters = null)
+        {
+            _currentPoint = point;
+            _currentHeading = NormalizeHeading(headingDegrees);
+            _currentPitch = Mathf.Clamp(pitchDegrees, minPitchDegrees, maxPitchDegrees);
+
+            if (verticalOffsetMeters.HasValue)
+            {
+                _verticalOffsetMeters = verticalOffsetMeters.Value;
+            }
+        }
+
+        public void SetView(float headingDegrees, float pitchDegrees)
+        {
+            _currentHeading = NormalizeHeading(headingDegrees);
+            _currentPitch = Mathf.Clamp(pitchDegrees, minPitchDegrees, maxPitchDegrees);
+        }
+
         private void Awake()
         {
             if (sprintMultiplier < 8f)

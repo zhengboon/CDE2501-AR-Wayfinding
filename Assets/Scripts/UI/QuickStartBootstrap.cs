@@ -28,8 +28,8 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool autoCreateDestinationMarkers = true;
         [SerializeField] private bool autoCreateRoutePathPreview = true;
         [SerializeField] private bool autoCreateMiniMap = true;
-        [SerializeField] private bool autoCreateVideoCsvOverlay = true;
         [SerializeField] private bool autoCreateVideoFrameMap = true;
+        [SerializeField] private bool autoCreateStreetViewExplorer = true;
         [SerializeField] private bool resetPersistentDataOnStart = true;
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
         [SerializeField] private bool alwaysRouteFromCurrentPosition = true;
@@ -70,8 +70,8 @@ namespace CDE2501.Wayfinding.UI
         private RoutePathVisualizer _routePathVisualizer;
         private DestinationMarkerVisualizer _destinationMarkerVisualizer;
         private MiniMapOverlay _miniMapOverlay;
-        private VideoMappingCsvOverlay _videoMappingCsvOverlay;
         private VideoFrameMapVisualizer _videoFrameMapVisualizer;
+        private StreetViewExplorer _streetViewExplorer;
         private BoundaryConstraintManager _boundaryConstraintManager;
 
         private string _status = "Initializing...";
@@ -196,6 +196,11 @@ namespace CDE2501.Wayfinding.UI
                 _miniMapOverlay.SetStartReferenceTransform(GetStartReferenceTransform());
             }
 
+            if (_streetViewExplorer != null)
+            {
+                _streetViewExplorer.SetStartReferenceTransform(GetStartReferenceTransform());
+            }
+
             MaybeContinuouslyRefreshRoute();
             MaybeRevalidateRouteFromPlayer();
             MaybeAutoRecalculateFromMovement();
@@ -261,6 +266,16 @@ namespace CDE2501.Wayfinding.UI
                 useNearestNodeAsStart = newNearestStart;
                 shouldRecalculate = true;
                 pendingRecalcReason = "Nearest Start UI toggle";
+            }
+
+            if (_streetViewExplorer != null)
+            {
+                bool streetViewActive = _streetViewExplorer.IsStreetViewActive;
+                bool newStreetViewActive = GUI.Toggle(new Rect(742f, 34f, 188f, 24f), streetViewActive, $"StreetView: {(streetViewActive ? "True" : "False")}");
+                if (newStreetViewActive != streetViewActive)
+                {
+                    _streetViewExplorer.SetStreetViewActive(newStreetViewActive);
+                }
             }
 
             _resolvedStartNodeId = ResolveStartNodeId();
@@ -350,10 +365,10 @@ namespace CDE2501.Wayfinding.UI
                 $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
-                $"Video CSV overlay: {(_videoMappingCsvOverlay != null)}\n" +
                 $"Video frame map: {(_videoFrameMapVisualizer != null)} (loaded: {(_videoFrameMapVisualizer != null && _videoFrameMapVisualizer.ManifestReady)}, markers: {(_videoFrameMapVisualizer != null ? _videoFrameMapVisualizer.MarkerCount : 0)})\n" +
+                $"Street view explorer: {(_streetViewExplorer != null)} (loaded: {(_streetViewExplorer != null && _streetViewExplorer.ManifestReady)}, nodes: {(_streetViewExplorer != null ? _streetViewExplorer.NodeCount : 0)}, google: {(_streetViewExplorer != null ? _streetViewExplorer.GoogleNodeCount : 0)}, fallback: {(_streetViewExplorer != null ? _streetViewExplorer.YoutubeFallbackNodeCount : 0)}, active: {(_streetViewExplorer != null && _streetViewExplorer.IsStreetViewActive)})\n" +
                 $"{routeMessage}\n" +
-                "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle, V video list. Move: Arrows, look: A/D + W/S. MiniMap: wheel zoom, left-drag pan/click select, right-drag move window, F follow.";
+                "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle, Y street view. StreetView: mouse-drag look, click orange GO hotspot to move, [ ] node, , . heading, H nearest node. Move: Arrows, look: A/D + W/S. MiniMap: wheel zoom, left-drag pan/click select, right-drag move window, F follow.";
 
             float infoTop = destinationRowY + 32f + dropdownHeight + 4f;
             Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
@@ -529,14 +544,14 @@ namespace CDE2501.Wayfinding.UI
                 SetupMiniMap();
             }
 
-            if (autoCreateVideoCsvOverlay)
-            {
-                SetupVideoCsvOverlay();
-            }
-
             if (autoCreateVideoFrameMap)
             {
                 SetupVideoFrameMap();
+            }
+
+            if (autoCreateStreetViewExplorer)
+            {
+                SetupStreetViewExplorer();
             }
         }
 
@@ -669,15 +684,6 @@ namespace CDE2501.Wayfinding.UI
             _miniMapOverlay.SetStartReferenceTransform(GetStartReferenceTransform());
         }
 
-        private void SetupVideoCsvOverlay()
-        {
-            _videoMappingCsvOverlay = FindObjectOfType<VideoMappingCsvOverlay>();
-            if (_videoMappingCsvOverlay == null)
-            {
-                _videoMappingCsvOverlay = gameObject.AddComponent<VideoMappingCsvOverlay>();
-            }
-        }
-
         private void SetupVideoFrameMap()
         {
             _videoFrameMapVisualizer = FindObjectOfType<VideoFrameMapVisualizer>();
@@ -687,6 +693,18 @@ namespace CDE2501.Wayfinding.UI
             }
 
             _videoFrameMapVisualizer.SetGraphLoader(_graphLoader);
+        }
+
+        private void SetupStreetViewExplorer()
+        {
+            _streetViewExplorer = FindObjectOfType<StreetViewExplorer>();
+            if (_streetViewExplorer == null)
+            {
+                _streetViewExplorer = gameObject.AddComponent<StreetViewExplorer>();
+            }
+
+            _streetViewExplorer.SetGraphLoader(_graphLoader);
+            _streetViewExplorer.SetStartReferenceTransform(GetStartReferenceTransform());
         }
 
         private static void ResetPersistentDataFolder()

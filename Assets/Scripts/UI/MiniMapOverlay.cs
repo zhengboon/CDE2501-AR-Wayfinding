@@ -6,6 +6,9 @@ using CDE2501.Wayfinding.IndoorGraph;
 using CDE2501.Wayfinding.Routing;
 using UnityEngine;
 using UnityEngine.Networking;
+using VideoEntryData = CDE2501.Wayfinding.Data.VideoEntry;
+using VideoFrameEntryData = CDE2501.Wayfinding.Data.VideoFrameEntry;
+using VideoFrameManifestData = CDE2501.Wayfinding.Data.VideoFrameMapManifest;
 
 namespace CDE2501.Wayfinding.UI
 {
@@ -157,7 +160,7 @@ namespace CDE2501.Wayfinding.UI
         private float _clickDownTime;
         private bool _isWindowDragFromMap;
 
-        private VideoFrameMapManifest _videoFrameManifest;
+        private VideoFrameManifestData _videoFrameManifest;
         private bool _isVideoFrameManifestLoading;
 
         public event Action<string, string> OnDestinationNodeClicked;
@@ -656,12 +659,12 @@ namespace CDE2501.Wayfinding.UI
 
             for (int i = 0; i < _videoFrameManifest.videos.Count; i++)
             {
-                var video = _videoFrameManifest.videos[i];
+                VideoEntryData video = _videoFrameManifest.videos[i];
                 if (video.frames == null) continue;
 
                 for (int j = 0; j < video.frames.Count; j++)
                 {
-                    var frame = video.frames[j];
+                    VideoFrameEntryData frame = video.frames[j];
                     if (frame.position == null) continue;
 
                     Vector3 worldPos = new Vector3(frame.position.x, frame.position.y, frame.position.z);
@@ -899,7 +902,7 @@ namespace CDE2501.Wayfinding.UI
                 {
                     try
                     {
-                        _videoFrameManifest = JsonUtility.FromJson<VideoFrameMapManifest>(request.downloadHandler.text);
+                        _videoFrameManifest = JsonUtility.FromJson<VideoFrameManifestData>(request.downloadHandler.text);
                     }
                     catch (Exception e)
                     {
@@ -2076,19 +2079,18 @@ namespace CDE2501.Wayfinding.UI
             Vector3 worldEstimate = MiniMapPointToWorld(localPoint, mapSize);
             float maxDistance = Mathf.Max(0f, miniMapClickSelectRadiusMeters);
             
-            VideoEntry bestVideo = null;
+            VideoEntryData bestVideo = null;
             float bestDistance = float.PositiveInfinity;
             
             for (int i = 0; i < _videoFrameManifest.videos.Count; i++)
             {
-                var video = _videoFrameManifest.videos[i];
+                VideoEntryData video = _videoFrameManifest.videos[i];
                 if (video.frames == null) continue;
 
                 for (int j = 0; j < video.frames.Count; j++)
                 {
-                    var frame = video.frames[j];
+                    VideoFrameEntryData frame = video.frames[j];
                     if (frame.position == null) continue;
-                    
                     Vector3 worldPos = new Vector3(frame.position.x, frame.position.y, frame.position.z);
                     float distance = HorizontalDistanceXZ(worldEstimate, worldPos);
                     
@@ -2145,7 +2147,7 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
-            if (TryGetNearestVideoFrame(worldEstimate, out VideoEntry nearestVideo, out float videoDist))
+            if (TryGetNearestVideoFrame(worldEstimate, out VideoEntryData nearestVideo, out float videoDist))
             {
                 if (videoDist <= miniMapHoverSearchRadiusMeters && videoDist < distanceMeters)
                 {
@@ -2164,7 +2166,7 @@ namespace CDE2501.Wayfinding.UI
             DrawTooltip(tooltipPos, BuildNodeTooltipText(nearestNode, "MiniMap", distanceMeters));
         }
 
-        private bool TryGetNearestVideoFrame(Vector3 worldPosition, out VideoEntry nearestVideo, out float distanceMeters)
+        private bool TryGetNearestVideoFrame(Vector3 worldPosition, out VideoEntryData nearestVideo, out float distanceMeters)
         {
             nearestVideo = null;
             distanceMeters = float.PositiveInfinity;
@@ -2175,12 +2177,12 @@ namespace CDE2501.Wayfinding.UI
 
             for (int i = 0; i < _videoFrameManifest.videos.Count; i++)
             {
-                var video = _videoFrameManifest.videos[i];
+                VideoEntryData video = _videoFrameManifest.videos[i];
                 if (video.frames == null) continue;
 
                 for (int j = 0; j < video.frames.Count; j++)
                 {
-                    var frame = video.frames[j];
+                    VideoFrameEntryData frame = video.frames[j];
                     if (frame.position == null) continue;
 
                     Vector3 worldPos = new Vector3(frame.position.x, frame.position.y, frame.position.z);

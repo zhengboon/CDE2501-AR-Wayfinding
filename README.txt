@@ -1,86 +1,97 @@
-CDE2501 AR Wayfinding - Progress and Plan
-Last updated: 2026-03-09
+CDE2501 AR Wayfinding - Progress + What To Do Next
+Last updated: 2026-03-12
 
 Overview
-- Unity project for elderly-first AR wayfinding (Android ARCore + iOS ARKit via AR Foundation).
-- Includes outdoor GPS/compass direction guidance, indoor graph routing, simulation mode, and route visualization.
+- Unity 2022.3 LTS AR wayfinding project for Queenstown estate simulation and AR deployment.
+- Current focus: route quality, minimap clarity, and Street View-like ground reference inside the `cde2501.kml` polygon.
 
-Current Progress
-1) Core Routing and Data
-- Indoor graph routing is implemented with weighted A*.
-- Graph data is loaded from JSON in StreamingAssets.
-- Routing profiles and rain/wheelchair behavior are supported via JSON/config.
+Current Implemented Features
+1) Routing + Simulation
+- Weighted A* routing over estate graph (`estate_graph.json`).
+- Route starts from current simulated player position.
+- Continuous route refresh and revalidation logic.
+- Elderly/Wheelchair + Rain modes in quick-start panel.
 
-2) Route Visualization
-- Route line rendering is active in Scene/Game.
-- Path was updated to anchor from the player/current camera position for clearer “from me to destination” behavior.
-- Baritone-inspired segmentation and styling are in place.
+2) Map + Minimap
+- High-resolution stitched OSM map atlas support.
+- Movable/zoomable minimap with destination selection and hover.
+- On-ground map reference quad in simulation.
 
-3) Minimap and Map Reference (Major Upgrade Done)
-- Added high-resolution Queenstown map atlas support (not just a single 256x256 tile).
-- Generated atlas:
-  - Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130126-130132.png
-  - Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130126-130132.json
-- Minimap now reads atlas metadata (tile ranges + geo bounds) for better alignment and scaling.
-- Minimap/map textures now use bilinear filtering and clamped wrapping for smoother visuals.
+3) Video Mapping Pipeline
+- Curated video CSV is used as offline input data (no CSV runtime window now).
+- Mapped video-frame visualizer in scene (billboard image markers).
+- Generator script:
+  - `scripts/build_video_frame_map.py`
+  - Output:
+    - `Assets/StreamingAssets/Data/video_frame_map.json`
+    - `Assets/StreamingAssets/Data/video_frames/...`
 
-4) Tooling
-- Added map atlas generator script:
-  - scripts/generate_osm_map_atlas.py
-- This script fetches OSM tiles for estate bounds and stitches a high-resolution atlas.
+4) Hybrid Street View Data Builder (NEW)
+- Script rebuilt for your KML polygon + hybrid sourcing:
+  - `scripts/build_street_view_map.py`
+- Reads polygon `Site area` from `cde2501.kml`.
+- Converts graph nodes to lat/lon using location fit.
+- For nodes inside polygon:
+  - Uses Google Street View (if API key + coverage available)
+  - Falls back to nearest YouTube mapped frame if Google view unavailable
+- Output:
+  - `Assets/StreamingAssets/Data/street_view_manifest.json`
+  - `Assets/StreamingAssets/Data/street_view/google/...` (when API works)
 
-5) Existing Simulation Workflow
-- PC simulation controls are available for testing route behavior without a supported AR phone.
-- Destination cycling and recalculation are available through UI/keys in the quick-start flow.
+5) Street View Explorer Runtime (NEW)
+- In-Unity Street View immersive mode is implemented (full-screen normal view, no popup window):
+  - `Assets/Scripts/UI/StreetViewExplorer.cs`
+- Auto-created from Quick Start bootstrap.
+- Shows best available image per node:
+  - Google Street View heading image when available
+  - YouTube fallback image otherwise
+- Controls:
+  - `Y` toggle Street View mode
+  - Mouse drag = look around
+  - Click orange `GO` hotspot = move to adjacent/nearby node
+  - `[` / `]` previous/next node
+  - `,` / `.` previous/next heading
+  - `H` snap to nearest node from current player/camera
 
-Files Recently Updated
-- Assets/Scripts/Routing/RoutePathVisualizer.cs
-- Assets/Scripts/UI/MiniMapOverlay.cs
-- Assets/Scripts/UI/MapReferenceTileVisualizer.cs
-- scripts/generate_osm_map_atlas.py
-- Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130126-130132.png
-- Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130126-130132.json
+What You Need To Do Now
+1) Rebuild mapped video frames (if needed)
+- Command:
+  - `python3 scripts/build_video_frame_map.py --limit 24 --thumbnail-only`
 
-Known Gaps / Notes
-- Unity compile/runtime verification is still required in Editor/device.
-- This shell cannot run Unity Editor, so Console validation must be done on your machine.
-- scripts/__pycache__/ was generated locally and can be ignored/cleaned before commit if desired.
+2) Build hybrid Street View manifest from your KML
+- Without Google key (fallback only):
+  - `python3 scripts/build_street_view_map.py --kml /mnt/c/Users/zheng/Downloads/cde2501.kml --polygon-name "Site area"`
+- With Google key:
+  - `export GOOGLE_MAPS_API_KEY="YOUR_KEY"`
+  - `python3 scripts/build_street_view_map.py --kml /mnt/c/Users/zheng/Downloads/cde2501.kml --polygon-name "Site area"`
 
-Immediate Verification Checklist (Unity)
-1) Open project and let scripts/assets reimport.
-2) Check Console for compile errors (must be 0 errors).
-3) Enter Play mode:
-   - Minimap should be sharper and less clunky.
-   - Drag/zoom/minimap controls should work.
-   - Route should visibly start from your current position.
-4) Switch destinations and confirm route updates continuously.
+3) Unity verification
+- Open `CDE2501-AR-Wayfinding` project.
+- `Assets > Refresh`.
+- Press Play.
+- In Quick Start status panel, confirm:
+  - `Video frame map: ... loaded: True, markers: > 0`
+  - `Street view explorer: ... loaded: True, nodes: > 0, active: True`
+- Press `Y` if Street View mode is hidden.
+- Console should show logs from `VideoFrameMapVisualizer` and (if needed) StreetView load status.
 
-Future Plans
-Priority 1 - Stability and Correctness
-1) Run full Unity compile cleanup and resolve any remaining null-reference edge cases.
-2) Add explicit on-screen debug values for: current start node, selected destination node, route recompute reason.
-3) Add route recalculation hysteresis tuning to reduce jitter while still staying responsive.
+Known Limits Right Now
+- This shell cannot run Unity Editor; runtime/visual verification must be done on your machine.
+- Google Street View downloads require a valid API key and quota billing enabled.
+- Without Google key, Street View runs in YouTube fallback mode only.
 
-Priority 2 - Map Quality and UX
-1) Increase atlas resolution to z19 where needed:
-   - ./scripts/generate_osm_map_atlas.py --zoom 19 --padding-tiles 1
-2) Add optional tiled loading/chunking for larger areas to keep memory stable.
-3) Improve minimap UX:
-   - Better marker labels
-   - Cleaner hover tooltip behavior
-   - Optional lock north / follow heading mode
+Next Engineering Tasks
+1) Improve polygon coverage:
+- Tune `--min-spacing-m` and `--max-google-nodes`.
+- Add optional connector generation between selected street-view nodes.
 
-Priority 3 - Real Estate Data Accuracy
-1) Validate and refine waypoints/nodes against field-verified paths.
-2) Add explicit elevation connectors (stairs/lifts/ramps) with safety attributes.
-3) Tune profile weights (elderly/wheelchair/rain) from field trial logs.
+2) Improve Street View UX:
+- Add image prefetch for adjacent nodes.
+- Add a compact node list picker by nearest POI name.
+- Add route-to-street-view-node jump button from minimap click.
 
-Priority 4 - Device Validation
-1) Test on ARCore-capable Android device (permissions + tracking + route loop).
-2) Test on ARKit iOS device (Info.plist entries + tracking + route loop).
-3) Record battery, thermal behavior, and update recalc/cache thresholds accordingly.
-
-Commit Suggestion
-- Commit this progress in one checkpoint before further feature work:
-  "Upgrade minimap to high-res atlas and anchor route from player"
-
+Git Notes
+- `.gitignore` updated to exclude generated/regeneratable large artifacts:
+  - `.tmp-video-map/`
+  - `Assets/StreamingAssets/Data/video_frames/`
+  - `Assets/StreamingAssets/Data/video_frame_map.json`

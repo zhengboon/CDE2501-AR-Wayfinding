@@ -24,7 +24,7 @@ namespace CDE2501.Wayfinding.UI
     public class VideoMappingCsvOverlay : MonoBehaviour
     {
         [Header("Display")]
-        [SerializeField] private bool showOverlay = true;
+        [SerializeField] private bool showOverlay = false;
         [SerializeField] private KeyCode toggleKey = KeyCode.V;
         [SerializeField, Range(0.8f, 2.5f)] private float overlayScale = 1f;
         [SerializeField] private Vector2 panelSize = new Vector2(980f, 460f);
