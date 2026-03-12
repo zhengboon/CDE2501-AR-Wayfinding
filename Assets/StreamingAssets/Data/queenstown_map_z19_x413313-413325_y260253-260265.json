@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "source": "OpenStreetMap",
+  "tileServer": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "zoom": 19,
+  "minTileX": 413313,
+  "maxTileX": 413325,
+  "minTileY": 260253,
+  "maxTileY": 260265,
+  "tileSize": 256,
+  "tilesX": 13,
+  "tilesY": 13,
+  "imageWidth": 3328,
+  "imageHeight": 3328,
+  "geoBounds": {
+    "north": 1.2983355281519677,
+    "south": 1.2894114125257763,
+    "west": 103.79951477050781,
+    "east": 103.80844116210938,
+    "minLat": 1.2894114125257763,
+    "maxLat": 1.2983355281519677,
+    "minLon": 103.79951477050781,
+    "maxLon": 103.80844116210938
+  },
+  "requestedBounds": {
+    "minLat": 1.2906212321628638,
+    "maxLat": 1.2971731541685372,
+    "minLon": 103.8012228207631,
+    "maxLon": 103.8071270789997
+  }
+}

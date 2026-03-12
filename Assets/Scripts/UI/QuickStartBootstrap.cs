@@ -28,6 +28,8 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool autoCreateDestinationMarkers = true;
         [SerializeField] private bool autoCreateRoutePathPreview = true;
         [SerializeField] private bool autoCreateMiniMap = true;
+        [SerializeField] private bool autoCreateVideoCsvOverlay = true;
+        [SerializeField] private bool autoCreateVideoFrameMap = true;
         [SerializeField] private bool resetPersistentDataOnStart = true;
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
         [SerializeField] private bool alwaysRouteFromCurrentPosition = true;
@@ -68,10 +70,13 @@ namespace CDE2501.Wayfinding.UI
         private RoutePathVisualizer _routePathVisualizer;
         private DestinationMarkerVisualizer _destinationMarkerVisualizer;
         private MiniMapOverlay _miniMapOverlay;
+        private VideoMappingCsvOverlay _videoMappingCsvOverlay;
+        private VideoFrameMapVisualizer _videoFrameMapVisualizer;
         private BoundaryConstraintManager _boundaryConstraintManager;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
+        private string _lastRecalcReason = "Init";
         private RouteResult _lastRouteResult;
         private bool _locationsLoaded;
         private bool _subscribed;
@@ -165,25 +170,25 @@ namespace CDE2501.Wayfinding.UI
 
             if (Input.GetKeyDown(KeyCode.R))
             {
-                RecalculateCurrentRoute();
+                RecalculateCurrentRoute("Manual (R key)");
             }
 
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 _routeCalculator.CurrentMode = RoutingMode.NormalElderly;
-                RecalculateCurrentRoute();
+                RecalculateCurrentRoute("Mode changed to Elderly");
             }
 
             if (Input.GetKeyDown(KeyCode.Alpha2))
             {
                 _routeCalculator.CurrentMode = RoutingMode.Wheelchair;
-                RecalculateCurrentRoute();
+                RecalculateCurrentRoute("Mode changed to Wheelchair");
             }
 
             if (Input.GetKeyDown(KeyCode.T))
             {
                 _routeCalculator.RainMode = !_routeCalculator.RainMode;
-                RecalculateCurrentRoute();
+                RecalculateCurrentRoute("Rain mode toggled");
             }
 
             if (_miniMapOverlay != null)
@@ -217,6 +222,7 @@ namespace CDE2501.Wayfinding.UI
         private void DrawStatusWindow(int id)
         {
             bool shouldRecalculate = false;
+            string pendingRecalcReason = null;
 
             if (_routeCalculator != null)
             {
@@ -226,6 +232,7 @@ namespace CDE2501.Wayfinding.UI
                 {
                     _routeCalculator.RainMode = newRain;
                     shouldRecalculate = true;
+                    pendingRecalcReason = "Rain mode UI toggle";
                 }
 
                 bool wheelchair = _routeCalculator.CurrentMode == RoutingMode.Wheelchair;
@@ -234,6 +241,7 @@ namespace CDE2501.Wayfinding.UI
                 {
                     _routeCalculator.CurrentMode = newWheelchair ? RoutingMode.Wheelchair : RoutingMode.NormalElderly;
                     shouldRecalculate = true;
+                    pendingRecalcReason = "Mobility mode UI toggle";
                 }
             }
 
@@ -252,6 +260,7 @@ namespace CDE2501.Wayfinding.UI
             {
                 useNearestNodeAsStart = newNearestStart;
                 shouldRecalculate = true;
+                pendingRecalcReason = "Nearest Start UI toggle";
             }
 
             _resolvedStartNodeId = ResolveStartNodeId();
@@ -316,7 +325,7 @@ namespace CDE2501.Wayfinding.UI
 
             if (shouldRecalculate)
             {
-                RecalculateCurrentRoute();
+                RecalculateCurrentRoute(pendingRecalcReason ?? "UI State Changed");
             }
 
             string routeMessage = _lastRouteResult == null
@@ -328,6 +337,7 @@ namespace CDE2501.Wayfinding.UI
             string text =
                 $"{_status}\n" +
                 $"Start node: ME -> {_resolvedStartNodeId} | Destination: {destinationName}\n" +
+                $"Recalc Reason: {_lastRecalcReason}\n" +
                 $"Mode: {(_routeCalculator != null ? _routeCalculator.CurrentMode.ToString() : "missing")} | Rain: {(_routeCalculator != null && _routeCalculator.RainMode)}\n" +
                 $"Baritone-style start: {baritoneStyleStartResolution} | Revalidation: {routeRevalidationEnabled}\n" +
                 $"Route engine ready: {(_routeCalculator != null && _routeCalculator.IsInitialized)}\n" +
@@ -340,8 +350,10 @@ namespace CDE2501.Wayfinding.UI
                 $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
+                $"Video CSV overlay: {(_videoMappingCsvOverlay != null)}\n" +
+                $"Video frame map: {(_videoFrameMapVisualizer != null)} (loaded: {(_videoFrameMapVisualizer != null && _videoFrameMapVisualizer.ManifestReady)}, markers: {(_videoFrameMapVisualizer != null ? _videoFrameMapVisualizer.MarkerCount : 0)})\n" +
                 $"{routeMessage}\n" +
-                "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: Arrows, look: A/D + W/S. MiniMap: wheel zoom, left-drag pan/click select, right-drag move window, F follow.";
+                "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle, V video list. Move: Arrows, look: A/D + W/S. MiniMap: wheel zoom, left-drag pan/click select, right-drag move window, F follow.";
 
             float infoTop = destinationRowY + 32f + dropdownHeight + 4f;
             Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
@@ -516,6 +528,16 @@ namespace CDE2501.Wayfinding.UI
             {
                 SetupMiniMap();
             }
+
+            if (autoCreateVideoCsvOverlay)
+            {
+                SetupVideoCsvOverlay();
+            }
+
+            if (autoCreateVideoFrameMap)
+            {
+                SetupVideoFrameMap();
+            }
         }
 
         private void SetupSimulationTargetDriver()
@@ -647,6 +669,26 @@ namespace CDE2501.Wayfinding.UI
             _miniMapOverlay.SetStartReferenceTransform(GetStartReferenceTransform());
         }
 
+        private void SetupVideoCsvOverlay()
+        {
+            _videoMappingCsvOverlay = FindObjectOfType<VideoMappingCsvOverlay>();
+            if (_videoMappingCsvOverlay == null)
+            {
+                _videoMappingCsvOverlay = gameObject.AddComponent<VideoMappingCsvOverlay>();
+            }
+        }
+
+        private void SetupVideoFrameMap()
+        {
+            _videoFrameMapVisualizer = FindObjectOfType<VideoFrameMapVisualizer>();
+            if (_videoFrameMapVisualizer == null)
+            {
+                _videoFrameMapVisualizer = gameObject.AddComponent<VideoFrameMapVisualizer>();
+            }
+
+            _videoFrameMapVisualizer.SetGraphLoader(_graphLoader);
+        }
+
         private static void ResetPersistentDataFolder()
         {
             string dataPath = Path.Combine(Application.persistentDataPath, "Data");
@@ -722,7 +764,7 @@ namespace CDE2501.Wayfinding.UI
                 bool graphReady = _graphLoader != null && _graphLoader.NodesById.Count > 0;
                 if (_locationsLoaded && routingReady && graphReady)
                 {
-                    RecalculateCurrentRoute();
+                    RecalculateCurrentRoute("Initial Auto Route");
                     yield break;
                 }
 
@@ -822,6 +864,10 @@ namespace CDE2501.Wayfinding.UI
         {
             _lastRouteResult = result;
             _status = result != null && result.success ? "Route updated." : "Route update failed.";
+            if (result != null && !string.IsNullOrWhiteSpace(result.recalcReason))
+            {
+                _lastRecalcReason = result.recalcReason;
+            }
         }
 
         private void HandleMiniMapDestinationClicked(string nodeId, string locationName)
@@ -1009,7 +1055,7 @@ namespace CDE2501.Wayfinding.UI
             UpdateSelectedDestinationMarker();
             if (recalculate)
             {
-                RecalculateCurrentRoute();
+                RecalculateCurrentRoute("Destination changed via UI");
             }
         }
 
@@ -1032,7 +1078,7 @@ namespace CDE2501.Wayfinding.UI
             SetDestinationIndex(destinationIndex, recalculate: true);
         }
 
-        private void RecalculateCurrentRoute()
+        private void RecalculateCurrentRoute(string reason = "Manual")
         {
             if (_routeCalculator == null)
             {
@@ -1063,7 +1109,7 @@ namespace CDE2501.Wayfinding.UI
 
             ElevationLevel level = _levelManager != null ? _levelManager.CurrentLevel : ElevationLevel.Deck;
             _resolvedStartNodeId = ResolveStartNodeIdForRoute();
-            _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destination.indoor_node_id, level, forceImmediateRouteRefresh);
+            _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destination.indoor_node_id, level, forceImmediateRouteRefresh, reason);
         }
 
         private void UpdateSelectedDestinationMarker()
@@ -1378,7 +1424,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             _lastAutoStartNodeId = currentStart;
-            RecalculateCurrentRoute();
+            RecalculateCurrentRoute("Start node explicitly changed");
         }
 
         private void MaybeContinuouslyRefreshRoute()
@@ -1426,7 +1472,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             _lastContinuousRefreshPosition = reference.position;
-            RecalculateCurrentRoute();
+            RecalculateCurrentRoute("Continuous movement refresh");
         }
 
         private void MaybeRevalidateRouteFromPlayer()
@@ -1475,7 +1521,7 @@ namespace CDE2501.Wayfinding.UI
 
             _consecutiveInvalidRouteChecks = 0;
             _status = $"Route revalidation triggered (off-route {distanceToRoute:0.0}m).";
-            RecalculateCurrentRoute();
+            RecalculateCurrentRoute("Off-route revalidation");
         }
 
         private float ComputeDistanceToRouteNodes(Vector3 position, System.Collections.Generic.List<string> nodePath)

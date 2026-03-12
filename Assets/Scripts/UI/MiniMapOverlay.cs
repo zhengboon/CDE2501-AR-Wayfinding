@@ -54,7 +54,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(0f)] private float boundsPaddingMeters = 2f;
         [Header("Map Image")]
         [SerializeField] private bool showMapImage = true;
-        [SerializeField] private string mapImageFileName = "queenstown_map_z18_x206656-206662_y130126-130132.png";
+        [SerializeField] private string mapImageFileName = "queenstown_map_z19_x413313-413325_y260253-260265.png";
         [SerializeField, Range(0.05f, 1f)] private float mapImageAlpha = 0.75f;
         [Header("Interaction")]
         [SerializeField] private bool enableMapInteraction = true;
@@ -63,6 +63,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(1f)] private float maxMapZoom = 6f;
         [SerializeField, Range(0.01f, 1f)] private float zoomStep = 0.2f;
         [SerializeField] private bool followPlayer = true;
+        [SerializeField] private bool followHeading = false;
         [SerializeField] private bool disableFollowWhileDragging = true;
         [SerializeField] private bool autoRecenterOnRouteUpdate = true;
         [SerializeField, Min(1f)] private float zoomSmoothSpeed = 14f;
@@ -377,7 +378,20 @@ namespace CDE2501.Wayfinding.UI
             HandleMapInteraction(mapRect);
             UpdateMapView(mapRect.size);
 
+            float currentHeading = 0f;
+            if (followHeading && startReferenceTransform != null)
+            {
+                currentHeading = startReferenceTransform.eulerAngles.y;
+            }
+
             DrawFilledRect(mapRect, mapBackgroundColor);
+
+            Matrix4x4 prevMatrix = GUI.matrix;
+            if (followHeading)
+            {
+                GUIUtility.RotateAroundPivot(-currentHeading, mapRect.center);
+            }
+
             DrawMapImageBackground(mapRect);
 
             GUI.BeginGroup(mapRect);
@@ -386,6 +400,9 @@ namespace CDE2501.Wayfinding.UI
             DrawDestinationMarker(mapRect.size);
             DrawPlayerMarker(mapRect.size);
             GUI.EndGroup();
+
+            GUI.matrix = prevMatrix;
+
             DrawMiniMapHoverTooltip(mapRect);
 
             DrawMapControlButtons(mapRect);
@@ -1609,6 +1626,13 @@ namespace CDE2501.Wayfinding.UI
             {
                 followPlayer = newFollow;
             }
+
+            Rect headingRect = new Rect(mapRect.x + 46f, mapRect.y + 6f, 110f, 20f);
+            bool newHeading = GUI.Toggle(headingRect, followHeading, "Follow Heading");
+            if (newHeading != followHeading)
+            {
+                followHeading = newHeading;
+            }
         }
 
         private void HandleMapInteraction(Rect mapRect)
@@ -1726,7 +1750,8 @@ namespace CDE2501.Wayfinding.UI
             Rect minusRect = new Rect(mapRect.xMax - (buttonSize * 2f) - padding, mapRect.y + padding, buttonSize, buttonSize);
             Rect centerRect = new Rect(mapRect.xMax - buttonSize - 1f, mapRect.y + padding, buttonSize, buttonSize);
             Rect followRect = new Rect(mapRect.x + 6f, mapRect.y + 6f, 34f, 20f);
-            return plusRect.Contains(point) || minusRect.Contains(point) || centerRect.Contains(point) || followRect.Contains(point);
+            Rect headingRect = new Rect(mapRect.x + 46f, mapRect.y + 6f, 110f, 20f);
+            return plusRect.Contains(point) || minusRect.Contains(point) || centerRect.Contains(point) || followRect.Contains(point) || headingRect.Contains(point);
         }
 
         private void SetMapZoom(float targetZoom, Vector2 mapSize, Vector2 pivotLocal)

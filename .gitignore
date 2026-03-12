@@ -60,3 +60,10 @@ baritone-example/
 .tmp-yt/
 Docs/queenstown_youtube_scan_all.json
 Docs/queenstown_youtube_scan_shortlist.tsv
+
+# Generated video frame mapping artifacts (regeneratable)
+.tmp-video-map/
+Assets/StreamingAssets/Data/video_frames/
+Assets/StreamingAssets/Data/video_frames.meta
+Assets/StreamingAssets/Data/video_frame_map.json
+Assets/StreamingAssets/Data/video_frame_map.json.meta

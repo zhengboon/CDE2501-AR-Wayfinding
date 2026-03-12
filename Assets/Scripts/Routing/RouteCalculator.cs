@@ -23,6 +23,7 @@ namespace CDE2501.Wayfinding.Routing
     {
         public string startNodeId;
         public string endNodeId;
+        public string recalcReason;
         public ElevationLevel currentLevel;
         public RoutingMode mode;
         public bool rainMode;
@@ -38,9 +39,11 @@ namespace CDE2501.Wayfinding.Routing
         public bool success;
         public string message;
 
-        public static RouteResult Failed(string msg)
+        public string recalcReason;
+
+        public static RouteResult Failed(string msg, string reason = "Unknown")
         {
-            return new RouteResult { success = false, message = msg };
+            return new RouteResult { success = false, message = msg, recalcReason = reason };
         }
 
         public static RouteResult Success(List<string> path, float cost)
@@ -50,7 +53,8 @@ namespace CDE2501.Wayfinding.Routing
                 success = true,
                 nodePath = path,
                 totalCost = cost,
-                message = "Route calculated"
+                message = "Route calculated",
+                recalcReason = "Unknown"
             };
         }
     }
@@ -68,6 +72,7 @@ namespace CDE2501.Wayfinding.Routing
         [SerializeField, Min(1)] private int maxCacheEntries = 64;
         [SerializeField, Min(0f)] private float recalcCooldownSeconds = 0f;
         [SerializeField] private bool queueRecalculationDuringCooldown = true;
+        [SerializeField, Min(0f)] private float switchRouteCostAdvantage = 2.0f;
 
         private RoutingProfilesConfig _profilesConfig;
         private AStarPathfinder _pathfinder;
@@ -192,16 +197,16 @@ namespace CDE2501.Wayfinding.Routing
             StartCoroutine(LoadProfilesAndInitializeRoutine());
         }
 
-        public RouteResult CalculateIndoorRoute(string startNodeId, string endNodeId, ElevationLevel currentLevel)
+        public RouteResult CalculateIndoorRoute(string startNodeId, string endNodeId, ElevationLevel currentLevel, string reason = "Manual")
         {
-            return CalculateIndoorRoute(startNodeId, endNodeId, currentLevel, forceRefresh: false);
+            return CalculateIndoorRoute(startNodeId, endNodeId, currentLevel, forceRefresh: false, reason);
         }
 
-        public RouteResult CalculateIndoorRoute(string startNodeId, string endNodeId, ElevationLevel currentLevel, bool forceRefresh)
+        public RouteResult CalculateIndoorRoute(string startNodeId, string endNodeId, ElevationLevel currentLevel, bool forceRefresh, string reason = "Manual")
         {
             if (_pathfinder == null)
             {
-                RouteResult failed = RouteResult.Failed("Pathfinder not initialized.");
+                RouteResult failed = RouteResult.Failed("Pathfinder not initialized.", reason);
                 OnRouteUpdated?.Invoke(failed);
                 return failed;
             }
@@ -209,7 +214,7 @@ namespace CDE2501.Wayfinding.Routing
             RoutingProfile profile = _profilesConfig?.GetByMode(routingMode);
             if (profile == null)
             {
-                RouteResult failed = RouteResult.Failed("Routing profile unavailable.");
+                RouteResult failed = RouteResult.Failed("Routing profile unavailable.", reason);
                 OnRouteUpdated?.Invoke(failed);
                 return failed;
             }
@@ -221,21 +226,22 @@ namespace CDE2501.Wayfinding.Routing
                 currentLevel = currentLevel,
                 mode = routingMode,
                 rainMode = rainMode,
-                boundaryRevision = boundaryConstraintManager != null ? boundaryConstraintManager.BoundaryRevision : 0
+                boundaryRevision = boundaryConstraintManager != null ? boundaryConstraintManager.BoundaryRevision : 0,
+                recalcReason = reason
             };
 
             if (boundaryConstraintManager != null && boundaryConstraintManager.HasBoundary)
             {
                 if (!boundaryConstraintManager.IsNodeAllowed(startNodeId))
                 {
-                    RouteResult failed = RouteResult.Failed("Start node is outside boundary.");
+                    RouteResult failed = RouteResult.Failed("Start node is outside boundary.", reason);
                     OnRouteUpdated?.Invoke(failed);
                     return failed;
                 }
 
                 if (!boundaryConstraintManager.IsNodeAllowed(endNodeId))
                 {
-                    RouteResult failed = RouteResult.Failed("Destination is outside boundary.");
+                    RouteResult failed = RouteResult.Failed("Destination is outside boundary.", reason);
                     OnRouteUpdated?.Invoke(failed);
                     return failed;
                 }
@@ -245,6 +251,7 @@ namespace CDE2501.Wayfinding.Routing
             if (!forceRefresh && enableRouteCache && TryGetRouteFromCache(cacheKey, out RouteResult cached))
             {
                 cached.message = "Route loaded from cache.";
+                cached.recalcReason = reason;
                 OnRouteUpdated?.Invoke(cached);
                 return cached;
             }
@@ -262,11 +269,12 @@ namespace CDE2501.Wayfinding.Routing
                     {
                         RouteResult stale = CloneRouteResult(_lastComputedResult);
                         stale.message = $"Reusing last route while recalculation is queued ({cooldownRemaining:0.0}s).";
+                        stale.recalcReason = reason;
                         OnRouteUpdated?.Invoke(stale);
                         return stale;
                     }
 
-                    RouteResult queued = RouteResult.Failed($"Recalculation queued. Try again in {cooldownRemaining:0.0}s.");
+                    RouteResult queued = RouteResult.Failed($"Recalculation queued. Try again in {cooldownRemaining:0.0}s.", reason);
                     OnRouteUpdated?.Invoke(queued);
                     return queued;
                 }
@@ -275,6 +283,7 @@ namespace CDE2501.Wayfinding.Routing
                 {
                     RouteResult throttled = CloneRouteResult(_lastComputedResult);
                     throttled.message = $"Recalculation throttled for {cooldownRemaining:0.0}s.";
+                    throttled.recalcReason = reason;
                     OnRouteUpdated?.Invoke(throttled);
                     return throttled;
                 }
@@ -400,9 +409,29 @@ namespace CDE2501.Wayfinding.Routing
                 : null;
 
             RouteResult result = _pathfinder.FindPath(request, profile, _profilesConfig.rainSlopeMultiplier, nodeEligibility);
+            result.recalcReason = request.recalcReason;
             if (result.success)
             {
                 result.totalDistance = ComputePathDistance(result.nodePath);
+
+                // Apply Hysteresis: Only switch if the new route is significantly better, and destination matches.
+                if (_lastComputedResult != null && _lastComputedResult.success && _lastComputedResult.nodePath != null && _lastComputedResult.nodePath.Count > 0)
+                {
+                    string lastDest = _lastComputedResult.nodePath[_lastComputedResult.nodePath.Count - 1];
+                    string newDest = result.nodePath.Count > 0 ? result.nodePath[result.nodePath.Count - 1] : null;
+
+                    if (string.Equals(lastDest, newDest, StringComparison.Ordinal))
+                    {
+                        bool isOnOldPath = _lastComputedResult.nodePath.Contains(request.startNodeId);
+                        if (isOnOldPath && result.totalCost >= _lastComputedResult.totalCost - switchRouteCostAdvantage)
+                        {
+                            result = CloneRouteResult(_lastComputedResult);
+                            result.message = "Maintained previous route (hysteresis).";
+                            result.recalcReason = request.recalcReason;
+                        }
+                    }
+                }
+
                 if (enableRouteCache)
                 {
                     SaveRouteToCache(cacheKey, result);
@@ -560,7 +589,8 @@ namespace CDE2501.Wayfinding.Routing
                 currentLevel = request.currentLevel,
                 mode = request.mode,
                 rainMode = request.rainMode,
-                boundaryRevision = request.boundaryRevision
+                boundaryRevision = request.boundaryRevision,
+                recalcReason = request.recalcReason
             };
         }
 
@@ -582,6 +612,7 @@ namespace CDE2501.Wayfinding.Routing
                 totalCost = result.totalCost,
                 totalDistance = result.totalDistance,
                 message = result.message,
+                recalcReason = result.recalcReason,
                 nodePath = result.nodePath != null ? new List<string>(result.nodePath) : new List<string>()
             };
         }
