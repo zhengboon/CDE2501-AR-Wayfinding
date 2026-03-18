@@ -1,14 +1,16 @@
 # CDE2501 AR Wayfinding - System Architecture
 
 ## 1) Module Overview
-- `Location`: GPS + compass ingestion, smoothing, and heading updates.
+- `Location`: GPS + compass ingestion, smoothing, heading updates, and PC simulation controls.
 - `Elevation`: Manual level confirmation and smart/always/manual prompting policy.
 - `IndoorGraph`: Multi-level graph data model and JSON loading/validation.
 - `Profiles`: Safety weights and constraints for Normal Elderly / Wheelchair modes.
-- `Routing`: Safety-weighted A* and route orchestration.
+- `Routing`: Safety-weighted A*, route cache/cooldown, and revalidation orchestration.
 - `AR`: Stable, high-contrast arrow anchored ahead of user.
-- `UI`: Destination selection, distance display, reassurance messaging.
-- `Data`: Local CRUD for Areas of Interest with JSON persistence.
+- `UI`: Destination selection, distance/status panels, minimap, route lines, and hover tooltips.
+- `Street View`: Full-screen image-based scene explorer with route-filtered node sets.
+- `Video Mapping`: Route-filtered video frame markers and manifest loading.
+- `Data`: Local CRUD for Areas of Interest with JSON persistence and boundary filters.
 
 ## 2) Runtime Flow
 1. App starts and loaders copy seed JSON from `StreamingAssets/Data` to `persistentDataPath/Data` if missing.
@@ -17,8 +19,9 @@
 4. Level manager evaluates if level confirmation prompt is required.
 5. User selects destination, mode, and optional rain mode.
 6. Route calculator runs safety-weighted A*.
-7. AR arrow points to next guidance direction while UI shows distance and reassurance text.
-8. Route recalculates when destination/mode/rain/level changes or off-route events occur.
+7. UI renders route line + minimap + optional street-view/video overlays.
+8. AR arrow points to next guidance direction while UI shows distance and reassurance text.
+9. Route recalculates when destination/mode/rain/level changes, movement checks, or off-route events occur.
 
 ## 3) Data Model Diagrams (Text)
 

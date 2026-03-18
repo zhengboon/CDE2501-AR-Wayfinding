@@ -2,7 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using CDE2501.Wayfinding.IndoorGraph;
+using CDE2501.Wayfinding.Routing;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -49,6 +51,7 @@ namespace CDE2501.Wayfinding.UI
     public class VideoFrameMapVisualizer : MonoBehaviour
     {
         [SerializeField] private GraphLoader graphLoader;
+        [SerializeField] private RouteCalculator routeCalculator;
         [SerializeField] private string manifestFileName = "video_frame_map.json";
         [SerializeField] private bool refreshFromStreamingAssetsOnLoad = true;
         [SerializeField] private bool autoLoadOnStart = true;
@@ -64,10 +67,17 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool billboardTowardsCamera = true;
         [SerializeField] private bool clearExistingBeforeBuild = true;
 
+        [Header("Path Filter")]
+        [SerializeField] private bool onlyShowFramesOnCurrentRoute = true;
+        [SerializeField] private bool skipFirstFrameInEachVideo = true;
+
         private readonly List<GameObject> _markers = new List<GameObject>();
         private readonly List<Transform> _billboardMarkers = new List<Transform>();
         private readonly List<Material> _materials = new List<Material>();
+        private readonly HashSet<string> _routeNodeFilter = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private VideoFrameMapManifest _manifest;
+        private RouteResult _latestRouteResult;
+        private string _lastRouteSignature = string.Empty;
         private bool _manifestReady;
         private bool _graphReady;
 
@@ -80,6 +90,11 @@ namespace CDE2501.Wayfinding.UI
             {
                 graphLoader = FindObjectOfType<GraphLoader>();
             }
+
+            if (routeCalculator == null)
+            {
+                routeCalculator = FindObjectOfType<RouteCalculator>();
+            }
         }
 
         private void OnEnable()
@@ -88,6 +103,11 @@ namespace CDE2501.Wayfinding.UI
             {
                 graphLoader.OnGraphLoaded += HandleGraphLoaded;
             }
+
+            if (routeCalculator != null)
+            {
+                routeCalculator.OnRouteUpdated += HandleRouteUpdated;
+            }
         }
 
         private void OnDisable()
@@ -95,6 +115,11 @@ namespace CDE2501.Wayfinding.UI
             if (graphLoader != null)
             {
                 graphLoader.OnGraphLoaded -= HandleGraphLoaded;
+            }
+
+            if (routeCalculator != null)
+            {
+                routeCalculator.OnRouteUpdated -= HandleRouteUpdated;
             }
         }
 
@@ -160,6 +185,22 @@ namespace CDE2501.Wayfinding.UI
             TryBuildMarkers(force: true);
         }
 
+        public void SetRouteCalculator(RouteCalculator calculator)
+        {
+            if (routeCalculator != null)
+            {
+                routeCalculator.OnRouteUpdated -= HandleRouteUpdated;
+            }
+
+            routeCalculator = calculator;
+            if (routeCalculator != null && isActiveAndEnabled)
+            {
+                routeCalculator.OnRouteUpdated += HandleRouteUpdated;
+            }
+
+            TryBuildMarkers(force: true);
+        }
+
         public void LoadManifest()
         {
             StartCoroutine(LoadManifestRoutine());
@@ -174,6 +215,24 @@ namespace CDE2501.Wayfinding.UI
         {
             _graphReady = success && graphLoader != null && graphLoader.NodesById.Count > 0;
             TryBuildMarkers();
+        }
+
+        private void HandleRouteUpdated(RouteResult result)
+        {
+            _latestRouteResult = result;
+            if (!onlyShowFramesOnCurrentRoute)
+            {
+                return;
+            }
+
+            string signature = BuildRouteSignature(result);
+            if (string.Equals(signature, _lastRouteSignature, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastRouteSignature = signature;
+            TryBuildMarkers(force: true);
         }
 
         private IEnumerator LoadManifestRoutine()
@@ -217,6 +276,25 @@ namespace CDE2501.Wayfinding.UI
                 ClearMarkers();
             }
 
+            _routeNodeFilter.Clear();
+            if (onlyShowFramesOnCurrentRoute)
+            {
+                if (_latestRouteResult == null || !_latestRouteResult.success || _latestRouteResult.nodePath == null || _latestRouteResult.nodePath.Count == 0)
+                {
+                    Debug.Log("VideoFrameMapVisualizer: route filter enabled, waiting for active route.");
+                    return;
+                }
+
+                for (int i = 0; i < _latestRouteResult.nodePath.Count; i++)
+                {
+                    string nodeId = _latestRouteResult.nodePath[i];
+                    if (!string.IsNullOrWhiteSpace(nodeId))
+                    {
+                        _routeNodeFilter.Add(nodeId);
+                    }
+                }
+            }
+
             int usedVideos = 0;
             for (int vi = 0; vi < _manifest.videos.Count && usedVideos < maxVideos; vi++)
             {
@@ -226,17 +304,27 @@ namespace CDE2501.Wayfinding.UI
                     continue;
                 }
 
-                int step = Mathf.Max(1, Mathf.CeilToInt((float)video.frames.Count / Mathf.Max(1, maxFramesPerVideo)));
+                int startFrameIndex = (skipFirstFrameInEachVideo && video.frames.Count > 1) ? 1 : 0;
+                int remainingFrames = Mathf.Max(1, video.frames.Count - startFrameIndex);
+                int step = Mathf.Max(1, Mathf.CeilToInt((float)remainingFrames / Mathf.Max(1, maxFramesPerVideo)));
                 Color baseColor = Color.HSVToRGB((vi * 0.127f) % 1f, 0.75f, 1f);
                 baseColor.a = markerAlpha;
 
                 int framesSpawnedForVideo = 0;
-                for (int fi = 0; fi < video.frames.Count && framesSpawnedForVideo < maxFramesPerVideo; fi += step)
+                for (int fi = startFrameIndex; fi < video.frames.Count && framesSpawnedForVideo < maxFramesPerVideo; fi += step)
                 {
                     VideoFrameMapFrame frame = video.frames[fi];
                     if (frame == null)
                     {
                         continue;
+                    }
+
+                    if (onlyShowFramesOnCurrentRoute)
+                    {
+                        if (string.IsNullOrWhiteSpace(frame.nodeId) || !_routeNodeFilter.Contains(frame.nodeId))
+                        {
+                            continue;
+                        }
                     }
 
                     CreateMarker(video, frame, baseColor, framesSpawnedForVideo);
@@ -392,6 +480,27 @@ namespace CDE2501.Wayfinding.UI
             }
 
             request.Dispose();
+        }
+
+        private static string BuildRouteSignature(RouteResult route)
+        {
+            if (route == null || !route.success || route.nodePath == null || route.nodePath.Count == 0)
+            {
+                return "none";
+            }
+
+            var builder = new StringBuilder(route.nodePath.Count * 10);
+            for (int i = 0; i < route.nodePath.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append('|');
+                }
+
+                builder.Append(route.nodePath[i]);
+            }
+
+            return builder.ToString();
         }
     }
 }

@@ -14,6 +14,7 @@ import argparse
 import csv
 import datetime as dt
 import heapq
+import hashlib
 import json
 import math
 import os
@@ -347,6 +348,83 @@ def download_thumbnail(url: str, out_path: Path) -> bool:
         return False
 
 
+def download_thumbnail_bytes(url: str) -> Optional[bytes]:
+    if not url:
+        return None
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=20) as response:
+            data = response.read()
+        if not data:
+            return None
+        return data
+    except Exception:
+        return None
+
+
+def download_fallback_thumbnail_set(
+    video_id: str,
+    preferred_thumbnail_url: str,
+    out_dir: Path,
+    max_images: int = 6,
+) -> List[Path]:
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    candidate_urls: List[str] = []
+    if preferred_thumbnail_url:
+        candidate_urls.append(preferred_thumbnail_url.strip())
+
+    candidate_urls.extend(
+        [
+            f"https://i.ytimg.com/vi/{video_id}/maxresdefault.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/sddefault.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/0.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/1.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/2.jpg",
+            f"https://i.ytimg.com/vi/{video_id}/3.jpg",
+        ]
+    )
+
+    dedup_urls: List[str] = []
+    seen_url = set()
+    for u in candidate_urls:
+        if not u:
+            continue
+        if u in seen_url:
+            continue
+        seen_url.add(u)
+        dedup_urls.append(u)
+
+    output_paths: List[Path] = []
+    seen_hashes = set()
+    frame_index = 1
+
+    for url in dedup_urls:
+        data = download_thumbnail_bytes(url)
+        if not data:
+            continue
+
+        # YouTube returns a tiny placeholder image for unavailable sizes.
+        if len(data) < 2500:
+            continue
+
+        digest = hashlib.md5(data).hexdigest()
+        if digest in seen_hashes:
+            continue
+        seen_hashes.add(digest)
+
+        frame_path = out_dir / f"frame_{frame_index:04d}.jpg"
+        frame_path.write_bytes(data)
+        output_paths.append(frame_path)
+        frame_index += 1
+        if frame_index > max_images:
+            break
+
+    return output_paths
+
+
 def extract_frames_from_video(
     video_url: str,
     video_id: str,
@@ -481,12 +559,14 @@ def build_manifest(args: argparse.Namespace) -> int:
 
         if not frame_paths:
             thumb_url = (row.get("thumbnail_url") or "").strip()
-            if not thumb_url:
-                thumb_url = f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg"
-            thumb_path = video_frame_dir / "frame_0001.jpg"
-            if download_thumbnail(thumb_url, thumb_path):
-                frame_paths = [thumb_path]
-                frame_source = "thumbnail_fallback"
+            frame_paths = download_fallback_thumbnail_set(
+                video_id=video_id,
+                preferred_thumbnail_url=thumb_url,
+                out_dir=video_frame_dir,
+                max_images=max(1, int(args.max_fallback_thumbnails)),
+            )
+            if frame_paths:
+                frame_source = "thumbnail_fallback_multi"
 
         if not frame_paths:
             warnings.append(f"{video_id}: failed to obtain any image frame")
@@ -573,6 +653,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=12)
     parser.add_argument("--thumbnail-only", action="store_true")
     parser.add_argument("--keep-video", action="store_true")
+    parser.add_argument("--max-fallback-thumbnails", type=int, default=6)
     return parser.parse_args()
 
 

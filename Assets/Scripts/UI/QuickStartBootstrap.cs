@@ -28,8 +28,9 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool autoCreateDestinationMarkers = true;
         [SerializeField] private bool autoCreateRoutePathPreview = true;
         [SerializeField] private bool autoCreateMiniMap = true;
-        [SerializeField] private bool autoCreateVideoFrameMap = true;
-        [SerializeField] private bool autoCreateStreetViewExplorer = true;
+        [SerializeField] private bool autoCreateVideoFrameMap = false;
+        [SerializeField] private bool autoCreateStreetViewExplorer = false;
+        [SerializeField] private bool disableYoutubeImageSystems = true;
         [SerializeField] private bool resetPersistentDataOnStart = true;
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
         [SerializeField] private bool alwaysRouteFromCurrentPosition = true;
@@ -268,7 +269,7 @@ namespace CDE2501.Wayfinding.UI
                 pendingRecalcReason = "Nearest Start UI toggle";
             }
 
-            if (_streetViewExplorer != null)
+            if (!disableYoutubeImageSystems && _streetViewExplorer != null)
             {
                 bool streetViewActive = _streetViewExplorer.IsStreetViewActive;
                 bool newStreetViewActive = GUI.Toggle(new Rect(742f, 34f, 188f, 24f), streetViewActive, $"StreetView: {(streetViewActive ? "True" : "False")}");
@@ -349,6 +350,15 @@ namespace CDE2501.Wayfinding.UI
                     ? $"Path nodes: {_lastRouteResult.nodePath.Count}, dist: {_lastRouteResult.totalDistance:0.0} m, msg: {_lastRouteResult.message}"
                     : $"Route failed: {_lastRouteResult.message}");
 
+            string mediaSystemsText = disableYoutubeImageSystems
+                ? "Video frame map: disabled\nStreet view explorer: disabled\n"
+                : $"Video frame map: {(_videoFrameMapVisualizer != null)} (loaded: {(_videoFrameMapVisualizer != null && _videoFrameMapVisualizer.ManifestReady)}, markers: {(_videoFrameMapVisualizer != null ? _videoFrameMapVisualizer.MarkerCount : 0)})\n" +
+                  $"Street view explorer: {(_streetViewExplorer != null)} (loaded: {(_streetViewExplorer != null && _streetViewExplorer.ManifestReady)}, nodes: {(_streetViewExplorer != null ? _streetViewExplorer.NodeCount : 0)}, google: {(_streetViewExplorer != null ? _streetViewExplorer.GoogleNodeCount : 0)}, fallback: {(_streetViewExplorer != null ? _streetViewExplorer.YoutubeFallbackNodeCount : 0)}, active: {(_streetViewExplorer != null && _streetViewExplorer.IsStreetViewActive)})\n";
+
+            string keyHelpText = disableYoutubeImageSystems
+                ? "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow."
+                : "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle, Y street view. StreetView: mouse-drag look, auto-follow nearest image while moving, [ ] node, , . heading, H nearest node. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow.";
+
             string text =
                 $"{_status}\n" +
                 $"Start node: ME -> {_resolvedStartNodeId} | Destination: {destinationName}\n" +
@@ -365,10 +375,9 @@ namespace CDE2501.Wayfinding.UI
                 $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
-                $"Video frame map: {(_videoFrameMapVisualizer != null)} (loaded: {(_videoFrameMapVisualizer != null && _videoFrameMapVisualizer.ManifestReady)}, markers: {(_videoFrameMapVisualizer != null ? _videoFrameMapVisualizer.MarkerCount : 0)})\n" +
-                $"Street view explorer: {(_streetViewExplorer != null)} (loaded: {(_streetViewExplorer != null && _streetViewExplorer.ManifestReady)}, nodes: {(_streetViewExplorer != null ? _streetViewExplorer.NodeCount : 0)}, google: {(_streetViewExplorer != null ? _streetViewExplorer.GoogleNodeCount : 0)}, fallback: {(_streetViewExplorer != null ? _streetViewExplorer.YoutubeFallbackNodeCount : 0)}, active: {(_streetViewExplorer != null && _streetViewExplorer.IsStreetViewActive)})\n" +
+                mediaSystemsText +
                 $"{routeMessage}\n" +
-                "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle, Y street view. StreetView: mouse-drag look, click orange GO hotspot to move, [ ] node, , . heading, H nearest node. Move: Arrows, look: A/D + W/S. MiniMap: wheel zoom, left-drag pan/click select, right-drag move window, F follow.";
+                keyHelpText;
 
             float infoTop = destinationRowY + 32f + dropdownHeight + 4f;
             Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
@@ -544,14 +553,19 @@ namespace CDE2501.Wayfinding.UI
                 SetupMiniMap();
             }
 
-            if (autoCreateVideoFrameMap)
+            if (autoCreateVideoFrameMap && !disableYoutubeImageSystems)
             {
                 SetupVideoFrameMap();
             }
 
-            if (autoCreateStreetViewExplorer)
+            if (autoCreateStreetViewExplorer && !disableYoutubeImageSystems)
             {
                 SetupStreetViewExplorer();
+            }
+
+            if (disableYoutubeImageSystems)
+            {
+                DisableYoutubeImageSystems();
             }
         }
 
@@ -693,6 +707,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             _videoFrameMapVisualizer.SetGraphLoader(_graphLoader);
+            _videoFrameMapVisualizer.SetRouteCalculator(_routeCalculator);
         }
 
         private void SetupStreetViewExplorer()
@@ -705,6 +720,52 @@ namespace CDE2501.Wayfinding.UI
 
             _streetViewExplorer.SetGraphLoader(_graphLoader);
             _streetViewExplorer.SetStartReferenceTransform(GetStartReferenceTransform());
+            _streetViewExplorer.SetRouteCalculator(_routeCalculator);
+        }
+
+        private void DisableYoutubeImageSystems()
+        {
+            StreetViewExplorer[] streetViewExplorers = FindObjectsOfType<StreetViewExplorer>();
+            for (int i = 0; i < streetViewExplorers.Length; i++)
+            {
+                StreetViewExplorer explorer = streetViewExplorers[i];
+                if (explorer == null)
+                {
+                    continue;
+                }
+
+                explorer.SetStreetViewActive(false);
+                explorer.enabled = false;
+            }
+
+            VideoFrameMapVisualizer[] videoVisualizers = FindObjectsOfType<VideoFrameMapVisualizer>();
+            for (int i = 0; i < videoVisualizers.Length; i++)
+            {
+                VideoFrameMapVisualizer visualizer = videoVisualizers[i];
+                if (visualizer != null)
+                {
+                    visualizer.enabled = false;
+                }
+            }
+
+            VideoMappingCsvOverlay[] csvOverlays = FindObjectsOfType<VideoMappingCsvOverlay>();
+            for (int i = 0; i < csvOverlays.Length; i++)
+            {
+                VideoMappingCsvOverlay overlay = csvOverlays[i];
+                if (overlay != null)
+                {
+                    overlay.enabled = false;
+                }
+            }
+
+            _streetViewExplorer = null;
+            _videoFrameMapVisualizer = null;
+
+            if (_miniMapOverlay != null)
+            {
+                _miniMapOverlay.SetShowMapImage(true);
+                _miniMapOverlay.SetShowVideoFrames(false);
+            }
         }
 
         private static void ResetPersistentDataFolder()

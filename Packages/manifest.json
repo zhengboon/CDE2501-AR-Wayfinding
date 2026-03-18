@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "com.unity.recorder": "4.0.3",
     "com.unity.textmeshpro": "3.0.9",
     "com.unity.xr.arcore": "5.2.2",
     "com.unity.xr.arfoundation": "5.2.2",

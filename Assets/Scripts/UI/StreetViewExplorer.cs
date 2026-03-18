@@ -2,8 +2,11 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
+using System.Text.RegularExpressions;
 using CDE2501.Wayfinding.IndoorGraph;
 using CDE2501.Wayfinding.Location;
+using CDE2501.Wayfinding.Routing;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -53,6 +56,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private GraphLoader graphLoader;
         [SerializeField] private Transform startReferenceTransform;
         [SerializeField] private SimulationProvider simulationProvider;
+        [SerializeField] private RouteCalculator routeCalculator;
         [SerializeField] private bool followMainCameraIfReferenceMissing = true;
         [SerializeField] private bool driveSimulationProvider = true;
 
@@ -69,6 +73,17 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private KeyCode turnLeftKey = KeyCode.Comma;
         [SerializeField] private KeyCode turnRightKey = KeyCode.Period;
         [SerializeField] private KeyCode snapToNearestKey = KeyCode.H;
+        [SerializeField] private bool followReferenceMovement = true;
+        [SerializeField, Min(0.05f)] private float followUpdateIntervalSeconds = 0.2f;
+        [SerializeField, Min(0f)] private float followSwitchAdvantageMeters = 0.35f;
+        [SerializeField] private bool movementOnlyMode = true;
+        [SerializeField] private bool allowClickMove = false;
+
+        [Header("Path Filter")]
+        [SerializeField] private bool onlyUseCurrentRouteNodes = true;
+        [SerializeField] private bool skipFirstPathNodeImage = true;
+        [SerializeField] private bool filterEarlyFallbackFrames = true;
+        [SerializeField, Min(1)] private int minAllowedFallbackFrameIndex = 5;
 
         [Header("Look Controls")]
         [SerializeField, Range(0.05f, 1.5f)] private float mouseLookSensitivity = 0.22f;
@@ -78,7 +93,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(0.05f)] private float maxClickDurationSeconds = 0.35f;
 
         [Header("Hotspots")]
-        [SerializeField] private bool showNavigationHotspots = true;
+        [SerializeField] private bool showNavigationHotspots = false;
         [SerializeField, Min(1)] private int fallbackNeighborCount = 6;
         [SerializeField, Min(1f)] private float fallbackNeighborMaxDistanceMeters = 120f;
         [SerializeField, Range(35f, 170f)] private float hotspotVisibleHalfAngle = 80f;
@@ -95,12 +110,15 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool showControlHints = true;
 
         private readonly List<StreetViewNodeData> _nodes = new List<StreetViewNodeData>();
+        private readonly List<StreetViewNodeData> _allNodes = new List<StreetViewNodeData>();
         private readonly Dictionary<string, int> _nodeIndexById = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, Texture2D> _textureCache = new Dictionary<string, Texture2D>(StringComparer.OrdinalIgnoreCase);
         private readonly HashSet<string> _textureInFlight = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        private readonly HashSet<string> _routeNodeFilter = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         private readonly List<int> _neighborIndexBuffer = new List<int>(16);
         private readonly List<Hotspot> _hotspots = new List<Hotspot>(16);
         private readonly List<CandidateDistance> _candidateDistanceBuffer = new List<CandidateDistance>(128);
+        private static readonly Regex FrameIndexRegex = new Regex(@"frame_(\d+)\.", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private GUIStyle _hudBodyStyle;
         private GUIStyle _hotspotLabelStyle;
@@ -113,10 +131,13 @@ namespace CDE2501.Wayfinding.UI
         private string _currentImagePath;
         private Texture2D _currentTexture;
         private string _status = "Street View idle.";
+        private RouteResult _latestRouteResult;
+        private string _lastRouteSignature = string.Empty;
 
         private float _viewYaw;
         private float _viewPitch;
         private bool _viewInitialized;
+        private float _nextFollowUpdateTime;
         private bool _leftMouseDown;
         private bool _isDraggingLook;
         private Vector2 _mouseDownGui;
@@ -155,6 +176,11 @@ namespace CDE2501.Wayfinding.UI
             {
                 simulationProvider = FindObjectOfType<SimulationProvider>();
             }
+
+            if (routeCalculator == null)
+            {
+                routeCalculator = FindObjectOfType<RouteCalculator>();
+            }
         }
 
         private void OnEnable()
@@ -163,6 +189,11 @@ namespace CDE2501.Wayfinding.UI
             {
                 graphLoader.OnGraphLoaded += HandleGraphLoaded;
             }
+
+            if (routeCalculator != null)
+            {
+                routeCalculator.OnRouteUpdated += HandleRouteUpdated;
+            }
         }
 
         private void OnDisable()
@@ -170,6 +201,11 @@ namespace CDE2501.Wayfinding.UI
             if (graphLoader != null)
             {
                 graphLoader.OnGraphLoaded -= HandleGraphLoaded;
+            }
+
+            if (routeCalculator != null)
+            {
+                routeCalculator.OnRouteUpdated -= HandleRouteUpdated;
             }
 
             _leftMouseDown = false;
@@ -202,6 +238,15 @@ namespace CDE2501.Wayfinding.UI
                 simulationProvider = FindObjectOfType<SimulationProvider>();
             }
 
+            if (routeCalculator == null)
+            {
+                routeCalculator = FindObjectOfType<RouteCalculator>();
+                if (routeCalculator != null)
+                {
+                    routeCalculator.OnRouteUpdated += HandleRouteUpdated;
+                }
+            }
+
             if (followMainCameraIfReferenceMissing && startReferenceTransform == null && Camera.main != null)
             {
                 startReferenceTransform = Camera.main.transform;
@@ -214,6 +259,7 @@ namespace CDE2501.Wayfinding.UI
 
             EnsureViewInitialized();
             HandleKeyboardNavigation();
+            FollowNearestNodeFromReferenceIfNeeded();
             HandleMouseLookAndClickMove();
             SyncImageWithViewYaw();
             PushViewToSimulation();
@@ -244,7 +290,7 @@ namespace CDE2501.Wayfinding.UI
             Rect viewRect = new Rect(0f, 0f, Screen.width, Screen.height);
             DrawImageArea(viewRect);
 
-            if (_manifestReady && _nodes.Count > 0 && showNavigationHotspots)
+            if (_manifestReady && _nodes.Count > 0 && showNavigationHotspots && !movementOnlyMode)
             {
                 DrawHotspots(viewRect);
             }
@@ -281,6 +327,22 @@ namespace CDE2501.Wayfinding.UI
         public void SetStartReferenceTransform(Transform referenceTransform)
         {
             startReferenceTransform = referenceTransform;
+        }
+
+        public void SetRouteCalculator(RouteCalculator calculator)
+        {
+            if (routeCalculator != null)
+            {
+                routeCalculator.OnRouteUpdated -= HandleRouteUpdated;
+            }
+
+            routeCalculator = calculator;
+            if (routeCalculator != null && isActiveAndEnabled)
+            {
+                routeCalculator.OnRouteUpdated += HandleRouteUpdated;
+            }
+
+            RebuildActiveNodeList();
         }
 
         public void LoadManifest()
@@ -360,7 +422,7 @@ namespace CDE2501.Wayfinding.UI
             if (_leftMouseDown && Input.GetMouseButtonUp(0))
             {
                 bool isClick = !_isDraggingLook && (Time.unscaledTime - _mouseDownTime) <= maxClickDurationSeconds;
-                if (isClick)
+                if (!movementOnlyMode && allowClickMove && isClick)
                 {
                     TryMoveToClickedNeighbor(guiMouse);
                 }
@@ -372,6 +434,13 @@ namespace CDE2501.Wayfinding.UI
 
         private void DrawImageArea(Rect rect)
         {
+            if (_nodes.Count == 0)
+            {
+                DrawFilledRect(rect, new Color(0f, 0f, 0f, 1f));
+                GUI.Label(new Rect(18f, 14f, rect.width - 32f, rect.height - 28f), _status, _hudBodyStyle);
+                return;
+            }
+
             if (_currentTexture != null)
             {
                 GUI.DrawTexture(rect, _currentTexture, ScaleMode.ScaleAndCrop, true);
@@ -503,8 +572,9 @@ namespace CDE2501.Wayfinding.UI
 
             if (showControlHints)
             {
-                message += "\nMouse drag look. Click orange GO hotspots to move.";
-                message += "\n[ ] switch node, , . turn, H nearest, Y street view on/off.";
+                message += "\nMouse drag look. Background follows your movement.";
+                message += "\nMove with WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. H snap, Y toggle.";
+                message += movementOnlyMode ? "\nClick-to-move is disabled." : "\nClick-to-move is enabled.";
             }
 
             Rect contentRect = new Rect(_hudBlockRect.x + 10f, _hudBlockRect.y + 8f, _hudBlockRect.width - 18f, _hudBlockRect.height - 14f);
@@ -594,6 +664,53 @@ namespace CDE2501.Wayfinding.UI
             ApplyCurrentNodeToSimulation();
         }
 
+        private void FollowNearestNodeFromReferenceIfNeeded()
+        {
+            if (!followReferenceMovement || startReferenceTransform == null || _nodes.Count == 0)
+            {
+                return;
+            }
+
+            if (Time.unscaledTime < _nextFollowUpdateTime)
+            {
+                return;
+            }
+
+            _nextFollowUpdateTime = Time.unscaledTime + followUpdateIntervalSeconds;
+
+            Vector3 from = startReferenceTransform.position;
+            int bestIndex = _currentNodeIndex;
+            float bestDistance = float.PositiveInfinity;
+
+            for (int i = 0; i < _nodes.Count; i++)
+            {
+                Vector3 p = _nodes[i].position;
+                float d = Vector2.Distance(new Vector2(from.x, from.z), new Vector2(p.x, p.z));
+                if (d < bestDistance)
+                {
+                    bestDistance = d;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex == _currentNodeIndex)
+            {
+                return;
+            }
+
+            Vector3 currentPos = _nodes[_currentNodeIndex].position;
+            float currentDistance = Vector2.Distance(new Vector2(from.x, from.z), new Vector2(currentPos.x, currentPos.z));
+            if ((currentDistance - bestDistance) < followSwitchAdvantageMeters)
+            {
+                return;
+            }
+
+            _currentNodeIndex = bestIndex;
+            _currentHeadingIndex = 0;
+            RefreshCurrentTexture();
+            _status = $"Following movement. Nearest node: {bestDistance:0.0}m.";
+        }
+
         private bool TryMoveToClickedNeighbor(Vector2 clickGuiPosition)
         {
             if (_hotspots.Count == 0)
@@ -670,6 +787,193 @@ namespace CDE2501.Wayfinding.UI
             _status = statusMessage;
             RefreshCurrentTexture();
             ApplyCurrentNodeToSimulation();
+        }
+
+        private void HandleRouteUpdated(RouteResult result)
+        {
+            _latestRouteResult = result;
+            if (!onlyUseCurrentRouteNodes)
+            {
+                return;
+            }
+
+            string signature = BuildRouteSignature(result);
+            if (string.Equals(signature, _lastRouteSignature, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _lastRouteSignature = signature;
+            RebuildActiveNodeList();
+        }
+
+        private void RebuildActiveNodeList()
+        {
+            string previousNodeId = GetCurrentNode() != null ? GetCurrentNode().nodeId : string.Empty;
+
+            _nodes.Clear();
+            _nodeIndexById.Clear();
+            _routeNodeFilter.Clear();
+
+            if (_allNodes.Count == 0)
+            {
+                _manifestReady = false;
+                _currentNodeIndex = 0;
+                _currentTexture = null;
+                _currentImagePath = string.Empty;
+                return;
+            }
+
+            bool routeFilterEnabled = onlyUseCurrentRouteNodes;
+            bool hasRoute = _latestRouteResult != null &&
+                            _latestRouteResult.success &&
+                            _latestRouteResult.nodePath != null &&
+                            _latestRouteResult.nodePath.Count > 0;
+
+            if (routeFilterEnabled && !hasRoute)
+            {
+                _manifestReady = false;
+                _currentNodeIndex = 0;
+                _currentTexture = null;
+                _currentImagePath = string.Empty;
+                _status = "Street View waiting for a route. Calculate route first.";
+                return;
+            }
+
+            if (routeFilterEnabled && hasRoute)
+            {
+                int startPathIndex = (skipFirstPathNodeImage && _latestRouteResult.nodePath.Count > 1) ? 1 : 0;
+                for (int i = startPathIndex; i < _latestRouteResult.nodePath.Count; i++)
+                {
+                    string nodeId = _latestRouteResult.nodePath[i];
+                    if (!string.IsNullOrWhiteSpace(nodeId))
+                    {
+                        _routeNodeFilter.Add(nodeId);
+                    }
+                }
+            }
+
+            var routeMatchedNodes = new List<StreetViewNodeData>(_allNodes.Count);
+            for (int i = 0; i < _allNodes.Count; i++)
+            {
+                StreetViewNodeData node = _allNodes[i];
+                if (node == null || string.IsNullOrWhiteSpace(node.nodeId))
+                {
+                    continue;
+                }
+
+                if (routeFilterEnabled && !_routeNodeFilter.Contains(node.nodeId))
+                {
+                    continue;
+                }
+
+                routeMatchedNodes.Add(node);
+            }
+
+            if (filterEarlyFallbackFrames && routeMatchedNodes.Count > 0)
+            {
+                for (int i = 0; i < routeMatchedNodes.Count; i++)
+                {
+                    StreetViewNodeData node = routeMatchedNodes[i];
+                    if (IsNodeImageUsable(node))
+                    {
+                        _nodes.Add(node);
+                    }
+                }
+
+                // Safety fallback: if strict filtering removed every node, keep original route-matched set.
+                if (_nodes.Count == 0)
+                {
+                    _nodes.AddRange(routeMatchedNodes);
+                }
+            }
+            else
+            {
+                _nodes.AddRange(routeMatchedNodes);
+            }
+
+            _manifestReady = _nodes.Count > 0;
+            if (!_manifestReady)
+            {
+                _currentNodeIndex = 0;
+                _currentTexture = null;
+                _currentImagePath = string.Empty;
+                _status = "No Street View images on current path.";
+                return;
+            }
+
+            _nodes.Sort((a, b) => a.index.CompareTo(b.index));
+            for (int i = 0; i < _nodes.Count; i++)
+            {
+                StreetViewNodeData node = _nodes[i];
+                if (!_nodeIndexById.ContainsKey(node.nodeId))
+                {
+                    _nodeIndexById[node.nodeId] = i;
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(previousNodeId) && _nodeIndexById.TryGetValue(previousNodeId, out int preservedIndex))
+            {
+                _currentNodeIndex = preservedIndex;
+            }
+            else
+            {
+                _currentNodeIndex = Mathf.Clamp(_currentNodeIndex, 0, _nodes.Count - 1);
+            }
+
+            _currentHeadingIndex = 0;
+            _viewInitialized = false;
+            EnsureViewInitialized();
+            SnapToNearestNodeFromReference();
+            RefreshCurrentTexture();
+        }
+
+        private bool IsNodeImageUsable(StreetViewNodeData node)
+        {
+            if (node == null)
+            {
+                return false;
+            }
+
+            if (node.headingImages != null && node.headingImages.Count > 0)
+            {
+                return true;
+            }
+
+            string fallback = node.fallbackImage;
+            if (string.IsNullOrWhiteSpace(fallback))
+            {
+                return false;
+            }
+
+            if (!filterEarlyFallbackFrames)
+            {
+                return true;
+            }
+
+            if (!TryExtractFrameIndex(fallback, out int frameIndex))
+            {
+                return true;
+            }
+
+            return frameIndex >= Mathf.Max(1, minAllowedFallbackFrameIndex);
+        }
+
+        private static bool TryExtractFrameIndex(string imagePath, out int frameIndex)
+        {
+            frameIndex = 0;
+            if (string.IsNullOrWhiteSpace(imagePath))
+            {
+                return false;
+            }
+
+            Match match = FrameIndexRegex.Match(imagePath);
+            if (!match.Success || match.Groups.Count < 2)
+            {
+                return false;
+            }
+
+            return int.TryParse(match.Groups[1].Value, out frameIndex);
         }
 
         private void CollectNeighborIndices(StreetViewNodeData node, List<int> output)
@@ -958,43 +1262,26 @@ namespace CDE2501.Wayfinding.UI
             string json = File.ReadAllText(persistentPath);
             _manifest = JsonUtility.FromJson<StreetViewManifestData>(json);
 
-            _nodes.Clear();
+            _allNodes.Clear();
             _nodeIndexById.Clear();
 
             if (_manifest != null && _manifest.nodes != null)
             {
-                _nodes.AddRange(_manifest.nodes);
-                _nodes.Sort((a, b) => a.index.CompareTo(b.index));
-                for (int i = 0; i < _nodes.Count; i++)
-                {
-                    StreetViewNodeData node = _nodes[i];
-                    if (node == null || string.IsNullOrWhiteSpace(node.nodeId))
-                    {
-                        continue;
-                    }
-
-                    if (!_nodeIndexById.ContainsKey(node.nodeId))
-                    {
-                        _nodeIndexById[node.nodeId] = i;
-                    }
-                }
+                _allNodes.AddRange(_manifest.nodes);
+                _allNodes.Sort((a, b) => a.index.CompareTo(b.index));
             }
 
-            _manifestReady = _nodes.Count > 0;
-            _currentNodeIndex = 0;
-            _currentHeadingIndex = 0;
-            _viewInitialized = false;
+            RebuildActiveNodeList();
 
             if (_manifestReady)
             {
-                EnsureViewInitialized();
-                SnapToNearestNodeFromReference();
-                _status = $"Street View loaded: {_nodes.Count} nodes (google {_manifest.googleNodeCount}, fallback {_manifest.youtubeFallbackCount}).";
-                RefreshCurrentTexture();
+                _status = $"Street View loaded: {_nodes.Count} active path nodes (google {_manifest.googleNodeCount}, fallback {_manifest.youtubeFallbackCount}).";
             }
             else
             {
-                _status = "Street View manifest loaded but has no nodes.";
+                _status = onlyUseCurrentRouteNodes
+                    ? "Street View manifest loaded. No route-matched nodes are available yet."
+                    : "Street View manifest loaded but no usable nodes are available.";
             }
         }
 
@@ -1060,6 +1347,27 @@ namespace CDE2501.Wayfinding.UI
         {
             float normalized = degrees % 360f;
             return normalized < 0f ? normalized + 360f : normalized;
+        }
+
+        private static string BuildRouteSignature(RouteResult route)
+        {
+            if (route == null || !route.success || route.nodePath == null || route.nodePath.Count == 0)
+            {
+                return "none";
+            }
+
+            var builder = new StringBuilder(route.nodePath.Count * 10);
+            for (int i = 0; i < route.nodePath.Count; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append('|');
+                }
+
+                builder.Append(route.nodePath[i]);
+            }
+
+            return builder.ToString();
         }
 
         private static Vector2 GetMousePositionGui()

@@ -87,6 +87,7 @@ namespace CDE2501.Wayfinding.Routing
         private readonly Dictionary<string, RouteResult> _routeCache = new Dictionary<string, RouteResult>();
         private readonly LinkedList<string> _routeCacheOrder = new LinkedList<string>();
         private readonly Dictionary<string, LinkedListNode<string>> _cacheOrderIndex = new Dictionary<string, LinkedListNode<string>>();
+        private readonly Dictionary<string, float> _edgeDistanceMetersByKey = new Dictionary<string, float>(StringComparer.Ordinal);
 
         public event Action<RouteResult> OnRouteUpdated;
 
@@ -167,6 +168,7 @@ namespace CDE2501.Wayfinding.Routing
         {
             _profilesConfig = profilesConfig;
             _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
+            RebuildEdgeDistanceLookup();
             ClearRouteCache();
         }
 
@@ -328,15 +330,28 @@ namespace CDE2501.Wayfinding.Routing
                 return 0f;
             }
 
+            if (_edgeDistanceMetersByKey.Count == 0)
+            {
+                RebuildEdgeDistanceLookup();
+            }
+
             float distance = 0f;
             for (int i = 0; i < nodePath.Count - 1; i++)
             {
                 string from = nodePath[i];
                 string to = nodePath[i + 1];
-                Edge edge = graphLoader.Edges.Find(e => e.fromNode == from && e.toNode == to);
-                if (edge != null)
+                string key = BuildDirectedEdgeKey(from, to);
+                if (_edgeDistanceMetersByKey.TryGetValue(key, out float edgeDistance))
                 {
-                    distance += edge.distance;
+                    distance += edgeDistance;
+                    continue;
+                }
+
+                Node fromNode = graphLoader != null ? graphLoader.GetNode(from) : null;
+                Node toNode = graphLoader != null ? graphLoader.GetNode(to) : null;
+                if (fromNode != null && toNode != null)
+                {
+                    distance += Vector3.Distance(fromNode.position, toNode.position);
                 }
             }
 
@@ -383,6 +398,8 @@ namespace CDE2501.Wayfinding.Routing
                 return;
             }
 
+            RebuildEdgeDistanceLookup();
+
             if (_isInitializing)
             {
                 InitializeFromJson();
@@ -400,6 +417,36 @@ namespace CDE2501.Wayfinding.Routing
             _queuedProfile = null;
             _queuedCacheKey = null;
             _lastRequestCacheKey = null;
+        }
+
+        private void RebuildEdgeDistanceLookup()
+        {
+            _edgeDistanceMetersByKey.Clear();
+
+            if (graphLoader == null || graphLoader.Edges == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < graphLoader.Edges.Count; i++)
+            {
+                Edge edge = graphLoader.Edges[i];
+                if (edge == null || string.IsNullOrWhiteSpace(edge.fromNode) || string.IsNullOrWhiteSpace(edge.toNode))
+                {
+                    continue;
+                }
+
+                string key = BuildDirectedEdgeKey(edge.fromNode, edge.toNode);
+                float sanitizedDistance = Mathf.Max(0f, edge.distance);
+                if (_edgeDistanceMetersByKey.TryGetValue(key, out float existing))
+                {
+                    _edgeDistanceMetersByKey[key] = Mathf.Min(existing, sanitizedDistance);
+                }
+                else
+                {
+                    _edgeDistanceMetersByKey[key] = sanitizedDistance;
+                }
+            }
         }
 
         private RouteResult ComputeRouteNow(RouteRequest request, RoutingProfile profile, string cacheKey, bool raiseEvent)
@@ -573,6 +620,11 @@ namespace CDE2501.Wayfinding.Routing
             string rain = request.rainMode ? "1" : "0";
             string boundaryRev = request.boundaryRevision.ToString();
             return $"{graphVersion}|{request.startNodeId}|{request.endNodeId}|{level}|{mode}|{rain}|{profileName}|b{boundaryRev}";
+        }
+
+        private static string BuildDirectedEdgeKey(string fromNodeId, string toNodeId)
+        {
+            return $"{fromNodeId}->{toNodeId}";
         }
 
         private static RouteRequest CloneRouteRequest(RouteRequest request)

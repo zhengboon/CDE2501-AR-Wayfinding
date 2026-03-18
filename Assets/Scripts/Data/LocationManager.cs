@@ -62,8 +62,7 @@ namespace CDE2501.Wayfinding.Data
                 return;
             }
 
-            int existingIndex = _locations.FindIndex(l => l != null &&
-                                                          string.Equals(l.name, point.name, StringComparison.OrdinalIgnoreCase));
+            int existingIndex = FindLocationIndexByName(point.name);
             if (existingIndex >= 0)
             {
                 _locations[existingIndex] = point;
@@ -79,7 +78,7 @@ namespace CDE2501.Wayfinding.Data
 
         public bool UpdateLocation(string originalName, LocationPoint updated)
         {
-            int index = _locations.FindIndex(l => l.name == originalName);
+            int index = FindLocationIndexByName(originalName);
             if (index < 0 || updated == null)
             {
                 return false;
@@ -92,7 +91,17 @@ namespace CDE2501.Wayfinding.Data
                 return false;
             }
 
-            _locations[index] = updated;
+            int duplicateIndex = FindLocationIndexByName(updated.name);
+            if (duplicateIndex >= 0 && duplicateIndex != index)
+            {
+                _locations[duplicateIndex] = updated;
+                _locations.RemoveAt(index);
+            }
+            else
+            {
+                _locations[index] = updated;
+            }
+
             SaveLocations();
             OnLocationsChanged?.Invoke();
             return true;
@@ -100,7 +109,7 @@ namespace CDE2501.Wayfinding.Data
 
         public bool DeleteLocation(string locationName)
         {
-            int index = _locations.FindIndex(l => l.name == locationName);
+            int index = FindLocationIndexByName(locationName);
             if (index < 0)
             {
                 return false;
@@ -114,7 +123,8 @@ namespace CDE2501.Wayfinding.Data
 
         public LocationPoint GetByName(string locationName)
         {
-            return _locations.Find(l => l.name == locationName);
+            int index = FindLocationIndexByName(locationName);
+            return index >= 0 ? _locations[index] : null;
         }
 
         private IEnumerator LoadLocationsRoutine()
@@ -179,6 +189,19 @@ namespace CDE2501.Wayfinding.Data
 
             _locations.Clear();
             _locations.AddRange(normalized);
+        }
+
+        private int FindLocationIndexByName(string locationName)
+        {
+            if (string.IsNullOrWhiteSpace(locationName))
+            {
+                return -1;
+            }
+
+            string target = locationName.Trim();
+            return _locations.FindIndex(l => l != null &&
+                                             !string.IsNullOrWhiteSpace(l.name) &&
+                                             string.Equals(l.name.Trim(), target, StringComparison.OrdinalIgnoreCase));
         }
 
         private static string WrapTopLevelArrayIfNeeded(string rawJson, string key)

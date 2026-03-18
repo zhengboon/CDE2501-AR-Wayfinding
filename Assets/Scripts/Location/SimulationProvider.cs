@@ -103,11 +103,19 @@ namespace CDE2501.Wayfinding.Location
 
             float dt = Time.deltaTime;
             float turnInput = 0f;
-            if (Input.GetKey(KeyCode.A))
+            if (Input.GetKey(KeyCode.Q))
             {
                 turnInput -= 1f;
             }
-            if (Input.GetKey(KeyCode.D))
+            if (Input.GetKey(KeyCode.E))
+            {
+                turnInput += 1f;
+            }
+            if (Input.GetKey(KeyCode.LeftArrow))
+            {
+                turnInput -= 1f;
+            }
+            if (Input.GetKey(KeyCode.RightArrow))
             {
                 turnInput += 1f;
             }
@@ -115,32 +123,40 @@ namespace CDE2501.Wayfinding.Location
             _currentHeading = NormalizeHeading(_currentHeading + turnInput * turnSpeedDegreesPerSecond * dt);
 
             float pitchInput = 0f;
-            if (Input.GetKey(KeyCode.W))
+            if (Input.GetKey(KeyCode.R))
             {
                 pitchInput += 1f;
             }
-            if (Input.GetKey(KeyCode.S))
+            if (Input.GetKey(KeyCode.F))
+            {
+                pitchInput -= 1f;
+            }
+            if (Input.GetKey(KeyCode.UpArrow))
+            {
+                pitchInput += 1f;
+            }
+            if (Input.GetKey(KeyCode.DownArrow))
             {
                 pitchInput -= 1f;
             }
             _currentPitch = Mathf.Clamp(_currentPitch + pitchInput * pitchSpeedDegreesPerSecond * dt, minPitchDegrees, maxPitchDegrees);
 
             float forwardInput = 0f;
-            if (Input.GetKey(KeyCode.UpArrow))
+            if (Input.GetKey(KeyCode.W))
             {
                 forwardInput += 1f;
             }
-            if (Input.GetKey(KeyCode.DownArrow))
+            if (Input.GetKey(KeyCode.S))
             {
                 forwardInput -= 1f;
             }
 
             float strafeInput = 0f;
-            if (Input.GetKey(KeyCode.RightArrow))
+            if (Input.GetKey(KeyCode.D))
             {
                 strafeInput += 1f;
             }
-            if (Input.GetKey(KeyCode.LeftArrow))
+            if (Input.GetKey(KeyCode.A))
             {
                 strafeInput -= 1f;
             }
@@ -209,7 +225,7 @@ namespace CDE2501.Wayfinding.Location
                 $"Pitch: {CurrentPitch:F1} deg\n" +
                 $"Height Offset: {VerticalOffsetMeters:F1} m\n" +
                 $"Speed: {(sprinting ? "Sprint" : "Normal")} x{speedScale:0.0}\n" +
-                "Controls: Arrows move, Shift sprint, A/D look left-right, W/S look up-down, PgUp/PgDn height, F2 mode, F1 panel";
+                "Controls: WASD move, Shift sprint, Q/E or Left/Right yaw, R/F or Up/Down pitch, PgUp/PgDn height, F2 mode, F1 panel";
 
             Rect viewport = new Rect(12f, 36f, _panelRect.width - 24f, _panelRect.height - 44f);
             float contentHeight = Mathf.Max(viewport.height, _bodyStyle.CalcHeight(new GUIContent(text), viewport.width - 16f) + 12f);

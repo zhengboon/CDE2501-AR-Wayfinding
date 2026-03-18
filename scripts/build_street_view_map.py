@@ -12,6 +12,7 @@ import datetime as dt
 import json
 import math
 import os
+import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -38,6 +39,7 @@ class FramePoint:
     x: float
     y: float
     z: float
+    frame_index: int
 
 
 def normalize_spaces(text: str) -> str:
@@ -237,6 +239,8 @@ def load_video_frames(video_map_path: Path) -> List[FramePoint]:
             pos = frame.get("position") or {}
             if not image:
                 continue
+            match = re.search(r"frame_(\d+)\.jpg$", image, re.IGNORECASE)
+            frame_index = int(match.group(1)) if match else 0
             out.append(
                 FramePoint(
                     image=image,
@@ -244,6 +248,7 @@ def load_video_frames(video_map_path: Path) -> List[FramePoint]:
                     x=float(pos.get("x", 0.0)),
                     y=float(pos.get("y", 0.0)),
                     z=float(pos.get("z", 0.0)),
+                    frame_index=frame_index,
                 )
             )
     return out
@@ -259,16 +264,50 @@ def nearest_frame(node: Node, frames: List[FramePoint], max_distance_m: float) -
     if not frames:
         return None
     max_sqr = max_distance_m * max_distance_m
-    best = None
+    best: Optional[FramePoint] = None
     best_sqr = float("inf")
     for f in frames:
         d2 = sqr_dist_2d(node.x, node.z, f.x, f.z)
         if d2 < best_sqr:
             best_sqr = d2
             best = f
+            continue
+
+        if abs(d2 - best_sqr) <= 1e-6 and best is not None:
+            # Tie-break toward later frames to avoid title-card frame_0001.
+            if f.frame_index > best.frame_index:
+                best = f
     if best is None or best_sqr > max_sqr:
         return None
     return best
+
+
+def filter_preferred_frames(frames: List[FramePoint], skip_frame0001: bool) -> List[FramePoint]:
+    if not skip_frame0001:
+        return list(frames)
+
+    non_first = [f for f in frames if f.frame_index != 1]
+    if non_first:
+        return non_first
+    return list(frames)
+
+
+def pick_better_frame(a: Optional[FramePoint], b: FramePoint) -> FramePoint:
+    if a is None:
+        return b
+
+    # Prefer any frame that is not frame_0001.
+    a_non_first = a.frame_index != 1
+    b_non_first = b.frame_index != 1
+    if b_non_first and not a_non_first:
+        return b
+    if a_non_first and not b_non_first:
+        return a
+
+    # Otherwise prefer later frame index.
+    if b.frame_index > a.frame_index:
+        return b
+    return a
 
 
 def request_json(url: str, timeout: int = 20) -> Optional[dict]:
@@ -321,7 +360,7 @@ def build_streetview_urls(lat: float, lon: float, api_key: str, image_size: str,
 def main() -> int:
     parser = argparse.ArgumentParser(description="Build hybrid Street View manifest (Google + YouTube fallback).")
     parser.add_argument("--data-dir", default="Assets/StreamingAssets/Data")
-    parser.add_argument("--kml", default="/mnt/c/Users/zheng/Downloads/cde2501.kml")
+    parser.add_argument("--kml", default="cde2501.kml")
     parser.add_argument("--polygon-name", default="Site area")
     parser.add_argument("--graph-file", default="estate_graph.json")
     parser.add_argument("--locations-file", default="locations.json")
@@ -335,6 +374,7 @@ def main() -> int:
     parser.add_argument("--max-fallback-distance-m", type=float, default=220.0)
     parser.add_argument("--google-api-key", default=os.environ.get("GOOGLE_MAPS_API_KEY", ""))
     parser.add_argument("--timeout-seconds", type=int, default=20)
+    parser.add_argument("--allow-frame0001-fallback", action="store_true")
     args = parser.parse_args()
 
     data_dir = Path(args.data_dir)
@@ -381,6 +421,7 @@ def main() -> int:
         headings = [0, 90, 180, 270]
 
     frames = load_video_frames(video_map_path)
+    frames = filter_preferred_frames(frames, skip_frame0001=(not args.allow_frame0001_fallback))
 
     # Candidate nodes inside polygon, road-level-ish, and connected
     candidates: List[Tuple[str, float, float, float, float]] = []
@@ -415,8 +456,10 @@ def main() -> int:
     # For fallback nearest lookup speed
     frames_by_node: Dict[str, FramePoint] = {}
     for fp in frames:
-        if fp.node_id and fp.node_id not in frames_by_node:
-            frames_by_node[fp.node_id] = fp
+        if not fp.node_id:
+            continue
+        existing = frames_by_node.get(fp.node_id)
+        frames_by_node[fp.node_id] = pick_better_frame(existing, fp)
 
     google_enabled = bool(args.google_api_key.strip())
     google_success = 0

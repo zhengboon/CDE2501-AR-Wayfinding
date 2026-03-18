@@ -89,7 +89,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(1f)] private float miniMapClickDragThresholdPixels = 8f;
 
         [Header("Video Mapping")]
-        [SerializeField] private bool showVideoFrames = true;
+        [SerializeField] private bool showVideoFrames = false;
         [SerializeField] private Color videoMarkerColor = new Color(1f, 0.2f, 0.2f, 1f);
         [SerializeField, Min(1f)] private float videoMarkerRadius = 6f;
 
@@ -225,7 +225,10 @@ namespace CDE2501.Wayfinding.UI
 
             PreferHigherResolutionMapIfAvailable();
             TryLoadMapTexture();
-            TryLoadVideoFrameManifest();
+            if (showVideoFrames)
+            {
+                TryLoadVideoFrameManifest();
+            }
         }
 
         private void Update()
@@ -330,6 +333,24 @@ namespace CDE2501.Wayfinding.UI
         public void SetSelectedDestinationNodeId(string nodeId)
         {
             _selectedDestinationNodeId = nodeId;
+        }
+
+        public void SetShowMapImage(bool enabled)
+        {
+            showMapImage = enabled;
+            if (showMapImage)
+            {
+                TryLoadMapTexture();
+            }
+        }
+
+        public void SetShowVideoFrames(bool enabled)
+        {
+            showVideoFrames = enabled;
+            if (showVideoFrames)
+            {
+                TryLoadVideoFrameManifest();
+            }
         }
 
         private void HandleGraphLoaded(bool success, string message)
@@ -1695,6 +1716,10 @@ namespace CDE2501.Wayfinding.UI
             if (GUI.Button(videoToggleRect, "V"))
             {
                 showVideoFrames = !showVideoFrames;
+                if (showVideoFrames)
+                {
+                    TryLoadVideoFrameManifest();
+                }
             }
 
             Rect followRect = new Rect(mapRect.x + 6f, mapRect.y + 6f, 34f, 20f);
