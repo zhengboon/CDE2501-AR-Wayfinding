@@ -26,16 +26,48 @@ namespace CDE2501.Wayfinding.Data
     public class LocationManager : MonoBehaviour
     {
         [SerializeField] private string locationsFileName = "locations.json";
+        private Coroutine _loadRoutine;
 
         private readonly List<LocationPoint> _locations = new List<LocationPoint>();
 
         public IReadOnlyList<LocationPoint> Locations => _locations;
+        public string LocationsFileName => locationsFileName;
 
         public event Action OnLocationsChanged;
 
         public void LoadLocations()
         {
-            StartCoroutine(LoadLocationsRoutine());
+            if (_loadRoutine != null)
+            {
+                StopCoroutine(_loadRoutine);
+            }
+
+            _loadRoutine = StartCoroutine(LoadLocationsRoutine());
+        }
+
+        public void SetLocationsFileName(string fileName, bool reload = false)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return;
+            }
+
+            string normalized = fileName.Trim();
+            if (string.Equals(locationsFileName, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                if (reload)
+                {
+                    LoadLocations();
+                }
+
+                return;
+            }
+
+            locationsFileName = normalized;
+            if (reload)
+            {
+                LoadLocations();
+            }
         }
 
         public void SaveLocations()
@@ -140,6 +172,7 @@ namespace CDE2501.Wayfinding.Data
             if (!File.Exists(persistentPath))
             {
                 Debug.LogError($"Unable to find locations file: {persistentPath}");
+                _loadRoutine = null;
                 yield break;
             }
 
@@ -156,6 +189,7 @@ namespace CDE2501.Wayfinding.Data
             NormalizeLoadedLocations();
 
             OnLocationsChanged?.Invoke();
+            _loadRoutine = null;
         }
 
         private void NormalizeLoadedLocations()

@@ -35,6 +35,9 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
         [SerializeField] private bool alwaysRouteFromCurrentPosition = true;
         [SerializeField] private bool forceImmediateRouteRefresh = true;
+        [SerializeField] private bool snapViewToStartOnInitialRoute = true;
+        [SerializeField, Min(0.2f)] private float initialViewEyeHeightMeters = 1.65f;
+        [SerializeField, Min(0f)] private float initialViewBackOffsetMeters = 4.5f;
         [SerializeField, Min(0.1f)] private float startNodeCheckIntervalSeconds = 0.5f;
         [SerializeField] private KeyCode manualRecalculateKey = KeyCode.R;
         [SerializeField] private KeyCode manualRecalculateAltKey = KeyCode.F5;
@@ -42,6 +45,10 @@ namespace CDE2501.Wayfinding.UI
         [Header("Map Area Toggle")]
         [SerializeField] private bool useNusMapArea;
         [SerializeField] private bool fallbackToAnyDetectedMapFile = true;
+        [SerializeField] private string queenstownGraphFile = "estate_graph.json";
+        [SerializeField] private string queenstownLocationsFile = "locations.json";
+        [SerializeField] private string nusGraphFile = "nus_estate_graph.json";
+        [SerializeField] private string nusLocationsFile = "nus_locations.json";
         [SerializeField] private string queenstownMiniMapImageFile = "queenstown_map_z19_x413314-413324_y260255-260265.png";
         [SerializeField] private string queenstownReferenceMapImageFile = "queenstown_map_z18_x206656-206662_y130127-130133.png";
         [SerializeField] private string nusMiniMapImageFile = "nus_map_z19_x413268-413276_y260247-260255.png";
@@ -113,6 +120,8 @@ namespace CDE2501.Wayfinding.UI
         private Vector2 _panelScroll;
         private string _activeMiniMapImageFile;
         private string _activeReferenceMapImageFile;
+        private string _activeGraphFile;
+        private string _activeLocationsFile;
         private GUIStyle _panelStyle;
         private GUIStyle _bodyStyle;
         private Texture2D _panelTexture;
@@ -407,6 +416,7 @@ namespace CDE2501.Wayfinding.UI
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
                 $"Map area: {(useNusMapArea ? "NUS Engineering" : "Queenstown")}\n" +
                 $"Map files: mini={(_activeMiniMapImageFile ?? "n/a")}, ref={(_activeReferenceMapImageFile ?? "n/a")}\n" +
+                $"Data files: graph={(_activeGraphFile ?? "n/a")}, locations={(_activeLocationsFile ?? "n/a")}\n" +
                 mediaSystemsText +
                 $"{routeMessage}\n" +
                 keyHelpText;
@@ -483,7 +493,6 @@ namespace CDE2501.Wayfinding.UI
         {
             useNusMapArea = !useNusMapArea;
             ApplyMapAreaSelection();
-            RecalculateCurrentRoute("Map area switched");
         }
 
         private void ApplyMapAreaSelection()
@@ -492,12 +501,20 @@ namespace CDE2501.Wayfinding.UI
             string selectedReferenceMapFile = useNusMapArea ? nusReferenceMapImageFile : queenstownReferenceMapImageFile;
             string fallbackMiniMapFile = useNusMapArea ? queenstownMiniMapImageFile : nusMiniMapImageFile;
             string fallbackReferenceMapFile = useNusMapArea ? queenstownReferenceMapImageFile : nusReferenceMapImageFile;
+            string selectedGraphFile = useNusMapArea ? nusGraphFile : queenstownGraphFile;
+            string selectedLocationsFile = useNusMapArea ? nusLocationsFile : queenstownLocationsFile;
+            string fallbackGraphFile = useNusMapArea ? queenstownGraphFile : nusGraphFile;
+            string fallbackLocationsFile = useNusMapArea ? queenstownLocationsFile : nusLocationsFile;
 
             string miniMapPrefix = useNusMapArea ? "nus_map_z" : "queenstown_map_z";
             string referenceMapPrefix = useNusMapArea ? "nus_map_z" : "queenstown_map_z";
+            string graphPattern = useNusMapArea ? "nus*_graph*.json" : "*estate_graph*.json";
+            string locationsPattern = useNusMapArea ? "nus*locations*.json" : "locations.json";
 
             string resolvedMiniMapFile = ResolveAvailableMapFileName(selectedMiniMapFile, fallbackMiniMapFile, miniMapPrefix);
             string resolvedReferenceMapFile = ResolveAvailableMapFileName(selectedReferenceMapFile, fallbackReferenceMapFile, referenceMapPrefix);
+            string resolvedGraphFile = ResolveAvailableDataFileName(selectedGraphFile, fallbackGraphFile, graphPattern);
+            string resolvedLocationsFile = ResolveAvailableDataFileName(selectedLocationsFile, fallbackLocationsFile, locationsPattern);
 
             if (_miniMapOverlay != null && !string.IsNullOrWhiteSpace(resolvedMiniMapFile))
             {
@@ -509,17 +526,30 @@ namespace CDE2501.Wayfinding.UI
                 _mapReferenceTileVisualizer.SetTileFileName(resolvedReferenceMapFile);
             }
 
+            if (_graphLoader != null && !string.IsNullOrWhiteSpace(resolvedGraphFile))
+            {
+                _graphLoader.SetGraphFileName(resolvedGraphFile, reload: true);
+            }
+
+            if (_locationManager != null && !string.IsNullOrWhiteSpace(resolvedLocationsFile))
+            {
+                _locationManager.SetLocationsFileName(resolvedLocationsFile, reload: true);
+            }
+
             _activeMiniMapImageFile = resolvedMiniMapFile;
             _activeReferenceMapImageFile = resolvedReferenceMapFile;
+            _activeGraphFile = resolvedGraphFile;
+            _activeLocationsFile = resolvedLocationsFile;
 
             TeleportToAreaAnchor();
+            StartCoroutine(WaitAndTryAutoRoute());
 
             string selectedAreaName = useNusMapArea ? "NUS Engineering" : "Queenstown";
             bool selectedMapMissing = !string.IsNullOrWhiteSpace(selectedMiniMapFile) && !DataFileExists(selectedMiniMapFile);
             string fallbackNote = selectedMapMissing && !string.Equals(selectedMiniMapFile, resolvedMiniMapFile, System.StringComparison.OrdinalIgnoreCase)
                 ? $" (fallback map: {resolvedMiniMapFile})"
                 : string.Empty;
-            _status = $"Map area switched to {selectedAreaName}{fallbackNote}.";
+            _status = $"Map area switched to {selectedAreaName}{fallbackNote}. Data: graph={resolvedGraphFile}, locations={resolvedLocationsFile}.";
         }
 
         private void TeleportToAreaAnchor()
@@ -568,6 +598,30 @@ namespace CDE2501.Wayfinding.UI
                 {
                     return discoveredAnyMap;
                 }
+            }
+
+            return preferredFileName;
+        }
+
+        private string ResolveAvailableDataFileName(string preferredFileName, string fallbackFileName, string preferredPattern)
+        {
+            if (DataFileExists(preferredFileName))
+            {
+                return preferredFileName;
+            }
+
+            if (fallbackToAnyDetectedMapFile && !string.IsNullOrWhiteSpace(preferredPattern))
+            {
+                string discoveredPreferred = FindBestDataFileByPattern(preferredPattern);
+                if (!string.IsNullOrWhiteSpace(discoveredPreferred))
+                {
+                    return discoveredPreferred;
+                }
+            }
+
+            if (DataFileExists(fallbackFileName))
+            {
+                return fallbackFileName;
             }
 
             return preferredFileName;
@@ -1103,6 +1157,7 @@ namespace CDE2501.Wayfinding.UI
                 bool graphReady = _graphLoader != null && _graphLoader.NodesById.Count > 0;
                 if (_locationsLoaded && routingReady && graphReady)
                 {
+                    SnapViewToStartNodeIfNeeded();
                     RecalculateCurrentRoute("Initial Auto Route");
                     yield break;
                 }
@@ -1166,6 +1221,12 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            if (useNusMapArea)
+            {
+                SeedFallbackLocationsFromCurrentGraph("NUS Fallback");
+                return;
+            }
+
             _isSeedingFallbackLocations = true;
             try
             {
@@ -1191,6 +1252,85 @@ namespace CDE2501.Wayfinding.UI
                         gps_lon = 103.8039375,
                         indoor_node_id = "PC_7RV3_XH"
                     });
+                }
+            }
+            finally
+            {
+                _isSeedingFallbackLocations = false;
+            }
+        }
+
+        private void SeedFallbackLocationsFromCurrentGraph(string prefix)
+        {
+            if (_locationManager == null || _graphLoader == null || _graphLoader.NodesById == null || _graphLoader.NodesById.Count == 0)
+            {
+                return;
+            }
+
+            _isSeedingFallbackLocations = true;
+            try
+            {
+                var preferred = new List<string>();
+                var others = new List<string>();
+                foreach (var kvp in _graphLoader.NodesById)
+                {
+                    if (kvp.Value == null || string.IsNullOrWhiteSpace(kvp.Key))
+                    {
+                        continue;
+                    }
+
+                    if (kvp.Key.StartsWith("NUS_", System.StringComparison.OrdinalIgnoreCase))
+                    {
+                        preferred.Add(kvp.Key);
+                    }
+                    else
+                    {
+                        others.Add(kvp.Key);
+                    }
+                }
+
+                preferred.Sort(System.StringComparer.OrdinalIgnoreCase);
+                others.Sort(System.StringComparer.OrdinalIgnoreCase);
+
+                int seeded = 0;
+                for (int i = 0; i < preferred.Count && seeded < 6; i++)
+                {
+                    string nodeId = preferred[i];
+                    string name = $"{prefix} {seeded + 1}";
+                    if (_locationManager.GetByName(name) != null)
+                    {
+                        continue;
+                    }
+
+                    _locationManager.AddLocation(new LocationPoint
+                    {
+                        name = name,
+                        type = "Campus",
+                        gps_lat = 0.0,
+                        gps_lon = 0.0,
+                        indoor_node_id = nodeId
+                    });
+                    seeded++;
+                }
+
+                for (int i = 0; i < others.Count && seeded < 6; i++)
+                {
+                    string nodeId = others[i];
+                    string name = $"{prefix} {seeded + 1}";
+                    if (_locationManager.GetByName(name) != null)
+                    {
+                        continue;
+                    }
+
+                    _locationManager.AddLocation(new LocationPoint
+                    {
+                        name = name,
+                        type = "Campus",
+                        gps_lat = 0.0,
+                        gps_lon = 0.0,
+                        indoor_node_id = nodeId
+                    });
+                    seeded++;
                 }
             }
             finally
@@ -1449,6 +1589,63 @@ namespace CDE2501.Wayfinding.UI
             ElevationLevel level = _levelManager != null ? _levelManager.CurrentLevel : ElevationLevel.Deck;
             _resolvedStartNodeId = ResolveStartNodeIdForRoute();
             _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destination.indoor_node_id, level, forceImmediateRouteRefresh, reason);
+        }
+
+        private void SnapViewToStartNodeIfNeeded()
+        {
+            if (!snapViewToStartOnInitialRoute)
+            {
+                return;
+            }
+
+            if (_graphLoader == null || _graphLoader.NodesById == null || _graphLoader.NodesById.Count == 0)
+            {
+                return;
+            }
+
+            Transform reference = GetStartReferenceTransform();
+            if (reference == null)
+            {
+                return;
+            }
+
+            string targetNodeId = startNodeId;
+            if (string.IsNullOrWhiteSpace(targetNodeId) || _graphLoader.GetNode(targetNodeId) == null)
+            {
+                targetNodeId = ResolveStartNodeId();
+            }
+
+            if (string.IsNullOrWhiteSpace(targetNodeId))
+            {
+                targetNodeId = FindNearestGraphNodeId(reference.position, onlyCurrentLevel: false);
+            }
+
+            Node targetNode = string.IsNullOrWhiteSpace(targetNodeId) ? null : _graphLoader.GetNode(targetNodeId);
+            if (targetNode == null)
+            {
+                return;
+            }
+
+            float eyeHeight = Mathf.Max(0.2f, initialViewEyeHeightMeters);
+            float backOffset = Mathf.Max(0f, initialViewBackOffsetMeters);
+
+            Vector3 focusPoint = new Vector3(targetNode.position.x, targetNode.position.y + 0.2f, targetNode.position.z);
+            Vector3 initialPosition = new Vector3(targetNode.position.x, targetNode.position.y + eyeHeight, targetNode.position.z - backOffset);
+
+            reference.position = initialPosition;
+            reference.LookAt(focusPoint);
+
+            if (_simulationProvider != null)
+            {
+                _simulationProvider.SetView(reference.rotation.eulerAngles.y, 0f);
+            }
+
+            if (_simulatedObjectDriver != null)
+            {
+                _simulatedObjectDriver.SetTarget(reference);
+                _simulatedObjectDriver.SetSimulationProvider(_simulationProvider);
+                _simulatedObjectDriver.SetLockY(false);
+            }
         }
 
         private void UpdateSelectedDestinationMarker()

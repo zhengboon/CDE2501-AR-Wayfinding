@@ -398,7 +398,9 @@ namespace CDE2501.Wayfinding.Routing
                 return;
             }
 
+            _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
             RebuildEdgeDistanceLookup();
+            ClearRouteCache();
 
             if (_isInitializing)
             {

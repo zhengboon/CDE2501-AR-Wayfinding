@@ -37,16 +37,48 @@ namespace CDE2501.Wayfinding.IndoorGraph
     public class GraphLoader : MonoBehaviour
     {
         [SerializeField] private string graphFileName = "estate_graph.json";
+        private Coroutine _loadRoutine;
 
         public Dictionary<string, Node> NodesById { get; private set; } = new Dictionary<string, Node>();
         public List<Edge> Edges { get; private set; } = new List<Edge>();
         public GraphData GraphData { get; private set; }
+        public string GraphFileName => graphFileName;
 
         public event Action<bool, string> OnGraphLoaded;
 
         public void LoadGraph()
         {
-            StartCoroutine(LoadGraphRoutine());
+            if (_loadRoutine != null)
+            {
+                StopCoroutine(_loadRoutine);
+            }
+
+            _loadRoutine = StartCoroutine(LoadGraphRoutine());
+        }
+
+        public void SetGraphFileName(string fileName, bool reload = false)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return;
+            }
+
+            string normalized = fileName.Trim();
+            if (string.Equals(graphFileName, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                if (reload)
+                {
+                    LoadGraph();
+                }
+
+                return;
+            }
+
+            graphFileName = normalized;
+            if (reload)
+            {
+                LoadGraph();
+            }
         }
 
         private IEnumerator LoadGraphRoutine()
@@ -62,6 +94,7 @@ namespace CDE2501.Wayfinding.IndoorGraph
             if (!File.Exists(persistentPath))
             {
                 OnGraphLoaded?.Invoke(false, $"Missing graph file at {persistentPath}");
+                _loadRoutine = null;
                 yield break;
             }
 
@@ -71,11 +104,13 @@ namespace CDE2501.Wayfinding.IndoorGraph
             if (GraphData == null)
             {
                 OnGraphLoaded?.Invoke(false, "Failed to parse graph JSON.");
+                _loadRoutine = null;
                 yield break;
             }
 
             BuildCaches();
             OnGraphLoaded?.Invoke(true, "Graph loaded.");
+            _loadRoutine = null;
         }
 
         public Node GetNode(string nodeId)

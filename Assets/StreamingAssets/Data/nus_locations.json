@@ -1,0 +1,121 @@
+[
+  {
+    "name": "E3",
+    "type": "Campus",
+    "gps_lat": 1.299322331957997,
+    "gps_lon": 103.7717556413794,
+    "indoor_node_id": "NUS_E3"
+  },
+  {
+    "name": "LT1",
+    "type": "Campus",
+    "gps_lat": 1.29948968516892,
+    "gps_lon": 103.7712789390666,
+    "indoor_node_id": "NUS_LT1"
+  },
+  {
+    "name": "LT2",
+    "type": "Campus",
+    "gps_lat": 1.299275089354078,
+    "gps_lon": 103.7713437642412,
+    "indoor_node_id": "NUS_LT2"
+  },
+  {
+    "name": "E2",
+    "type": "Campus",
+    "gps_lat": 1.299457679694143,
+    "gps_lon": 103.7711266410075,
+    "indoor_node_id": "NUS_E2"
+  },
+  {
+    "name": "E1A",
+    "type": "Campus",
+    "gps_lat": 1.299359510295508,
+    "gps_lon": 103.7709197045048,
+    "indoor_node_id": "NUS_E1A"
+  },
+  {
+    "name": "EA",
+    "type": "Campus",
+    "gps_lat": 1.299996464619689,
+    "gps_lon": 103.7708949833126,
+    "indoor_node_id": "NUS_EA"
+  },
+  {
+    "name": "E2A",
+    "type": "Campus",
+    "gps_lat": 1.298836081207635,
+    "gps_lon": 103.7713556943806,
+    "indoor_node_id": "NUS_E2A"
+  },
+  {
+    "name": "LT6",
+    "type": "Campus",
+    "gps_lat": 1.298719366392714,
+    "gps_lon": 103.7719852400056,
+    "indoor_node_id": "NUS_LT6"
+  },
+  {
+    "name": "E4",
+    "type": "Campus",
+    "gps_lat": 1.298449905334013,
+    "gps_lon": 103.7723503163678,
+    "indoor_node_id": "NUS_E4"
+  },
+  {
+    "name": "E4A",
+    "type": "Campus",
+    "gps_lat": 1.298626450653441,
+    "gps_lon": 103.7726268700011,
+    "indoor_node_id": "NUS_E4A"
+  },
+  {
+    "name": "E5",
+    "type": "Campus",
+    "gps_lat": 1.298014550100054,
+    "gps_lon": 103.7724128851033,
+    "indoor_node_id": "NUS_E5"
+  },
+  {
+    "name": "E1",
+    "type": "Campus",
+    "gps_lat": 1.298744071154535,
+    "gps_lon": 103.7711414052921,
+    "indoor_node_id": "NUS_E1"
+  },
+  {
+    "name": "IT(Bus Stop)",
+    "type": "Campus",
+    "gps_lat": 1.297633796274148,
+    "gps_lon": 103.772512238477,
+    "indoor_node_id": "NUS_IT_BUS_STOP"
+  },
+  {
+    "name": "Untitled placemark",
+    "type": "Campus",
+    "gps_lat": 1.29933009461545,
+    "gps_lon": 103.7724498805967,
+    "indoor_node_id": "NUS_UNTITLED_PLACEMARK"
+  },
+  {
+    "name": "E6",
+    "type": "Campus",
+    "gps_lat": 1.299165334236885,
+    "gps_lon": 103.7730224209544,
+    "indoor_node_id": "NUS_E6"
+  },
+  {
+    "name": "T-Labs",
+    "type": "Campus",
+    "gps_lat": 1.299797560176998,
+    "gps_lon": 103.77212797681,
+    "indoor_node_id": "NUS_T_LABS"
+  },
+  {
+    "name": "E3A",
+    "type": "Campus",
+    "gps_lat": 1.300334250818539,
+    "gps_lon": 103.7714053981907,
+    "indoor_node_id": "NUS_E3A"
+  }
+]

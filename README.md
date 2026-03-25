@@ -1,12 +1,17 @@
 # CDE2501 AR Wayfinding - Project README
-Last updated: 2026-03-25
+Last updated: 2026-03-26
 
 ## 1) Project Summary
-This repository is a Unity `2022.3.62f3` AR wayfinding MVP for the Queenstown estate test area. It is designed around elderly-first guidance and safety-weighted routing, with:
+This repository is a Unity `2022.3.62f3` AR wayfinding MVP for two test areas:
+- Queenstown estate
+- NUS Engineering campus
+
+It is designed around elderly-first guidance and safety-weighted routing, with:
 - GPS/compass input via Unity APIs
 - Weighted A* route computation over a local graph
 - Keyboard simulation for laptop-first testing
 - Minimap route visualization and destination selection
+- Runtime map-area switching that swaps map texture + graph + locations together
 - Optional Street View image mode (data-driven)
 - Cached auto-build launcher (`Python + Unity batchmode`) with no-change skip logic and build reports
 
@@ -30,9 +35,12 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 ## 3) Current Runtime State
 - Main scene: `Assets/Scenes/Main.unity`
 - Main bootstrap object: `QuickStart` (`QuickStartBootstrap.cs`)
-- Route graph loaded from `Assets/StreamingAssets/Data/estate_graph.json`
-- Current graph size: `1295` nodes, `2795` edges
-- Location list loaded from `Assets/StreamingAssets/Data/locations.json` (`8` points)
+- Runtime can switch between:
+  - `estate_graph.json` + `locations.json` (Queenstown)
+  - `nus_estate_graph.json` + `nus_locations.json` (NUS)
+- Current graph sizes:
+  - Queenstown: `1295` nodes, `2795` edges
+  - NUS: `402` nodes, `996` edges
 - Routing profiles loaded from `Assets/StreamingAssets/Data/routing_profiles.json`
 - Street View manifest currently has `0` usable nodes (no active imagery path)
 - Manual recalc key handling is improved to avoid input conflict with pitch controls in simulation mode.
@@ -51,8 +59,19 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - copyable command snippets
   - updated controls and runtime notes
 - Added map-area toggle:
-  - Quick Start button switches between `Queenstown` and `NUS Engineering` map backgrounds
-  - Applies to both minimap and map-reference tile at runtime
+  - Quick Start button switches between `Queenstown` and `NUS Engineering`
+  - Applies to minimap + map-reference tile + graph file + locations file at runtime
+- Added dynamic data-file switching in runtime managers:
+  - `GraphLoader.SetGraphFileName(...)`
+  - `LocationManager.SetLocationsFileName(...)`
+  - `RouteCalculator` now rebuilds pathfinder on graph reload
+- Added NUS data generation pipeline from KML:
+  - `scripts/generate_osm_graph_from_kml.py`
+  - Generates:
+    - `Assets/StreamingAssets/Data/nus_estate_graph.json`
+    - `Assets/StreamingAssets/Data/nus_locations.json`
+    - `Assets/StreamingAssets/Data/nus_boundary.geojson`
+  - Includes synthetic inter-building links (assumption: walkable links exist between buildings)
 - Added cached build automation:
   - `scripts/unity_cached_builder.py`
   - `scripts/unity_cached_builder_config.json`
@@ -107,6 +126,9 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 ### 4.6 Data Files (Runtime)
 - `Assets/StreamingAssets/Data/estate_graph.json`
 - `Assets/StreamingAssets/Data/locations.json`
+- `Assets/StreamingAssets/Data/nus_estate_graph.json`
+- `Assets/StreamingAssets/Data/nus_locations.json`
+- `Assets/StreamingAssets/Data/nus_boundary.geojson`
 - `Assets/StreamingAssets/Data/routing_profiles.json`
 - `Assets/StreamingAssets/Data/queenstown_boundary.geojson`
 - `Assets/StreamingAssets/Data/map_tile_z16_x51664_y32532.png`
@@ -120,6 +142,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 
 ### 4.7 Data Generation / Utility Scripts
 - `scripts/generate_osm_road_graph.py`: fetches OSM roads and writes graph with safety attributes.
+- `scripts/generate_osm_graph_from_kml.py`: generates area graph + locations + boundary directly from KML polygon + point placemarks.
 - `scripts/generate_osm_map_atlas.py`: downloads OSM tiles and generates map atlas PNG + metadata.
 - `scripts/generate_map_atlas_from_kml.py`: generates area map atlases from KML polygon with Google Map Tiles API support and OSM fallback.
 - `scripts/build_street_view_map.py`: builds route-area Street View dataset (Google + fallback logic).
@@ -128,6 +151,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - `scripts/map_videos_to_kml.py`: exports mapped routes back to KML.
 - `scripts/unity_cached_builder.py`: Unity auto-build orchestrator with fingerprint cache and report generation.
 - `scripts/unity_cached_builder_config.json`: editable config for Unity executable, target, output, and watch roots.
+- `build_engineering_nus_map.bat`: one-click map + NUS graph/locations generation.
 
 ## 5) Controls (Editor Simulation)
 - `N` / `P`: destination next/prev
@@ -174,7 +198,7 @@ Output and review files:
 3. `UnityBuildCache/logs/`
 
 ## 7.1 NUS + Queenstown Map Import From KML (Google + Fallback)
-Generate NUS and Queenstown map assets in the same atlas format.
+Generate NUS and Queenstown map assets in the same atlas format, then generate NUS graph/locations from KML.
 
 1. Set API key for true Google tiles (optional but recommended):
    - Windows CMD: `set GOOGLE_MAPS_API_KEY=YOUR_KEY`
@@ -187,15 +211,22 @@ Generate NUS and Queenstown map assets in the same atlas format.
    - `python scripts/generate_map_atlas_from_kml.py --kml "CDE2501 NUS map.kml" --polygon-name "Map of Engine" --zoom-levels 18,19 --output-prefix nus_map --provider google --fallback-to-osm --out-dir Assets/StreamingAssets/Data`
 4. Run Queenstown:
    - `python scripts/generate_map_atlas_from_kml.py --kml "cde2501.kml" --polygon-name "Site area" --zoom-levels 18,19 --output-prefix queenstown_map --provider google --fallback-to-osm --out-dir Assets/StreamingAssets/Data`
-5. Generated files:
+5. Generate NUS graph + locations + boundary:
+   - `python scripts/generate_osm_graph_from_kml.py --kml "CDE2501 NUS map.kml" --polygon-name "Map of Engine" --graph-output "Assets/StreamingAssets/Data/nus_estate_graph.json" --locations-output "Assets/StreamingAssets/Data/nus_locations.json" --boundary-output "Assets/StreamingAssets/Data/nus_boundary.geojson" --area-name "NUS Engineering Wayfinding" --anchor-name "NUS Engineering Anchor" --node-prefix NUS --raw-cache "Docs/nus_osm_raw.json"`
+6. Generated files:
    - `Assets/StreamingAssets/Data/nus_map_z18_x206633-206638_y130123-130128.png`
    - `Assets/StreamingAssets/Data/nus_map_z18_x206633-206638_y130123-130128.json`
    - `Assets/StreamingAssets/Data/nus_map_z19_x413268-413276_y260247-260255.png`
    - `Assets/StreamingAssets/Data/nus_map_z19_x413268-413276_y260247-260255.json`
+   - `Assets/StreamingAssets/Data/nus_estate_graph.json`
+   - `Assets/StreamingAssets/Data/nus_locations.json`
+   - `Assets/StreamingAssets/Data/nus_boundary.geojson`
    - `Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130127-130133.png`
    - `Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130127-130133.json`
    - `Assets/StreamingAssets/Data/queenstown_map_z19_x413314-413324_y260255-260265.png`
    - `Assets/StreamingAssets/Data/queenstown_map_z19_x413314-413324_y260255-260265.json`
+7. Optional one-click:
+   - `build_engineering_nus_map.bat`
 
 ## 8) Build Targets
 - Android: ARCore plugin enabled in XR Plug-in Management.
@@ -209,12 +240,15 @@ Generate NUS and Queenstown map assets in the same atlas format.
 - Street View currently has no usable node imagery in manifest; new image data generation is required.
 - Indoor elevation realism still depends on graph annotation quality and field tuning.
 - Full AR runtime validation still requires real ARCore/ARKit capable hardware.
-- Map-area toggle currently switches map imagery layers; routing data remains based on the active graph/location JSON set.
+- NUS building inter-links include a synthetic connectivity assumption for MVP routing and should be field-validated.
 
 ## 9.1 Troubleshooting Matrix
 - Symptom: route does not update while moving
   - Check: `Sim Mode` is true and `Main Camera` is present as start reference.
   - Action: press `F5` for manual recalc, then move with `WASD`.
+- Symptom: Play mode shows only sky/ground and nothing else
+  - Check: active scene is `Untitled` instead of `Assets/Scenes/Main.unity`.
+  - Action: stop Play mode, open `Assets/Scenes/Main.unity`, then Play again.
 - Symptom: GPS shows not ready
   - Check: overlay GPS status text for OS disabled / initializing / service status.
   - Action: enable OS location services or use simulation mode.
