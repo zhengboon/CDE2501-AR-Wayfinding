@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using UnityEditor;
 using UnityEditor.Recorder;
+using UnityEditor.Recorder.Encoder;
 using UnityEditor.Recorder.Input;
 using UnityEngine;
 
@@ -11,6 +12,7 @@ namespace CDE2501.Wayfinding.EditorTools
     public static class AutoPlaySessionRecorder
     {
         private const string EnabledPrefKey = "CDE2501.AutoPlaySessionRecorder.Enabled";
+        private const string DisableMigrationPrefKey = "CDE2501.AutoPlaySessionRecorder.DisabledMigration_20260318";
         private const string MenuEnabledPath = "CDE2501/Session Recorder/Enabled";
         private const string MenuOpenFolderPath = "CDE2501/Session Recorder/Open Output Folder";
 
@@ -25,13 +27,19 @@ namespace CDE2501.Wayfinding.EditorTools
 
         static AutoPlaySessionRecorder()
         {
+            if (!EditorPrefs.GetBool(DisableMigrationPrefKey, false))
+            {
+                EditorPrefs.SetBool(EnabledPrefKey, false);
+                EditorPrefs.SetBool(DisableMigrationPrefKey, true);
+            }
+
             EditorApplication.delayCall += EnsureMenuState;
             EditorApplication.playModeStateChanged += HandlePlayModeChanged;
         }
 
         private static bool IsEnabled
         {
-            get => EditorPrefs.GetBool(EnabledPrefKey, true);
+            get => EditorPrefs.GetBool(EnabledPrefKey, false);
             set
             {
                 EditorPrefs.SetBool(EnabledPrefKey, value);
@@ -103,7 +111,11 @@ namespace CDE2501.Wayfinding.EditorTools
 
                 movieSettings.name = "Auto Play Session";
                 movieSettings.Enabled = true;
-                movieSettings.OutputFormat = MovieRecorderSettings.VideoRecorderOutputFormat.MP4;
+                movieSettings.EncoderSettings = new CoreEncoderSettings
+                {
+                    Codec = CoreEncoderSettings.OutputCodec.MP4,
+                    EncodingQuality = CoreEncoderSettings.VideoEncodingQuality.Medium
+                };
                 movieSettings.ImageInputSettings = new GameViewInputSettings
                 {
                     OutputWidth = OutputWidth,

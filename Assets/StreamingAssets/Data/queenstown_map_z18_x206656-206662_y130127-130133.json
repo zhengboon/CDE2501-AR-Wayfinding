@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "source": "OpenStreetMap",
+  "tileServer": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "zoom": 18,
+  "minTileX": 206656,
+  "maxTileX": 206662,
+  "minTileY": 130127,
+  "maxTileY": 130133,
+  "tileSize": 256,
+  "tilesX": 7,
+  "tilesY": 7,
+  "imageWidth": 1792,
+  "imageHeight": 1792,
+  "geoBounds": {
+    "north": 1.2976490588348575,
+    "south": 1.2880384688779178,
+    "west": 103.798828125,
+    "east": 103.80844116210938,
+    "minLat": 1.2880384688779178,
+    "maxLat": 1.2976490588348575,
+    "minLon": 103.798828125,
+    "maxLon": 103.80844116210938
+  },
+  "requestedBounds": {
+    "minLat": 1.290583953642317,
+    "maxLat": 1.295968127172376,
+    "minLon": 103.8016962291906,
+    "maxLon": 103.8066559361312
+  },
+  "kml": {
+    "path": "cde2501.kml",
+    "polygonName": "Site area",
+    "pointCount": 33
+  },
+  "provider": {
+    "name": "osm",
+    "googleMapType": "",
+    "googleLanguage": "",
+    "googleRegion": "",
+    "googleImageFormat": "",
+    "googleSessionExpiry": ""
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "source": "OpenStreetMap",
+  "tileServer": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  "attribution": "\u00a9 OpenStreetMap contributors",
+  "zoom": 19,
+  "minTileX": 413268,
+  "maxTileX": 413276,
+  "minTileY": 260247,
+  "maxTileY": 260255,
+  "tileSize": 256,
+  "tilesX": 9,
+  "tilesY": 9,
+  "imageWidth": 2304,
+  "imageHeight": 2304,
+  "geoBounds": {
+    "north": 1.3024543401366708,
+    "south": 1.2962761196418153,
+    "west": 103.76861572265625,
+    "east": 103.77479553222656,
+    "minLat": 1.2962761196418153,
+    "maxLat": 1.3024543401366708,
+    "minLon": 103.76861572265625,
+    "maxLon": 103.77479553222656
+  },
+  "requestedBounds": {
+    "minLat": 1.297067674822009,
+    "maxLat": 1.301506111324968,
+    "minLon": 103.7700111469514,
+    "maxLon": 103.7738211315123
+  },
+  "kml": {
+    "path": "CDE2501 NUS map.kml",
+    "polygonName": "Map of Engine",
+    "pointCount": 20
+  },
+  "provider": {
+    "name": "osm",
+    "googleMapType": "",
+    "googleLanguage": "",
+    "googleRegion": "",
+    "googleImageFormat": "",
+    "googleSessionExpiry": ""
+  }
+}

@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDE2501 AR Wayfinding - Project Website</title>
+    <meta name="description" content="Project website for the CDE2501 AR Wayfinding Unity prototype for Queenstown.">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar" id="navbar">
+        <div class="nav-content">
+            <h1 class="logo">CDE2501</h1>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#overview">Overview</a></li>
+                <li><a href="#runtime">Runtime</a></li>
+                <li><a href="#modules">Modules</a></li>
+                <li><a href="#data">Data</a></li>
+                <li><a href="#controls">Controls</a></li>
+                <li><a href="#setup">Setup</a></li>
+                <li><a href="#troubleshooting">Troubleshooting</a></li>
+                <li><a href="#roadmap">Roadmap</a></li>
+            </ul>
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content fade-in">
+            <div class="badge">Unity 2022.3.62f3 • AR Foundation • Queenstown</div>
+            <h1 class="hero-title">CDE2501 AR Wayfinding</h1>
+            <p class="hero-subtitle">Elderly-first AR wayfinding prototype with safety-weighted routing, minimap, simulation controls, optional street-view imagery, and cached auto-build launch tooling.</p>
+            <a href="#modules" class="btn-primary">Explore System</a>
+        </div>
+        <div class="hero-bg-anim"></div>
+        <div class="hero-waveform" aria-hidden="true">
+            <svg viewBox="0 0 960 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <polyline id="wave-a" class="wave-line wave-a" points=""/>
+                <polyline id="wave-b" class="wave-line wave-b" points=""/>
+            </svg>
+        </div>
+    </header>
+
+    <main class="container">
+        <section id="overview" class="section show-on-scroll">
+            <h2 class="section-title">Project Overview</h2>
+            <div class="card glass">
+                <p>
+                    This repository contains a Unity-based AR wayfinding MVP focused on a Queenstown estate test area.
+                    The app prioritizes safer, cognitively simpler guidance for elderly users, with route weighting for slope,
+                    stairs, clutter, darkness, narrow width, and rain exposure.
+                </p>
+                <div class="stat-row">
+                    <div class="stat"><span class="stat-num">30</span><span class="stat-label">C# runtime/editor scripts</span></div>
+                    <div class="stat"><span class="stat-num">7</span><span class="stat-label">Python tools (incl. cached build launcher)</span></div>
+                    <div class="stat"><span class="stat-num">1295</span><span class="stat-label">graph nodes</span></div>
+                    <div class="stat"><span class="stat-num">2795</span><span class="stat-label">graph edges</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="runtime" class="section show-on-scroll">
+            <h2 class="section-title">Current Runtime State</h2>
+            <div class="grid-2">
+                <div class="card glass hover-lift">
+                    <h3>What Works</h3>
+                    <p>Indoor A* route calculation, continuous route refresh, minimap route drawing, destination selection, boundary filtering, and simulation-mode movement with keyboard controls.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Street View Status</h3>
+                    <p><code>street_view_manifest.json</code> exists but currently has <code>0</code> usable nodes, so Street View falls back to a no-data overlay until new imagery is generated.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Sensor Behavior</h3>
+                    <p>With <code>Sim Mode = false</code>, the app attempts real GPS/compass input even in desktop/editor when OS/hardware support is available.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Primary Scene</h3>
+                    <p>Main entry scene is <code>Assets/Scenes/Main.unity</code> with a <code>QuickStart</code> bootstrap object that auto-wires the system at runtime.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Cached Build Pipeline</h3>
+                    <p><code>scripts/unity_cached_builder.py</code> computes a project fingerprint and only runs Unity batch build when files changed or output is missing.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="modules" class="section show-on-scroll">
+            <h2 class="section-title">System Modules</h2>
+            <p class="section-desc">Core codebase reviewed across <code>Assets/Scripts</code>, data in <code>StreamingAssets</code>, and generation tools in <code>scripts</code>.</p>
+
+            <div class="module-timeline">
+                <div class="module-card glass">
+                    <div class="module-header">
+                        <h4>Location + Simulation</h4>
+                        <span class="author">GPSManager • CompassManager • SimulationProvider</span>
+                    </div>
+                    <p>Handles raw and smoothed geo/heading input, source selection (simulation vs device), and keyboard-driven movement for editor testing.</p>
+                </div>
+                <div class="module-card glass">
+                    <div class="module-header">
+                        <h4>Graph + Routing</h4>
+                        <span class="author">GraphLoader • AStarPathfinder • RouteCalculator</span>
+                    </div>
+                    <p>Loads multi-attribute graph JSON, applies safety-weighted costs, supports route caching/cooldown, and emits route updates for UI renderers.</p>
+                </div>
+                <div class="module-card glass">
+                    <div class="module-header">
+                        <h4>UI + Guidance</h4>
+                        <span class="author">QuickStartBootstrap • MiniMapOverlay • RoutePathVisualizer</span>
+                    </div>
+                    <p>Draws path/markers, supports destination selection and mode toggles, and keeps routes revalidated from the moving start reference.</p>
+                </div>
+                <div class="module-card glass">
+                    <div class="module-header">
+                        <h4>Imagery + Tooling</h4>
+                        <span class="author">StreetViewExplorer • build_street_view_map.py</span>
+                    </div>
+                    <p>Supports optional route-filtered Street View imagery and includes scripts for OSM graph generation, map atlas generation, and video mapping.</p>
+                </div>
+            </div>
+
+            <div class="fsm-diagram show-on-scroll">
+                <h3 class="diagram-title">High-Level Runtime Flow</h3>
+                <div class="fsm-flow">
+                    <div class="fsm-node fsm-reset">Load Seed Data</div>
+                    <div class="fsm-arrow">down</div>
+                    <div class="fsm-node fsm-idle">Initialize Managers</div>
+                    <div class="fsm-arrow">down</div>
+                    <div class="fsm-node">Resolve Start Node</div>
+                    <div class="fsm-arrow">down</div>
+                    <div class="fsm-node">Compute Safety Route</div>
+                    <div class="fsm-arrow">down</div>
+                    <div class="fsm-node">Render Route + Minimap + Arrow</div>
+                    <div class="fsm-arrow">down</div>
+                    <div class="fsm-node">Continuous Refresh/Revalidation</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="data" class="section show-on-scroll">
+            <h2 class="section-title">Data Snapshot</h2>
+            <div class="grid-circuits">
+                <div class="circuit-card glass hover-lift">
+                    <div class="circuit-id">G</div>
+                    <h3>Estate Graph</h3>
+                    <p class="circuit-params">Assets/StreamingAssets/Data/estate_graph.json</p>
+                    <p>Version <code>3.2-queenstown-osm-roads-bbox</code> with area bounds from Mei Chin to Stirling corridor coverage.</p>
+                </div>
+                <div class="circuit-card glass hover-lift">
+                    <div class="circuit-id">L</div>
+                    <h3>Locations</h3>
+                    <p class="circuit-params">8 destination points</p>
+                    <p>Temple, Queenstown MRT, Block 161(home), Church, Lions Befrienders, Market, Clinic, and Sparkle Tots.</p>
+                </div>
+                <div class="circuit-card glass hover-lift">
+                    <div class="circuit-id">P</div>
+                    <h3>Profiles</h3>
+                    <p class="circuit-params">NormalElderly • Wheelchair</p>
+                    <p>Routing uses configurable penalties and a <code>rainSlopeMultiplier</code> of <code>1.25</code> from JSON.</p>
+                </div>
+                <div class="circuit-card glass hover-lift">
+                    <div class="circuit-id">M</div>
+                    <h3>Map Assets</h3>
+                    <p class="circuit-params">PNG tile atlas + metadata JSON</p>
+                    <p>Mini map uses pre-generated map images and bounds metadata from <code>StreamingAssets/Data</code>.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="controls" class="section show-on-scroll">
+            <h2 class="section-title">Controls</h2>
+            <div class="timeline">
+                <div class="tl-item glass">
+                    <div class="tl-dot tl-blue"></div>
+                    <div class="tl-content">
+                        <div class="tl-date">Route</div>
+                        <h4>N/P destination • Ctrl+R or F5 recalc • 1 elderly • 2 wheelchair • T rain</h4>
+                        <p>Manual recalc now avoids conflict with pitch control while simulation movement is active.</p>
+                    </div>
+                </div>
+                <div class="tl-item glass">
+                    <div class="tl-dot tl-green"></div>
+                    <div class="tl-content">
+                        <div class="tl-date">Movement</div>
+                        <h4>WASD move • Shift sprint • Q/E or arrows yaw • R/F or arrows pitch</h4>
+                        <p>Simulation panel is draggable and can be toggled with <code>F1</code>; simulation mode toggles with <code>F2</code>.</p>
+                    </div>
+                </div>
+                <div class="tl-item glass">
+                    <div class="tl-dot tl-purple"></div>
+                    <div class="tl-content">
+                        <div class="tl-date">Street View</div>
+                        <h4>Y toggle • [ / ] node • , / . heading • H nearest node</h4>
+                        <p>Street View remains optional and is route-filtered when usable image nodes are present.</p>
+                    </div>
+                </div>
+                <div class="tl-item glass">
+                    <div class="tl-dot tl-blue"></div>
+                    <div class="tl-content">
+                        <div class="tl-date">Map Area</div>
+                        <h4>Quick Start button: Map Area (Queenstown / NUS Engineering)</h4>
+                        <p>The minimap and map-reference tile can now be switched live between Queenstown and NUS map assets.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="setup" class="section show-on-scroll">
+            <h2 class="section-title">Setup and Run</h2>
+            <div class="guide-steps">
+                <div class="step-card glass">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Open with Unity 2022.3.62f3</h3>
+                        <p>Install AR Foundation, ARCore XR Plugin, ARKit XR Plugin, and Unity Recorder from package manager.</p>
+                    </div>
+                </div>
+                <div class="step-card glass">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Load Main Scene</h3>
+                        <p>Open <code>Assets/Scenes/Main.unity</code>, press Play, and verify route/minimap overlays appear.</p>
+                    </div>
+                </div>
+                <div class="step-card glass">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Use Cached Launcher</h3>
+                        <p>Run <code>launch_unity_cached_build.bat</code> to auto-build only when inputs changed, then open Unity Editor.</p>
+                    </div>
+                </div>
+                <div class="step-card glass">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Optional Data Generation</h3>
+                        <p>Use scripts under <code>scripts/</code> to refresh road graph, map atlas, and street-view assets based on KML and map bounds.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card glass command-card">
+                <h3>Useful Commands</h3>
+                <p>Run these from repository root.</p>
+                <div class="command-row">
+                    <code id="cmd-road-graph">python3 scripts/generate_osm_road_graph.py</code>
+                    <button class="btn-copy" data-copy-target="cmd-road-graph">Copy</button>
+                </div>
+                <div class="command-row">
+                    <code id="cmd-map-atlas">python3 scripts/generate_osm_map_atlas.py --help</code>
+                    <button class="btn-copy" data-copy-target="cmd-map-atlas">Copy</button>
+                </div>
+                <div class="command-row">
+                    <code id="cmd-nus-map-kml">python3 scripts/generate_map_atlas_from_kml.py --kml "CDE2501 NUS map.kml" --polygon-name "Map of Engine" --zoom-levels 18,19 --output-prefix nus_map --provider google --fallback-to-osm --out-dir Assets/StreamingAssets/Data</code>
+                    <button class="btn-copy" data-copy-target="cmd-nus-map-kml">Copy</button>
+                </div>
+                <div class="command-row">
+                    <code id="cmd-queenstown-map-kml">python3 scripts/generate_map_atlas_from_kml.py --kml "cde2501.kml" --polygon-name "Site area" --zoom-levels 18,19 --output-prefix queenstown_map --provider google --fallback-to-osm --out-dir Assets/StreamingAssets/Data</code>
+                    <button class="btn-copy" data-copy-target="cmd-queenstown-map-kml">Copy</button>
+                </div>
+                <div class="command-row">
+                    <code id="cmd-street-view">python3 scripts/build_street_view_map.py --help</code>
+                    <button class="btn-copy" data-copy-target="cmd-street-view">Copy</button>
+                </div>
+                <div class="command-row">
+                    <code id="cmd-cached-launch">python scripts/unity_cached_builder.py --launch-editor</code>
+                    <button class="btn-copy" data-copy-target="cmd-cached-launch">Copy</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="troubleshooting" class="section show-on-scroll">
+            <h2 class="section-title">Troubleshooting</h2>
+            <div class="grid-2">
+                <div class="card glass hover-lift">
+                    <h3>No movement / no route updates</h3>
+                    <p>Confirm <code>Assets/Scenes/Main.unity</code> is open, Play mode is active, and <code>Sim Mode</code> is enabled in the Quick Start panel.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Street View stays blank</h3>
+                    <p>Current manifest has no usable nodes. Generate new imagery and verify <code>street_view_manifest.json</code> node count is greater than zero.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>GPS/Compass not ready on laptop</h3>
+                    <p>Use status lines in Quick Start overlay. They now show detailed sensor diagnostics (OS-disabled, initializing, accuracy unavailable, etc).</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Pitch key triggers recalc</h3>
+                    <p>Manual recalc in simulation now requires <code>Ctrl+R</code>. You can still use <code>F5</code> for recalc without conflicting with movement controls.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Cached launcher cannot find Unity</h3>
+                    <p>Set <code>unityExecutable</code> inside <code>scripts/unity_cached_builder_config.json</code> or use <code>UNITY_EXE</code> environment variable.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>NUS map not using Google style</h3>
+                    <p>Set <code>GOOGLE_MAPS_API_KEY</code> and enable billing + Map Tiles API for that key; otherwise Google tile session returns 403 and the script falls back to OSM tiles.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="roadmap" class="section show-on-scroll">
+            <h2 class="section-title">Roadmap (Practical Next Steps)</h2>
+            <div class="grid-2">
+                <div class="card glass hover-lift">
+                    <h3>Street View Coverage</h3>
+                    <p>Generate and validate image nodes for the Queenstown path set so Street View can follow the active route without empty-state fallback.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Indoor Elevation Data</h3>
+                    <p>Add confirmed connector nodes, slope/stair annotations, and level transitions from field survey to improve multi-level routing realism.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>Device Validation</h3>
+                    <p>Run Android ARCore and iOS ARKit smoke tests for sensor reliability, UI readability, and route stability under motion.</p>
+                </div>
+                <div class="card glass hover-lift">
+                    <h3>UX Hardening</h3>
+                    <p>Trim overlay text in production mode, keep only destination/mode controls, and maintain clear elder-friendly visual hierarchy.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>CDE2501 AR Wayfinding • Project site generated from current repository review.</p>
+        <p>Updated: <span id="generatedAt">2026-03-25</span></p>
+        <p><a href="README.md" class="footer-link">Open README.md</a></p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

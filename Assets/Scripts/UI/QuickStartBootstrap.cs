@@ -29,13 +29,32 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool autoCreateRoutePathPreview = true;
         [SerializeField] private bool autoCreateMiniMap = true;
         [SerializeField] private bool autoCreateVideoFrameMap = false;
-        [SerializeField] private bool autoCreateStreetViewExplorer = false;
-        [SerializeField] private bool disableYoutubeImageSystems = true;
-        [SerializeField] private bool resetPersistentDataOnStart = true;
+        [SerializeField] private bool autoCreateStreetViewExplorer = true;
+        [SerializeField] private bool disableYoutubeImageSystems = false;
+        [SerializeField] private bool resetPersistentDataOnStart = false;
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
         [SerializeField] private bool alwaysRouteFromCurrentPosition = true;
         [SerializeField] private bool forceImmediateRouteRefresh = true;
         [SerializeField, Min(0.1f)] private float startNodeCheckIntervalSeconds = 0.5f;
+        [SerializeField] private KeyCode manualRecalculateKey = KeyCode.R;
+        [SerializeField] private KeyCode manualRecalculateAltKey = KeyCode.F5;
+        [SerializeField] private bool requireCtrlForManualRecalcWhileSimulating = true;
+        [Header("Map Area Toggle")]
+        [SerializeField] private bool useNusMapArea;
+        [SerializeField] private bool fallbackToAnyDetectedMapFile = true;
+        [SerializeField] private string queenstownMiniMapImageFile = "queenstown_map_z19_x413314-413324_y260255-260265.png";
+        [SerializeField] private string queenstownReferenceMapImageFile = "queenstown_map_z18_x206656-206662_y130127-130133.png";
+        [SerializeField] private string nusMiniMapImageFile = "nus_map_z19_x413268-413276_y260247-260255.png";
+        [SerializeField] private string nusReferenceMapImageFile = "nus_map_z18_x206633-206638_y130123-130128.png";
+        [Header("Area Anchors")]
+        [SerializeField] private bool teleportToAreaAnchorOnMapSwitch = true;
+        [SerializeField] private bool forceSimulationModeOnAreaTeleport = true;
+        [SerializeField] private double queenstownAnchorLatitude = 1.294550851849307;
+        [SerializeField] private double queenstownAnchorLongitude = 103.8060771559821;
+        [SerializeField] private float queenstownAnchorHeading = 0f;
+        [SerializeField] private double nusAnchorLatitude = 1.300429766736533;
+        [SerializeField] private double nusAnchorLongitude = 103.7713240720471;
+        [SerializeField] private float nusAnchorHeading = 0f;
         [Header("Baritone-Inspired Pathing")]
         [SerializeField] private bool baritoneStyleStartResolution = true;
         [SerializeField] private bool preferCurrentLevelForStartNode = true;
@@ -92,6 +111,8 @@ namespace CDE2501.Wayfinding.UI
         private string _stableStartNodeId;
         private int _stableStartLevel = int.MinValue;
         private Vector2 _panelScroll;
+        private string _activeMiniMapImageFile;
+        private string _activeReferenceMapImageFile;
         private GUIStyle _panelStyle;
         private GUIStyle _bodyStyle;
         private Texture2D _panelTexture;
@@ -106,29 +127,29 @@ namespace CDE2501.Wayfinding.UI
 
         private void Awake()
         {
-            if (continuousRefreshMinMoveMeters < 0.5f)
+            if (continuousRefreshMinMoveMeters < 0.05f)
             {
-                continuousRefreshMinMoveMeters = 0.5f;
+                continuousRefreshMinMoveMeters = 0.05f;
             }
 
-            if (continuousRefreshIntervalSeconds < 0.5f)
+            if (continuousRefreshIntervalSeconds < 0.1f)
             {
-                continuousRefreshIntervalSeconds = 0.5f;
+                continuousRefreshIntervalSeconds = 0.1f;
             }
 
-            if (routeRevalidationIntervalSeconds < 0.4f)
+            if (routeRevalidationIntervalSeconds < 0.1f)
             {
-                routeRevalidationIntervalSeconds = 0.4f;
+                routeRevalidationIntervalSeconds = 0.1f;
             }
 
-            if (startNodeSwitchAdvantageMeters < 1f)
+            if (startNodeSwitchAdvantageMeters < 0f)
             {
-                startNodeSwitchAdvantageMeters = 1f;
+                startNodeSwitchAdvantageMeters = 0f;
             }
 
-            if (startNodeMaxHoldDistanceMeters < 4f)
+            if (startNodeMaxHoldDistanceMeters < 0.5f)
             {
-                startNodeMaxHoldDistanceMeters = 4f;
+                startNodeMaxHoldDistanceMeters = 0.5f;
             }
 
             EnsureManagers();
@@ -147,6 +168,7 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            ApplyMapAreaSelection();
             Subscribe();
             _locationManager.LoadLocations();
             StartCoroutine(WaitAndTryAutoRoute());
@@ -169,9 +191,10 @@ namespace CDE2501.Wayfinding.UI
                 CycleDestination(-1);
             }
 
-            if (Input.GetKeyDown(KeyCode.R))
+            string manualRecalcReason = ConsumeManualRecalculateReason();
+            if (!string.IsNullOrEmpty(manualRecalcReason))
             {
-                RecalculateCurrentRoute("Manual (R key)");
+                RecalculateCurrentRoute(manualRecalcReason);
             }
 
             if (Input.GetKeyDown(KeyCode.Alpha1))
@@ -284,6 +307,12 @@ namespace CDE2501.Wayfinding.UI
             string destinationName = GetCurrentDestinationName();
 
             float destinationRowY = 64f;
+            string mapAreaLabel = useNusMapArea ? "NUS Engineering" : "Queenstown";
+            if (GUI.Button(new Rect(668f, destinationRowY, 262f, 24f), $"Map Area: {mapAreaLabel}"))
+            {
+                ToggleMapAreaSelection();
+            }
+
             GUI.Label(new Rect(12f, destinationRowY, 108f, 24f), "Destination:", _bodyStyle);
             Rect destinationButtonRect = new Rect(122f, destinationRowY, 344f, 24f);
             if (GUI.Button(destinationButtonRect, destinationName))
@@ -355,9 +384,10 @@ namespace CDE2501.Wayfinding.UI
                 : $"Video frame map: {(_videoFrameMapVisualizer != null)} (loaded: {(_videoFrameMapVisualizer != null && _videoFrameMapVisualizer.ManifestReady)}, markers: {(_videoFrameMapVisualizer != null ? _videoFrameMapVisualizer.MarkerCount : 0)})\n" +
                   $"Street view explorer: {(_streetViewExplorer != null)} (loaded: {(_streetViewExplorer != null && _streetViewExplorer.ManifestReady)}, nodes: {(_streetViewExplorer != null ? _streetViewExplorer.NodeCount : 0)}, google: {(_streetViewExplorer != null ? _streetViewExplorer.GoogleNodeCount : 0)}, fallback: {(_streetViewExplorer != null ? _streetViewExplorer.YoutubeFallbackNodeCount : 0)}, active: {(_streetViewExplorer != null && _streetViewExplorer.IsStreetViewActive)})\n";
 
+            string recalcKeyHint = BuildManualRecalcKeyHint();
             string keyHelpText = disableYoutubeImageSystems
-                ? "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow."
-                : "Keys: N/P next/prev destination, R recalc, 1 Elderly, 2 Wheelchair, T rain toggle, Y street view. StreetView: mouse-drag look, auto-follow nearest image while moving, [ ] node, , . heading, H nearest node. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow.";
+                ? $"Keys: N/P next/prev destination, {recalcKeyHint} recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow."
+                : $"Keys: N/P next/prev destination, {recalcKeyHint} recalc, 1 Elderly, 2 Wheelchair, T rain toggle, Y street view. StreetView: non-click movement mode with auto-follow nearest panorama while moving, [ ] node, , . heading, H nearest node. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow.";
 
             string text =
                 $"{_status}\n" +
@@ -366,8 +396,8 @@ namespace CDE2501.Wayfinding.UI
                 $"Mode: {(_routeCalculator != null ? _routeCalculator.CurrentMode.ToString() : "missing")} | Rain: {(_routeCalculator != null && _routeCalculator.RainMode)}\n" +
                 $"Baritone-style start: {baritoneStyleStartResolution} | Revalidation: {routeRevalidationEnabled}\n" +
                 $"Route engine ready: {(_routeCalculator != null && _routeCalculator.IsInitialized)}\n" +
-                $"GPS ready: {(_gpsManager != null && _gpsManager.IsReady)} (sim: {(_gpsManager != null && _gpsManager.IsUsingSimulation)})\n" +
-                $"Compass ready: {(_compassManager != null && _compassManager.IsReady)} (sim: {(_compassManager != null && _compassManager.IsUsingSimulation)})\n" +
+                $"GPS ready: {(_gpsManager != null && _gpsManager.IsReady)} (sim: {(_gpsManager != null && _gpsManager.IsUsingSimulation)}) | {(_gpsManager != null ? _gpsManager.StatusMessage : "missing")}\n" +
+                $"Compass ready: {(_compassManager != null && _compassManager.IsReady)} (sim: {(_compassManager != null && _compassManager.IsUsingSimulation)}) | {(_compassManager != null ? _compassManager.StatusMessage : "missing")}\n" +
                 $"Locations loaded: {_locationsLoaded} (raw: {(_locationManager != null ? _locationManager.Locations.Count : 0)}, usable: {_uiDestinations.Count})\n" +
                 $"Boundary active: {(_boundaryConstraintManager != null && _boundaryConstraintManager.HasBoundary)} (rev: {(_boundaryConstraintManager != null ? _boundaryConstraintManager.BoundaryRevision : 0)})\n" +
                 $"Graph preview: {(_graphRuntimeVisualizer != null)}\n" +
@@ -375,6 +405,8 @@ namespace CDE2501.Wayfinding.UI
                 $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
+                $"Map area: {(useNusMapArea ? "NUS Engineering" : "Queenstown")}\n" +
+                $"Map files: mini={(_activeMiniMapImageFile ?? "n/a")}, ref={(_activeReferenceMapImageFile ?? "n/a")}\n" +
                 mediaSystemsText +
                 $"{routeMessage}\n" +
                 keyHelpText;
@@ -387,6 +419,234 @@ namespace CDE2501.Wayfinding.UI
             GUI.Label(new Rect(0f, 0f, contentRect.width, contentRect.height), text, _bodyStyle);
             GUI.EndScrollView();
             GUI.DragWindow(new Rect(0f, 0f, _panelRect.width, 30f));
+        }
+
+        private string ConsumeManualRecalculateReason()
+        {
+            bool primaryPressed = Input.GetKeyDown(manualRecalculateKey);
+            bool altPressed = manualRecalculateAltKey != KeyCode.None && Input.GetKeyDown(manualRecalculateAltKey);
+            if (!primaryPressed && !altPressed)
+            {
+                return null;
+            }
+
+            if (primaryPressed &&
+                requireCtrlForManualRecalcWhileSimulating &&
+                _simulationProvider != null &&
+                _simulationProvider.ForceSimulationMode &&
+                !IsControlModifierPressed())
+            {
+                _status = $"Manual recalc blocked. Use Ctrl+{manualRecalculateKey} while simulation movement controls are active.";
+                return null;
+            }
+
+            if (altPressed)
+            {
+                return $"Manual ({manualRecalculateAltKey} key)";
+            }
+
+            if (primaryPressed &&
+                requireCtrlForManualRecalcWhileSimulating &&
+                _simulationProvider != null &&
+                _simulationProvider.ForceSimulationMode &&
+                IsControlModifierPressed())
+            {
+                return $"Manual (Ctrl+{manualRecalculateKey} key)";
+            }
+
+            return $"Manual ({manualRecalculateKey} key)";
+        }
+
+        private string BuildManualRecalcKeyHint()
+        {
+            string primary = manualRecalculateKey.ToString();
+            bool hasAlt = manualRecalculateAltKey != KeyCode.None;
+            string alt = hasAlt ? manualRecalculateAltKey.ToString() : string.Empty;
+
+            if (requireCtrlForManualRecalcWhileSimulating)
+            {
+                return hasAlt ? $"Ctrl+{primary}/{alt}" : $"Ctrl+{primary}";
+            }
+
+            return hasAlt ? $"{primary}/{alt}" : primary;
+        }
+
+        private static bool IsControlModifierPressed()
+        {
+            return Input.GetKey(KeyCode.LeftControl) ||
+                   Input.GetKey(KeyCode.RightControl) ||
+                   Input.GetKey(KeyCode.LeftCommand) ||
+                   Input.GetKey(KeyCode.RightCommand);
+        }
+
+        private void ToggleMapAreaSelection()
+        {
+            useNusMapArea = !useNusMapArea;
+            ApplyMapAreaSelection();
+            RecalculateCurrentRoute("Map area switched");
+        }
+
+        private void ApplyMapAreaSelection()
+        {
+            string selectedMiniMapFile = useNusMapArea ? nusMiniMapImageFile : queenstownMiniMapImageFile;
+            string selectedReferenceMapFile = useNusMapArea ? nusReferenceMapImageFile : queenstownReferenceMapImageFile;
+            string fallbackMiniMapFile = useNusMapArea ? queenstownMiniMapImageFile : nusMiniMapImageFile;
+            string fallbackReferenceMapFile = useNusMapArea ? queenstownReferenceMapImageFile : nusReferenceMapImageFile;
+
+            string miniMapPrefix = useNusMapArea ? "nus_map_z" : "queenstown_map_z";
+            string referenceMapPrefix = useNusMapArea ? "nus_map_z" : "queenstown_map_z";
+
+            string resolvedMiniMapFile = ResolveAvailableMapFileName(selectedMiniMapFile, fallbackMiniMapFile, miniMapPrefix);
+            string resolvedReferenceMapFile = ResolveAvailableMapFileName(selectedReferenceMapFile, fallbackReferenceMapFile, referenceMapPrefix);
+
+            if (_miniMapOverlay != null && !string.IsNullOrWhiteSpace(resolvedMiniMapFile))
+            {
+                _miniMapOverlay.SetMapImageFileName(resolvedMiniMapFile, resetView: true);
+            }
+
+            if (_mapReferenceTileVisualizer != null && !string.IsNullOrWhiteSpace(resolvedReferenceMapFile))
+            {
+                _mapReferenceTileVisualizer.SetTileFileName(resolvedReferenceMapFile);
+            }
+
+            _activeMiniMapImageFile = resolvedMiniMapFile;
+            _activeReferenceMapImageFile = resolvedReferenceMapFile;
+
+            TeleportToAreaAnchor();
+
+            string selectedAreaName = useNusMapArea ? "NUS Engineering" : "Queenstown";
+            bool selectedMapMissing = !string.IsNullOrWhiteSpace(selectedMiniMapFile) && !DataFileExists(selectedMiniMapFile);
+            string fallbackNote = selectedMapMissing && !string.Equals(selectedMiniMapFile, resolvedMiniMapFile, System.StringComparison.OrdinalIgnoreCase)
+                ? $" (fallback map: {resolvedMiniMapFile})"
+                : string.Empty;
+            _status = $"Map area switched to {selectedAreaName}{fallbackNote}.";
+        }
+
+        private void TeleportToAreaAnchor()
+        {
+            if (!teleportToAreaAnchorOnMapSwitch || _simulationProvider == null)
+            {
+                return;
+            }
+
+            if (forceSimulationModeOnAreaTeleport)
+            {
+                _simulationProvider.ForceSimulationMode = true;
+            }
+
+            double lat = useNusMapArea ? nusAnchorLatitude : queenstownAnchorLatitude;
+            double lon = useNusMapArea ? nusAnchorLongitude : queenstownAnchorLongitude;
+            float heading = useNusMapArea ? nusAnchorHeading : queenstownAnchorHeading;
+            _simulationProvider.TeleportTo(new GeoPoint(lat, lon), heading, 0f, 0f);
+        }
+
+        private string ResolveAvailableMapFileName(string preferredFileName, string fallbackFileName, string preferredPrefix)
+        {
+            if (DataFileExists(preferredFileName))
+            {
+                return preferredFileName;
+            }
+
+            if (fallbackToAnyDetectedMapFile && !string.IsNullOrWhiteSpace(preferredPrefix))
+            {
+                string discoveredPreferred = FindBestDataFileByPattern(preferredPrefix + "*.png");
+                if (!string.IsNullOrWhiteSpace(discoveredPreferred))
+                {
+                    return discoveredPreferred;
+                }
+            }
+
+            if (DataFileExists(fallbackFileName))
+            {
+                return fallbackFileName;
+            }
+
+            if (fallbackToAnyDetectedMapFile)
+            {
+                string discoveredAnyMap = FindBestDataFileByPattern("*map_z*.png");
+                if (!string.IsNullOrWhiteSpace(discoveredAnyMap))
+                {
+                    return discoveredAnyMap;
+                }
+            }
+
+            return preferredFileName;
+        }
+
+        private static string FindBestDataFileByPattern(string pattern)
+        {
+            if (string.IsNullOrWhiteSpace(pattern))
+            {
+                return null;
+            }
+
+            string bestFileName = null;
+            ConsiderPatternInDirectory(Path.Combine(Application.streamingAssetsPath, "Data"), pattern, ref bestFileName);
+            ConsiderPatternInDirectory(Path.Combine(Application.persistentDataPath, "Data"), pattern, ref bestFileName);
+            return bestFileName;
+        }
+
+        private static void ConsiderPatternInDirectory(string directoryPath, string pattern, ref string currentBestFileName)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+                {
+                    return;
+                }
+
+                string[] matches = Directory.GetFiles(directoryPath, pattern);
+                if (matches == null || matches.Length == 0)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < matches.Length; i++)
+                {
+                    string candidateName = Path.GetFileName(matches[i]);
+                    if (string.IsNullOrWhiteSpace(candidateName))
+                    {
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(currentBestFileName) ||
+                        string.Compare(candidateName, currentBestFileName, System.StringComparison.OrdinalIgnoreCase) > 0)
+                    {
+                        currentBestFileName = candidateName;
+                    }
+                }
+            }
+            catch (System.Exception)
+            {
+                // Keep current best file when directory probing fails.
+            }
+        }
+
+        private static bool DataFileExists(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return false;
+            }
+
+            if (Path.IsPathRooted(fileName) && File.Exists(fileName))
+            {
+                return true;
+            }
+
+            string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", fileName);
+            if (File.Exists(streamingPath))
+            {
+                return true;
+            }
+
+            string persistentPath = Path.Combine(Application.persistentDataPath, "Data", fileName);
+            if (File.Exists(persistentPath))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private void EnsurePanelRect(float scale)

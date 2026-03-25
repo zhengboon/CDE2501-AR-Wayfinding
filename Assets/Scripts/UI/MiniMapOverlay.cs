@@ -57,7 +57,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(0f)] private float boundsPaddingMeters = 2f;
         [Header("Map Image")]
         [SerializeField] private bool showMapImage = true;
-        [SerializeField] private string mapImageFileName = "queenstown_map_z19_x413313-413325_y260253-260265.png";
+        [SerializeField] private string mapImageFileName = "queenstown_map_z19_x413314-413324_y260255-260265.png";
         [SerializeField, Range(0.05f, 1f)] private float mapImageAlpha = 0.75f;
         [Header("Interaction")]
         [SerializeField] private bool enableMapInteraction = true;
@@ -342,6 +342,34 @@ namespace CDE2501.Wayfinding.UI
             {
                 TryLoadMapTexture();
             }
+        }
+
+        public void SetMapImageFileName(string fileName, bool resetView = true)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return;
+            }
+
+            string normalized = fileName.Trim();
+            if (string.Equals(mapImageFileName, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            mapImageFileName = normalized;
+            ResetLoadedMapTextureState();
+
+            if (resetView)
+            {
+                _mapZoom = 1f;
+                _targetMapZoom = 1f;
+                _mapPanPixels = Vector2.zero;
+                _targetMapPanPixels = Vector2.zero;
+                followPlayer = true;
+            }
+
+            TryLoadMapTexture();
         }
 
         public void SetShowVideoFrames(bool enabled)
@@ -839,6 +867,20 @@ namespace CDE2501.Wayfinding.UI
             }
 
             StartCoroutine(LoadMapTextureRoutine());
+        }
+
+        private void ResetLoadedMapTextureState()
+        {
+            if (_mapTexture != null)
+            {
+                Destroy(_mapTexture);
+                _mapTexture = null;
+            }
+
+            _isMapTextureLoading = false;
+            _tileMetadataReady = false;
+            _mapMetadataGeoBoundsReady = false;
+            _geoMappingDirty = true;
         }
 
         private void PreferHigherResolutionMapIfAvailable()

@@ -336,7 +336,14 @@ def download_image(url: str, path: Path, timeout: int = 20) -> bool:
         return False
 
 
-def build_streetview_urls(lat: float, lon: float, api_key: str, image_size: str, heading: int) -> Tuple[str, str]:
+def build_streetview_urls(
+    lat: float,
+    lon: float,
+    api_key: str,
+    image_size: str,
+    heading: int,
+    fov: int,
+) -> Tuple[str, str]:
     metadata_params = {
         "location": f"{lat:.8f},{lon:.8f}",
         "source": "outdoor",
@@ -348,7 +355,7 @@ def build_streetview_urls(lat: float, lon: float, api_key: str, image_size: str,
         "source": "outdoor",
         "heading": str(heading),
         "pitch": "0",
-        "fov": "90",
+        "fov": str(max(10, min(120, int(fov)))),
         "return_error_code": "true",
         "key": api_key,
     }
@@ -367,10 +374,13 @@ def main() -> int:
     parser.add_argument("--video-map-file", default="video_frame_map.json")
     parser.add_argument("--out-manifest", default="street_view_manifest.json")
     parser.add_argument("--street-view-dir", default="street_view/google")
-    parser.add_argument("--headings", default="0,90,180,270")
+    parser.add_argument("--headings", default="")
+    parser.add_argument("--heading-step", type=int, default=15)
+    parser.add_argument("--fov", type=int, default=90)
     parser.add_argument("--image-size", default="640x640")
     parser.add_argument("--min-spacing-m", type=float, default=28.0)
     parser.add_argument("--max-google-nodes", type=int, default=80)
+    parser.add_argument("--all-candidate-nodes", action="store_true")
     parser.add_argument("--max-fallback-distance-m", type=float, default=220.0)
     parser.add_argument("--google-api-key", default=os.environ.get("GOOGLE_MAPS_API_KEY", ""))
     parser.add_argument("--timeout-seconds", type=int, default=20)
@@ -382,7 +392,6 @@ def main() -> int:
     locations_path = data_dir / args.locations_file
     video_map_path = data_dir / args.video_map_file
     out_manifest_path = data_dir / args.out_manifest
-    street_view_root = data_dir / args.street_view_dir
     kml_path = Path(args.kml)
 
     if not graph_path.exists():
@@ -410,13 +419,18 @@ def main() -> int:
         coeff_lat, coeff_lon = fit
         fit_mode = "location_least_squares"
 
-    headings = []
-    for h in args.headings.split(","):
-        h = h.strip()
-        if not h:
-            continue
-        headings.append(int(h))
-    headings = sorted(set(headings))
+    headings: List[int] = []
+    if args.headings.strip():
+        for h in args.headings.split(","):
+            h = h.strip()
+            if not h:
+                continue
+            headings.append(int(h))
+    else:
+        step = max(1, min(180, int(args.heading_step)))
+        headings.extend(list(range(0, 360, step)))
+
+    headings = sorted(set(int(h) % 360 for h in headings))
     if not headings:
         headings = [0, 90, 180, 270]
 
@@ -446,7 +460,7 @@ def main() -> int:
                 break
         if keep:
             selected_ids.append(nid)
-        if len(selected_ids) >= max(1, args.max_google_nodes):
+        if (not args.all_candidate_nodes) and len(selected_ids) >= max(1, args.max_google_nodes):
             break
 
     selected_set = set(selected_ids)
@@ -485,14 +499,25 @@ def main() -> int:
 
         metadata_status = "NO_KEY"
         if google_enabled:
-            meta_url, _ = build_streetview_urls(lat, lon, args.google_api_key, args.image_size, headings[0])
+            meta_url, _ = build_streetview_urls(
+                lat,
+                lon,
+                args.google_api_key,
+                args.image_size,
+                headings[0],
+                args.fov,
+            )
             meta = request_json(meta_url, timeout=args.timeout_seconds)
             metadata_status = (meta or {}).get("status", "REQUEST_FAILED")
             if metadata_status == "OK":
-                image_base_dir = street_view_root / nid
                 for heading in headings:
                     _meta_url, static_url = build_streetview_urls(
-                        lat, lon, args.google_api_key, args.image_size, heading
+                        lat,
+                        lon,
+                        args.google_api_key,
+                        args.image_size,
+                        heading,
+                        args.fov,
                     )
                     rel_path = f"{args.street_view_dir}/{nid}/h{heading:03d}.jpg".replace("\\", "/")
                     abs_path = data_dir / rel_path
@@ -500,7 +525,7 @@ def main() -> int:
                     if ok:
                         heading_images.append({"heading": heading, "image": rel_path})
                 if heading_images:
-                    view_type = "google_4dir"
+                    view_type = f"google_{len(heading_images)}dir"
                     google_success += 1
             else:
                 warnings.append(f"{nid}: Street View metadata status={metadata_status}")
@@ -509,10 +534,10 @@ def main() -> int:
         if fallback is None:
             fallback = nearest_frame(node, frames, args.max_fallback_distance_m)
         fallback_image = fallback.image if fallback is not None else ""
-        if view_type != "google_4dir" and fallback_image:
+        if not view_type.startswith("google_") and fallback_image:
             view_type = "youtube_fallback"
             fallback_used += 1
-        elif view_type == "google_4dir" and fallback_image:
+        elif view_type.startswith("google_") and fallback_image:
             # keep fallback as backup even when google exists
             pass
         elif view_type == "none":

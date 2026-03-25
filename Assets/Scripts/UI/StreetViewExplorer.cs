@@ -66,7 +66,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool autoLoadOnStart = true;
 
         [Header("Mode")]
-        [SerializeField] private bool showStreetView = true;
+        [SerializeField] private bool showStreetView = false;
         [SerializeField] private KeyCode toggleKey = KeyCode.Y;
         [SerializeField] private KeyCode prevNodeKey = KeyCode.LeftBracket;
         [SerializeField] private KeyCode nextNodeKey = KeyCode.RightBracket;
@@ -78,6 +78,12 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(0f)] private float followSwitchAdvantageMeters = 0.35f;
         [SerializeField] private bool movementOnlyMode = true;
         [SerializeField] private bool allowClickMove = false;
+        [SerializeField] private bool simulationProviderControlsViewInMovementMode = true;
+
+        [Header("Rendering")]
+        [SerializeField] private bool blendHeadingImagesForSmooth360 = true;
+        [SerializeField, Range(0f, 1f)] private float headingBlendDeadZone = 0.03f;
+        [SerializeField] private Color noDataOverlayColor = new Color(0.55f, 0.82f, 1f, 0.35f);
 
         [Header("Path Filter")]
         [SerializeField] private bool onlyUseCurrentRouteNodes = true;
@@ -130,6 +136,9 @@ namespace CDE2501.Wayfinding.UI
         private int _currentHeadingIndex;
         private string _currentImagePath;
         private Texture2D _currentTexture;
+        private string _secondaryImagePath;
+        private Texture2D _secondaryTexture;
+        private float _secondaryTextureAlpha;
         private string _status = "Street View idle.";
         private RouteResult _latestRouteResult;
         private string _lastRouteSignature = string.Empty;
@@ -230,7 +239,14 @@ namespace CDE2501.Wayfinding.UI
             if (Input.GetKeyDown(toggleKey))
             {
                 showStreetView = !showStreetView;
-                _status = showStreetView ? "Street View enabled." : "Street View disabled.";
+                if (showStreetView && (!_manifestReady || _nodes.Count == 0))
+                {
+                    _status = "Street View enabled, but no imagery is available for current data/route.";
+                }
+                else
+                {
+                    _status = showStreetView ? "Street View enabled." : "Street View disabled.";
+                }
             }
 
             if (simulationProvider == null)
@@ -258,6 +274,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             EnsureViewInitialized();
+            SyncViewFromSimulationProviderIfNeeded();
             HandleKeyboardNavigation();
             FollowNearestNodeFromReferenceIfNeeded();
             HandleMouseLookAndClickMove();
@@ -288,9 +305,17 @@ namespace CDE2501.Wayfinding.UI
 
             EnsureStyles();
             Rect viewRect = new Rect(0f, 0f, Screen.width, Screen.height);
-            DrawImageArea(viewRect);
+            bool hasUsableContent = _manifestReady && _nodes.Count > 0;
+            if (hasUsableContent)
+            {
+                DrawImageArea(viewRect);
+            }
+            else
+            {
+                DrawNoDataOverlay(viewRect);
+            }
 
-            if (_manifestReady && _nodes.Count > 0 && showNavigationHotspots && !movementOnlyMode)
+            if (hasUsableContent && showNavigationHotspots && !movementOnlyMode)
             {
                 DrawHotspots(viewRect);
             }
@@ -352,12 +377,20 @@ namespace CDE2501.Wayfinding.UI
 
         public void ToggleStreetView()
         {
-            showStreetView = !showStreetView;
+            SetStreetViewActive(!showStreetView);
         }
 
         public void SetStreetViewActive(bool active)
         {
             showStreetView = active;
+            if (showStreetView && (!_manifestReady || _nodes.Count == 0))
+            {
+                _status = "Street View enabled, but no imagery is available for current data/route.";
+            }
+            else if (!showStreetView)
+            {
+                _status = "Street View disabled.";
+            }
         }
 
         private void HandleKeyboardNavigation()
@@ -390,6 +423,16 @@ namespace CDE2501.Wayfinding.UI
 
         private void HandleMouseLookAndClickMove()
         {
+            if (movementOnlyMode &&
+                simulationProviderControlsViewInMovementMode &&
+                simulationProvider != null &&
+                simulationProvider.ForceSimulationMode)
+            {
+                _leftMouseDown = false;
+                _isDraggingLook = false;
+                return;
+            }
+
             Vector2 guiMouse = GetMousePositionGui();
 
             if (Input.GetMouseButtonDown(0))
@@ -441,14 +484,38 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
-            if (_currentTexture != null)
+            Texture2D baseTexture = _currentTexture != null ? _currentTexture : _secondaryTexture;
+            if (baseTexture != null)
             {
-                GUI.DrawTexture(rect, _currentTexture, ScaleMode.ScaleAndCrop, true);
+                GUI.DrawTexture(rect, baseTexture, ScaleMode.ScaleAndCrop, true);
+                if (_currentTexture != null && _secondaryTexture != null && _secondaryTextureAlpha > 0.001f)
+                {
+                    Color previousColor = GUI.color;
+                    GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp01(_secondaryTextureAlpha));
+                    GUI.DrawTexture(rect, _secondaryTexture, ScaleMode.ScaleAndCrop, true);
+                    GUI.color = previousColor;
+                }
+
                 return;
             }
 
             DrawFilledRect(rect, new Color(0f, 0f, 0f, 1f));
             GUI.Label(new Rect(18f, 14f, rect.width - 32f, 28f), "Loading Street View image...", _hudBodyStyle);
+        }
+
+        private void DrawNoDataOverlay(Rect rect)
+        {
+            DrawFilledRect(rect, noDataOverlayColor);
+
+            int manifestNodeCount = _manifest != null ? _manifest.nodeCount : 0;
+            int activeNodeCount = _nodes != null ? _nodes.Count : 0;
+            string message =
+                "Street View mode is ON.\n" +
+                "No usable imagery is loaded for current route/data.\n" +
+                $"Manifest nodes: {manifestNodeCount} | Active nodes: {activeNodeCount}\n" +
+                "Generate/load street_view_manifest.json and Street View images.";
+
+            GUI.Label(new Rect(20f, 20f, rect.width - 40f, 120f), message, _hudBodyStyle);
         }
 
         private void DrawHotspots(Rect viewRect)
@@ -572,7 +639,15 @@ namespace CDE2501.Wayfinding.UI
 
             if (showControlHints)
             {
-                message += "\nMouse drag look. Background follows your movement.";
+                if (movementOnlyMode && simulationProviderControlsViewInMovementMode)
+                {
+                    message += "\nView follows your movement controls (non-click mode).";
+                }
+                else
+                {
+                    message += "\nMouse drag look. Background follows your movement.";
+                }
+
                 message += "\nMove with WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. H snap, Y toggle.";
                 message += movementOnlyMode ? "\nClick-to-move is disabled." : "\nClick-to-move is enabled.";
             }
@@ -821,6 +896,9 @@ namespace CDE2501.Wayfinding.UI
                 _currentNodeIndex = 0;
                 _currentTexture = null;
                 _currentImagePath = string.Empty;
+                _secondaryTexture = null;
+                _secondaryImagePath = string.Empty;
+                _secondaryTextureAlpha = 0f;
                 return;
             }
 
@@ -836,6 +914,9 @@ namespace CDE2501.Wayfinding.UI
                 _currentNodeIndex = 0;
                 _currentTexture = null;
                 _currentImagePath = string.Empty;
+                _secondaryTexture = null;
+                _secondaryImagePath = string.Empty;
+                _secondaryTextureAlpha = 0f;
                 _status = "Street View waiting for a route. Calculate route first.";
                 return;
             }
@@ -898,6 +979,9 @@ namespace CDE2501.Wayfinding.UI
                 _currentNodeIndex = 0;
                 _currentTexture = null;
                 _currentImagePath = string.Empty;
+                _secondaryTexture = null;
+                _secondaryImagePath = string.Empty;
+                _secondaryTextureAlpha = 0f;
                 _status = "No Street View images on current path.";
                 return;
             }
@@ -1094,17 +1178,15 @@ namespace CDE2501.Wayfinding.UI
             if (node.headingImages != null && node.headingImages.Count > 0)
             {
                 SortHeadingImages(node.headingImages);
-                int nearest = FindNearestHeadingIndex(node.headingImages, _viewYaw);
-                if (force || nearest != _currentHeadingIndex)
-                {
-                    _currentHeadingIndex = nearest;
-                    RefreshCurrentTexture();
-                }
+                SelectHeadingBlend(node.headingImages, _viewYaw, out int nearest, out string primary, out string secondary, out float blend);
+                bool headingChanged = nearest != _currentHeadingIndex;
+                _currentHeadingIndex = nearest;
+                SetActiveImagePaths(primary, secondary, blend, force || headingChanged);
             }
             else if (force)
             {
                 _currentHeadingIndex = 0;
-                RefreshCurrentTexture();
+                SetActiveImagePaths(node.fallbackImage, null, 0f, true);
             }
         }
 
@@ -1121,45 +1203,21 @@ namespace CDE2501.Wayfinding.UI
             _viewYaw = NormalizeDegrees(node.headingImages[_currentHeadingIndex].heading);
         }
 
-        private string GetCurrentImagePath()
-        {
-            StreetViewNodeData node = GetCurrentNode();
-            if (node == null)
-            {
-                return string.Empty;
-            }
-
-            if (node.headingImages != null && node.headingImages.Count > 0)
-            {
-                SortHeadingImages(node.headingImages);
-                _currentHeadingIndex = Mathf.Clamp(_currentHeadingIndex, 0, node.headingImages.Count - 1);
-                return node.headingImages[_currentHeadingIndex].image ?? string.Empty;
-            }
-
-            return node.fallbackImage ?? string.Empty;
-        }
-
         private void RefreshCurrentTexture()
         {
-            _currentImagePath = GetCurrentImagePath();
-            if (string.IsNullOrWhiteSpace(_currentImagePath))
-            {
-                _currentTexture = null;
-                return;
-            }
-
-            if (_textureCache.TryGetValue(_currentImagePath, out Texture2D tex) && tex != null)
-            {
-                _currentTexture = tex;
-                return;
-            }
-
-            _currentTexture = null;
-            RequestTexture(_currentImagePath);
+            SyncImageWithViewYaw(force: true);
         }
 
         private void PushViewToSimulation()
         {
+            if (movementOnlyMode &&
+                simulationProviderControlsViewInMovementMode &&
+                simulationProvider != null &&
+                simulationProvider.ForceSimulationMode)
+            {
+                return;
+            }
+
             if (driveSimulationProvider && simulationProvider != null && simulationProvider.ForceSimulationMode)
             {
                 simulationProvider.SetView(_viewYaw, _viewPitch);
@@ -1235,6 +1293,11 @@ namespace CDE2501.Wayfinding.UI
                     {
                         _currentTexture = texture;
                     }
+
+                    if (string.Equals(_secondaryImagePath, relativeImagePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _secondaryTexture = texture;
+                    }
                 }
             }
 
@@ -1272,6 +1335,8 @@ namespace CDE2501.Wayfinding.UI
             }
 
             RebuildActiveNodeList();
+
+            // Removed autoDisableIfNoUsableStreetView logic that forces showStreetView to false
 
             if (_manifestReady)
             {
@@ -1453,6 +1518,136 @@ namespace CDE2501.Wayfinding.UI
             {
                 Directory.CreateDirectory(dir);
             }
+        }
+
+        private void SyncViewFromSimulationProviderIfNeeded()
+        {
+            if (!movementOnlyMode ||
+                !simulationProviderControlsViewInMovementMode ||
+                simulationProvider == null ||
+                !simulationProvider.ForceSimulationMode)
+            {
+                return;
+            }
+
+            _viewYaw = NormalizeDegrees(simulationProvider.CurrentHeading);
+            _viewPitch = Mathf.Clamp(simulationProvider.CurrentPitch, minPitchDegrees, maxPitchDegrees);
+        }
+
+        private void SetActiveImagePaths(string primaryPath, string secondaryPath, float secondaryAlpha, bool force)
+        {
+            string normalizedPrimary = string.IsNullOrWhiteSpace(primaryPath) ? string.Empty : primaryPath.Trim();
+            string normalizedSecondary = string.IsNullOrWhiteSpace(secondaryPath) ? string.Empty : secondaryPath.Trim();
+            float clampedAlpha = Mathf.Clamp01(secondaryAlpha);
+
+            if (string.Equals(normalizedPrimary, normalizedSecondary, StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedSecondary = string.Empty;
+                clampedAlpha = 0f;
+            }
+
+            if (clampedAlpha <= headingBlendDeadZone)
+            {
+                normalizedSecondary = string.Empty;
+                clampedAlpha = 0f;
+            }
+
+            bool pathChanged =
+                !string.Equals(_currentImagePath, normalizedPrimary, StringComparison.OrdinalIgnoreCase) ||
+                !string.Equals(_secondaryImagePath, normalizedSecondary, StringComparison.OrdinalIgnoreCase);
+            bool alphaChanged = Mathf.Abs(_secondaryTextureAlpha - clampedAlpha) > 0.001f;
+
+            if (!force && !pathChanged && !alphaChanged)
+            {
+                return;
+            }
+
+            _currentImagePath = normalizedPrimary;
+            _secondaryImagePath = normalizedSecondary;
+            _secondaryTextureAlpha = clampedAlpha;
+
+            _currentTexture = TryGetCachedTexture(normalizedPrimary);
+            if (_currentTexture == null && !string.IsNullOrWhiteSpace(normalizedPrimary))
+            {
+                RequestTexture(normalizedPrimary);
+            }
+
+            _secondaryTexture = TryGetCachedTexture(normalizedSecondary);
+            if (_secondaryTexture == null && !string.IsNullOrWhiteSpace(normalizedSecondary))
+            {
+                RequestTexture(normalizedSecondary);
+            }
+        }
+
+        private Texture2D TryGetCachedTexture(string relativeImagePath)
+        {
+            if (string.IsNullOrWhiteSpace(relativeImagePath))
+            {
+                return null;
+            }
+
+            return _textureCache.TryGetValue(relativeImagePath, out Texture2D tex) ? tex : null;
+        }
+
+        private void SelectHeadingBlend(
+            List<StreetViewHeadingImage> headingImages,
+            float yawDegrees,
+            out int nearestHeadingIndex,
+            out string primaryImagePath,
+            out string secondaryImagePath,
+            out float secondaryAlpha)
+        {
+            nearestHeadingIndex = 0;
+            primaryImagePath = string.Empty;
+            secondaryImagePath = string.Empty;
+            secondaryAlpha = 0f;
+
+            if (headingImages == null || headingImages.Count == 0)
+            {
+                return;
+            }
+
+            if (!blendHeadingImagesForSmooth360 || headingImages.Count == 1)
+            {
+                int nearestIndex = FindNearestHeadingIndex(headingImages, yawDegrees);
+                nearestHeadingIndex = nearestIndex;
+                primaryImagePath = headingImages[nearestIndex].image;
+                return;
+            }
+
+            float yaw = NormalizeDegrees(yawDegrees);
+            int count = headingImages.Count;
+
+            int upper = 0;
+            while (upper < count && headingImages[upper].heading < yaw)
+            {
+                upper++;
+            }
+
+            int upperIndex = upper % count;
+            int lowerIndex = (upperIndex - 1 + count) % count;
+
+            float lowerHeading = NormalizeDegrees(headingImages[lowerIndex].heading);
+            float upperHeading = NormalizeDegrees(headingImages[upperIndex].heading);
+            if (upperIndex == 0)
+            {
+                upperHeading += 360f;
+            }
+
+            float yawWrapped = yaw;
+            if (yawWrapped < lowerHeading)
+            {
+                yawWrapped += 360f;
+            }
+
+            float span = Mathf.Max(1f, upperHeading - lowerHeading);
+            float blend = Mathf.Clamp01((yawWrapped - lowerHeading) / span);
+            int selectedNearestIndex = blend >= 0.5f ? upperIndex : lowerIndex;
+
+            nearestHeadingIndex = selectedNearestIndex;
+            primaryImagePath = headingImages[lowerIndex].image;
+            secondaryImagePath = headingImages[upperIndex].image;
+            secondaryAlpha = blend;
         }
     }
 }

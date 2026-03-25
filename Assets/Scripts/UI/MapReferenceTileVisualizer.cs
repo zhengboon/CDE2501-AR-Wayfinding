@@ -14,7 +14,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool followMainCameraIfReferenceMissing = true;
 
         [Header("Tile Source")]
-        [SerializeField] private string tileFileName = "queenstown_map_z18_x206656-206662_y130126-130132.png";
+        [SerializeField] private string tileFileName = "queenstown_map_z18_x206656-206662_y130127-130133.png";
         [SerializeField] private int zoomLevel = 18;
         [SerializeField] private float tileCenterLatitude = 1.2935302390f;
 
@@ -123,6 +123,27 @@ namespace CDE2501.Wayfinding.UI
             }
         }
 
+        public void SetTileFileName(string fileName)
+        {
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return;
+            }
+
+            string normalized = fileName.Trim();
+            if (string.Equals(tileFileName, normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            tileFileName = normalized;
+            ResetLoadedTileTexture();
+            if (_graphReady && !_loadingTexture)
+            {
+                StartCoroutine(LoadTextureRoutine());
+            }
+        }
+
         private void HandleGraphLoaded(bool success, string message)
         {
             _graphReady = success && graphLoader != null && graphLoader.NodesById.Count > 0;
@@ -146,6 +167,23 @@ namespace CDE2501.Wayfinding.UI
             {
                 StartCoroutine(LoadTextureRoutine());
             }
+        }
+
+        private void ResetLoadedTileTexture()
+        {
+            if (_material != null)
+            {
+                _material.mainTexture = null;
+            }
+
+            if (_texture != null)
+            {
+                Destroy(_texture);
+                _texture = null;
+            }
+
+            _tilesX = 1;
+            _tilesY = 1;
         }
 
         private void EnsureQuad()

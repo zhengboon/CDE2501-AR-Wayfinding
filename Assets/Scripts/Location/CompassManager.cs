@@ -8,13 +8,14 @@ namespace CDE2501.Wayfinding.Location
         [Header("Source")]
         [SerializeField] private SensorSourceMode sourceMode = SensorSourceMode.Auto;
         [SerializeField] private SimulationProvider simulationProvider;
-        [SerializeField] private bool fallbackToSimulationIfUnavailable = true;
+        [SerializeField] private bool fallbackToSimulationIfUnavailable = false;
 
         [Header("Smoothing")]
         [SerializeField] private float headingSmoothingAlpha = 0.2f;
 
         public bool IsReady { get; private set; }
         public bool IsUsingSimulation { get; private set; }
+        public string StatusMessage { get; private set; } = "Initializing.";
         public float RawHeading { get; private set; }
         public float SmoothedHeading { get; private set; }
 
@@ -39,6 +40,7 @@ namespace CDE2501.Wayfinding.Location
 
             IsReady = false;
             _hasInitial = false;
+            StatusMessage = "Compass enabled.";
         }
 
         private void OnDisable()
@@ -46,6 +48,7 @@ namespace CDE2501.Wayfinding.Location
             Input.compass.enabled = false;
             IsReady = false;
             _hasInitial = false;
+            StatusMessage = "Compass disabled.";
         }
 
         private void Update()
@@ -58,11 +61,13 @@ namespace CDE2501.Wayfinding.Location
                 if (simulationProvider == null && !fallbackToSimulationIfUnavailable)
                 {
                     IsReady = false;
+                    StatusMessage = "Simulation mode active but simulation provider missing.";
                     return;
                 }
 
                 RawHeading = simulationProvider != null ? simulationProvider.CurrentHeading : RawHeading;
                 IsReady = true;
+                StatusMessage = "Compass simulation source active.";
             }
             else
             {
@@ -82,6 +87,24 @@ namespace CDE2501.Wayfinding.Location
                     else
                     {
                         IsReady = false;
+                        StatusMessage = "Compass sensor unavailable on this device.";
+                    }
+
+                    return;
+                }
+
+                if (Input.compass.headingAccuracy < 0f)
+                {
+                    if (fallbackToSimulationIfUnavailable && simulationProvider != null)
+                    {
+                        RawHeading = simulationProvider.CurrentHeading;
+                        IsUsingSimulation = true;
+                        IsReady = true;
+                    }
+                    else
+                    {
+                        IsReady = false;
+                        StatusMessage = "Compass heading accuracy not available.";
                     }
 
                     return;
@@ -89,6 +112,7 @@ namespace CDE2501.Wayfinding.Location
 
                 RawHeading = Input.compass.trueHeading;
                 IsReady = true;
+                StatusMessage = $"Compass running (accuracy {Input.compass.headingAccuracy:0.0} deg).";
             }
 
             if (!IsReady)
@@ -136,11 +160,8 @@ namespace CDE2501.Wayfinding.Location
                 return true;
             }
 
-            if (!Application.isMobilePlatform || Application.isEditor)
-            {
-                return true;
-            }
-
+            // In Auto mode, when simulation is OFF, attempt real device sensors
+            // even on desktop/editor (if hardware/OS support exists).
             return false;
         }
     }

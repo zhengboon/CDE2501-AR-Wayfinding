@@ -1,0 +1,58 @@
+{
+  "unityExecutable": "",
+  "build": {
+    "target": "StandaloneWindows64",
+    "outputPath": "Builds/Windows/CDE2501-Wayfinding.exe",
+    "scenePath": "Assets/Scenes/Main.unity",
+    "developmentBuild": false,
+    "nographics": true
+  },
+  "watch": {
+    "roots": ["Assets", "Packages", "ProjectSettings", "scripts"],
+    "excludeDirs": [
+      "Library",
+      "Temp",
+      "Logs",
+      "Build",
+      "Builds",
+      "Recordings",
+      "UserSettings",
+      ".git",
+      "UnityBuildCache",
+      ".tmp-yt",
+      "baritone-example"
+    ],
+    "excludeFileGlobs": [
+      "*.csproj",
+      "*.sln",
+      "*.user",
+      "*.tmp",
+      "*.pidb",
+      "*.pdb",
+      "*.mdb",
+      "*.opendb",
+      "*.VC.db"
+    ],
+    "includeExtensions": [
+      ".cs",
+      ".json",
+      ".unity",
+      ".prefab",
+      ".asset",
+      ".meta",
+      ".txt",
+      ".md",
+      ".kml",
+      ".kmz",
+      ".geojson",
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".shader",
+      ".asmdef",
+      ".asmref",
+      ".uxml",
+      ".uss"
+    ]
+  }
+}

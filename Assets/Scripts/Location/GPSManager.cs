@@ -9,7 +9,7 @@ namespace CDE2501.Wayfinding.Location
         [Header("Source")]
         [SerializeField] private SensorSourceMode sourceMode = SensorSourceMode.Auto;
         [SerializeField] private SimulationProvider simulationProvider;
-        [SerializeField] private bool fallbackToSimulationIfUnavailable = true;
+        [SerializeField] private bool fallbackToSimulationIfUnavailable = false;
         [SerializeField] private double fallbackSimLatitude = 1.294550851849307;
         [SerializeField] private double fallbackSimLongitude = 103.8060771559821;
 
@@ -22,6 +22,7 @@ namespace CDE2501.Wayfinding.Location
 
         public bool IsReady { get; private set; }
         public bool IsUsingSimulation { get; private set; }
+        public string StatusMessage { get; private set; } = "Initializing.";
         public GeoPoint RawPoint { get; private set; }
         public GeoPoint SmoothedPoint { get; private set; }
 
@@ -58,6 +59,7 @@ namespace CDE2501.Wayfinding.Location
             IsReady = false;
             IsUsingSimulation = false;
             _hasInitial = false;
+            StatusMessage = "GPS disabled.";
         }
 
         private IEnumerator StartLocationRoutine()
@@ -113,11 +115,8 @@ namespace CDE2501.Wayfinding.Location
                 return true;
             }
 
-            if (!Application.isMobilePlatform || Application.isEditor)
-            {
-                return true;
-            }
-
+            // In Auto mode, when simulation is OFF, attempt real device sensors
+            // even on desktop/editor (OS-level location services may still provide data).
             return false;
         }
 
@@ -128,12 +127,19 @@ namespace CDE2501.Wayfinding.Location
                 : new GeoPoint(fallbackSimLatitude, fallbackSimLongitude);
 
             IsReady = true;
+            StatusMessage = simulationProvider != null
+                ? "GPS simulation source active."
+                : "GPS simulation fallback active.";
             PublishSmoothed();
         }
 
         private bool TryReadDeviceLocation()
         {
-            if (!Input.location.isEnabledByUser)
+            bool locationEnabled = Input.location.isEnabledByUser;
+#if UNITY_EDITOR_WIN || UNITY_STANDALONE_WIN
+            locationEnabled = true; // Windows desktop often reports this incorrectly, so we bypass the check
+#endif
+            if (!locationEnabled)
             {
                 if (fallbackToSimulationIfUnavailable)
                 {
@@ -143,6 +149,7 @@ namespace CDE2501.Wayfinding.Location
                 }
 
                 IsReady = false;
+                StatusMessage = "Location service disabled at OS/user level.";
                 return false;
             }
 
@@ -164,6 +171,9 @@ namespace CDE2501.Wayfinding.Location
                 }
 
                 IsReady = false;
+                StatusMessage = timedOut
+                    ? "Location initialization timed out."
+                    : "Location service initializing.";
                 return false;
             }
 
@@ -177,12 +187,14 @@ namespace CDE2501.Wayfinding.Location
                 }
 
                 IsReady = false;
+                StatusMessage = $"Location service status: {Input.location.status}.";
                 return false;
             }
 
             LocationInfo info = Input.location.lastData;
             RawPoint = new GeoPoint(info.latitude, info.longitude);
             IsReady = true;
+            StatusMessage = $"GPS running (hAcc {info.horizontalAccuracy:0.0} m).";
             PublishSmoothed();
             return true;
         }

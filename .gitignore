@@ -55,6 +55,8 @@ baritone-example/
 
 # Python cache
 **/__pycache__/
+UnityBuildCache/
+.unity-build-cache/
 
 # Local virtual env / scan outputs
 .tmp-yt/
