@@ -364,99 +364,114 @@ nav {
     justify-content: center;
 }
 
-.mock-ui {
-    width: 320px;
-    height: 600px;
+.streetview-card {
+    width: min(960px, 100%);
     background: #020617;
-    border-radius: 30px;
-    border: 8px solid #1e293b;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
-}
-
-.mock-ui::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: 
-        radial-gradient(circle at 50% 50%, rgba(14,165,233,0.1) 0%, transparent 60%),
-        repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0px, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 20px);
-    z-index: 0;
-}
-
-.mock-header, .mock-footer, .mock-path {
-    z-index: 1;
-    position: relative;
-}
-
-.mock-header {
-    padding: 2.5rem 1.5rem 1.5rem;
-    display: flex;
-    justify-content: space-between;
-    background: linear-gradient(180deg, rgba(0,0,0,0.8), transparent);
-}
-
-.status {
-    font-size: 0.7rem;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: rgba(16, 185, 129, 0.2);
-    color: #34d399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.mock-path {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.path-node {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: var(--accent-gradient);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: bold;
-    color: white;
-    box-shadow: 0 0 15px rgba(139, 92, 246, 0.5);
-}
-
-.path-line {
-    width: 4px;
-    height: 100px;
-    background: linear-gradient(180deg, var(--accent-secondary), var(--accent-primary));
-    opacity: 0.6;
-}
-
-.mock-footer {
-    padding: 1.5rem;
-    display: flex;
-    gap: 10px;
-    background: linear-gradient(0deg, rgba(0,0,0,0.9), transparent);
-}
-
-.mock-btn {
-    flex: 1;
-    background: var(--bg-card);
+    border-radius: 18px;
     border: 1px solid var(--border-glass);
-    padding: 10px;
-    text-align: center;
-    font-size: 0.8rem;
-    border-radius: 6px;
-    color: var(--text-main);
+    padding: 1rem;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 }
-.mock-btn.secondary {
-    background: rgba(14, 165, 233, 0.2);
-    border-color: rgba(14, 165, 233, 0.4);
+
+.streetview-toolbar {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.streetview-toolbar input[type="password"] {
+    flex: 1;
+    min-width: 0;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid var(--border-glass);
+    color: var(--text-main);
+    border-radius: 8px;
+    padding: 0.7rem 0.8rem;
+}
+
+.streetview-location {
+    display: grid;
+    grid-template-columns: auto 1fr auto 1fr;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.8rem;
+}
+
+.streetview-location label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.streetview-location input[type="number"] {
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid var(--border-glass);
+    color: var(--text-main);
+    border-radius: 8px;
+    padding: 0.55rem 0.65rem;
+    min-width: 0;
+}
+
+#gsvCanvas {
+    width: 100%;
+    aspect-ratio: 2 / 1;
+    border-radius: 12px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    background:
+        radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.16), rgba(2, 6, 23, 0.95) 60%),
+        linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(139, 92, 246, 0.08));
+    display: block;
+}
+
+.streetview-controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-top: 0.8rem;
+}
+
+.streetview-slider {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.5rem;
+    align-items: center;
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    padding: 0.6rem 0.7rem;
+    background: rgba(15, 23, 42, 0.7);
+}
+
+.streetview-slider label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.streetview-slider input[type="range"] {
+    width: 100%;
+}
+
+.streetview-slider span {
+    font-size: 0.85rem;
+    color: #bae6fd;
+    min-width: 2.8rem;
+    text-align: right;
+}
+
+.streetview-footer {
+    margin-top: 0.75rem;
+}
+
+#gsvStatus {
+    color: #7dd3fc;
+    font-size: 0.9rem;
+}
+
+#gsvMeta {
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    margin-top: 0.35rem;
+    min-height: 1.2em;
+    overflow-wrap: anywhere;
 }
 
 /* ========================================================================= 
@@ -643,6 +658,10 @@ footer {
     .demo-wrapper {
         flex-direction: column;
     }
+
+    .streetview-card {
+        width: 100%;
+    }
 }
 
 @media (max-width: 768px) {
@@ -684,6 +703,19 @@ footer {
     
     .hero h1 {
         font-size: 3rem;
+    }
+
+    .streetview-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .streetview-location {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .streetview-controls {
+        grid-template-columns: 1fr;
     }
     
     .step-card {

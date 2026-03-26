@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "source": "OpenStreetMap",
-  "tileServer": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-  "attribution": "\u00a9 OpenStreetMap contributors",
+  "source": "OneMap Desktop",
+  "tileServer": "https://www.onemap.gov.sg/maps/tiles/Default/{z}/{x}/{y}.png",
+  "attribution": "Map data \u00a9 OneMap",
   "zoom": 18,
   "minTileX": 206656,
   "maxTileX": 206662,
@@ -35,11 +35,12 @@
     "pointCount": 33
   },
   "provider": {
-    "name": "osm",
+    "name": "onemap",
     "googleMapType": "",
     "googleLanguage": "",
     "googleRegion": "",
     "googleImageFormat": "",
-    "googleSessionExpiry": ""
+    "googleSessionExpiry": "",
+    "onemapStyle": "Default"
   }
 }

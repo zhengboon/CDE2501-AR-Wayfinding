@@ -1,0 +1,481 @@
+{
+  "metadata": {
+    "planningArea": "Queenstown",
+    "source": "https://www.onemap.gov.sg/api/public/popapi",
+    "fetchedAtUTC": "2026-03-26T11:15:35.044447Z",
+    "kmlCentroidPlanningArea": "QUEENSTOWN"
+  },
+  "Economic Status Data": {
+    "byGender": {
+      "male": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "gender": "Male",
+            "employed": 24501,
+            "inactive": 10502,
+            "unemployed": 1547,
+            "planning_area": "Queenstown"
+          }
+        ]
+      },
+      "female": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "gender": "Female",
+            "employed": 23799,
+            "inactive": 18206,
+            "unemployed": 1747,
+            "planning_area": "Queenstown"
+          }
+        ]
+      }
+    }
+  },
+  "Education Status Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "primary": 5364,
+        "secondary": 3477,
+        "university": 2030,
+        "polytechnic": 1077,
+        "pre_primary": 1134,
+        "planning_area": "Queenstown",
+        "post_secondary": 1095,
+        "prof_qualification_diploma": 176
+      }
+    ]
+  },
+  "Ethnic Distribution": {
+    "byGender": {
+      "male": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "gender": "Male",
+            "indian": 3590,
+            "malays": 3410,
+            "others": 1750,
+            "chinese": 36340,
+            "planning_area": "Queenstown"
+          }
+        ]
+      },
+      "female": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "gender": "Female",
+            "indian": 3460,
+            "malays": 3530,
+            "others": 1930,
+            "chinese": 41820,
+            "planning_area": "Queenstown"
+          }
+        ]
+      }
+    }
+  },
+  "Work Income For Household (Monthly)": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "total": 37054,
+        "planning_area": "Queenstown",
+        "sgd_8000_over": 0,
+        "below_sgd_1000": 774,
+        "sgd_10000_over": 0,
+        "sgd_20000_over": 5460,
+        "sgd_1000_to_1999": 2408,
+        "sgd_2000_to_2999": 1708,
+        "sgd_3000_to_3999": 1924,
+        "sgd_4000_to_4999": 1682,
+        "sgd_5000_to_5999": 1515,
+        "sgd_6000_to_6999": 1355,
+        "sgd_7000_to_7999": 1304,
+        "sgd_8000_to_8999": 1277,
+        "sgd_9000_to_9999": 1264,
+        "no_working_person": 7776,
+        "sgd_10000_to_10999": 1143,
+        "sgd_11000_to_11999": 916,
+        "sgd_12000_to_12999": 1174,
+        "sgd_13000_to_13999": 933,
+        "sgd_14000_to_14999": 787,
+        "sgd_15000_to_17499": 2083,
+        "sgd_17500_to_19999": 1571
+      }
+    ]
+  },
+  "Household Size Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "person1": 8278,
+        "person2": 10224,
+        "person3": 7181,
+        "person4": 5959,
+        "person5": 3411,
+        "person6": 1284,
+        "person7": 500,
+        "person_more_8": 215,
+        "planning_area": "Queenstown"
+      }
+    ]
+  },
+  "Household Structure Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "ofn_1_gen": 6339,
+        "ofn_2_gen": 16310,
+        "tfn_1to2_gen": 196,
+        "planning_area": "Queenstown",
+        "ofn_3_more_gen": 1617,
+        "tfn_3_more_gen": 930,
+        "no_family_nucleus": 11632,
+        "three_more_fam_nucleus": 28
+      }
+    ]
+  },
+  "Income From Work Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "total": 48299,
+        "planning_area": "Queenstown",
+        "sgd_6000_over": 0,
+        "sgd_8000_over": 0,
+        "below_sgd_1000": 3010,
+        "sgd_12000_over": 0,
+        "sgd_15000_over": 5440,
+        "sgd_12000_14999": 3292,
+        "sgd_1000_to_1499": 0,
+        "sgd_1000_to_1999": 6385,
+        "sgd_1500_to_1999": 0,
+        "sgd_2000_to_2499": 0,
+        "sgd_2000_to_2999": 5076,
+        "sgd_2500_to_2999": 0,
+        "sgd_3000_to_3999": 4551,
+        "sgd_4000_to_4999": 4081,
+        "sgd_5000_to_5999": 3796,
+        "sgd_6000_to_6999": 2883,
+        "sgd_7000_to_7999": 2388,
+        "sgd_8000_to_8999": 2367,
+        "sgd_9000_to_9999": 1896,
+        "sgd_10000_to_10999": 1731,
+        "sgd_11000_to_11999": 1403
+      }
+    ]
+  },
+  "Industry of population Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "others": 362,
+        "construction": 1309,
+        "manufacturing": 3792,
+        "planning_area": "Queenstown",
+        "business_services": null,
+        "hotels_restaurants": null,
+        "real_estate_services": 1395,
+        "professional_services": 4622,
+        "admin_support_services": 3007,
+        "health_social_services": 3000,
+        "public_admin_education": 7031,
+        "transportation_storage": 3666,
+        "wholesale_retail_trade": 6930,
+        "transport_communications": null,
+        "other_services_industries": null,
+        "information_communications": 2891,
+        "other_comm_social_personal": 1289,
+        "accommodation_food_services": 2756,
+        "financial_insurance_services": 5474,
+        "arts_entertainment_recreation": 778
+      }
+    ]
+  },
+  "Language Literacy Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "l1_chi": 10761,
+        "l1_eng": 11302,
+        "l1_mal": 770,
+        "l1_tam": 317,
+        "l1_non_off": 192,
+        "l2_eng_chi": 37407,
+        "l2_eng_mal": 6447,
+        "l2_eng_tam": 2072,
+        "no_literate": 2994,
+        "l2_other_two": 161,
+        "planning_area": "Queenstown",
+        "l2_eng_non_off": 2075,
+        "l3_eng_chi_mal": 2865,
+        "l3_eng_mal_tam": 332,
+        "l3_other_three": null
+      }
+    ]
+  },
+  "Marital Status Data": {
+    "byGender": {
+      "male": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "gender": "Male",
+            "single": 11759,
+            "married": 22336,
+            "widowed": 989,
+            "divorced": 1466,
+            "planning_area": "Queenstown"
+          }
+        ]
+      },
+      "female": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "gender": "Female",
+            "single": 13510,
+            "married": 22051,
+            "widowed": 5295,
+            "divorced": 2895,
+            "planning_area": "Queenstown"
+          }
+        ]
+      }
+    }
+  },
+  "Mode of Transport to School Data": {
+    "year": 2020,
+    "data": [
+      {
+        "bus": 3338,
+        "car": 2091,
+        "mrt": 0,
+        "taxi": 0,
+        "year": 2020,
+        "others": 140,
+        "mrt_bus": 0,
+        "mrt_car": 0,
+        "mrt_other": 0,
+        "lorry_pickup": 9,
+        "mrt_lrt_only": 1351,
+        "planning_area": "Queenstown",
+        "mrt_lrt_and_bus": 2789,
+        "pvt_chartered_bus": 0,
+        "motorcycle_scooter": 9,
+        "no_transport_required": 3104,
+        "pvt_chartered_bus_van": 1161,
+        "other_combi_mrt_or_bus": 0,
+        "taxi_pvt_hire_car_only": 119,
+        "other_combi_mrt_lrt_or_bus": 121
+      }
+    ]
+  },
+  "Mode of Transport to work Data": {
+    "year": 2020,
+    "data": [
+      {
+        "bus": 8856,
+        "car": 9251,
+        "mrt": 0,
+        "taxi": 0,
+        "year": 2020,
+        "others": 428,
+        "mrt_bus": 0,
+        "mrt_car": 0,
+        "mrt_other": 0,
+        "lorry_pickup": 353,
+        "mrt_lrt_only": 8542,
+        "planning_area": "Queenstown",
+        "mrt_lrt_and_bus": 11023,
+        "pvt_chartered_bus": 0,
+        "motorcycle_scooter": 841,
+        "no_transport_required": 5015,
+        "pvt_chartered_bus_van": 606,
+        "other_combi_mrt_or_bus": 0,
+        "taxi_pvt_hire_car_only": 1766,
+        "other_combi_mrt_lrt_or_bus": 944
+      }
+    ]
+  },
+  "Age Data": {
+    "byGender": {
+      "male": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "total": 45120,
+            "gender": "Male",
+            "age_0_4": 2070,
+            "age_5_9": 2230,
+            "age_10_14": 2140,
+            "age_15_19": 2080,
+            "age_20_24": 2210,
+            "age_25_29": 2910,
+            "age_30_34": 3050,
+            "age_35_39": 3380,
+            "age_40_44": 3380,
+            "age_45_49": 3630,
+            "age_50_54": 3280,
+            "age_55_59": 3410,
+            "age_60_64": 2920,
+            "age_65_69": 2600,
+            "age_70_74": 2280,
+            "age_75_79": 1390,
+            "age_80_84": 1200,
+            "age_85_over": 950,
+            "planning_area": "Queenstown"
+          }
+        ]
+      },
+      "female": {
+        "year": 2020,
+        "data": [
+          {
+            "year": 2020,
+            "total": 50820,
+            "gender": "Female",
+            "age_0_4": 1910,
+            "age_5_9": 2060,
+            "age_10_14": 2050,
+            "age_15_19": 2040,
+            "age_20_24": 2410,
+            "age_25_29": 3010,
+            "age_30_34": 3590,
+            "age_35_39": 3800,
+            "age_40_44": 3920,
+            "age_45_49": 3800,
+            "age_50_54": 3570,
+            "age_55_59": 3440,
+            "age_60_64": 3330,
+            "age_65_69": 3120,
+            "age_70_74": 3140,
+            "age_75_79": 2090,
+            "age_80_84": 1800,
+            "age_85_over": 1740,
+            "planning_area": "Queenstown"
+          }
+        ]
+      }
+    }
+  },
+  "Religion Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "islam": 6785,
+        "taoism": 5856,
+        "sikhism": 468,
+        "buddhism": 22997,
+        "hinduism": 3496,
+        "no_religion": 18942,
+        "planning_area": "Queenstown",
+        "other_religions": 202,
+        "other_christians": 14755,
+        "catholic_christian": 6802
+      }
+    ]
+  },
+  "Spoken Language Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "malay": 952,
+        "tamil": 362,
+        "others": 0,
+        "eng_mly": 3041,
+        "eng_tml": 1394,
+        "english": 6957,
+        "mly_eng": 2992,
+        "tml_eng": 1354,
+        "eng_mand": 22797,
+        "mand_eng": 9537,
+        "mandarin": 4345,
+        "chn_dlt_eng": 1948,
+        "eng_chn_dlt": 4346,
+        "chn_dlt_mand": 4981,
+        "eng_oth_lang": 1301,
+        "mand_chn_dlt": 5691,
+        "mly_oth_lang": 65,
+        "oth_lang_eng": 440,
+        "tml_oth_lang": 139,
+        "mand_oth_lang": 83,
+        "planning_area": "Queenstown",
+        "chinese_dialects": 3868,
+        "chn_dlt_oth_lang": 531,
+        "eng_oth_ind_lang": 980,
+        "oth_ind_lang_eng": 295,
+        "oth_ind_lang_oth_lang": 88,
+        "other_indian_languages": 0,
+        "oth_lang_oth_non_eng_lang": 329
+      }
+    ]
+  },
+  "Tenancy Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "owner": 31270,
+        "others": 514,
+        "tenant": 5269,
+        "planning_area": "Queenstown"
+      }
+    ]
+  },
+  "Dwelling Type Household Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "others": 86,
+        "total_hdb": 31259,
+        "planning_area": "Queenstown",
+        "hdb_3_room_flats": 13661,
+        "hdb_4_room_flats": 9424,
+        "landed_properties": 1032,
+        "hdb_1_and_2_room_flats": 3814,
+        "hdb_5_room_and_executive_flats": 4360,
+        "condominiums_and_other_apartments": 4676
+      }
+    ]
+  },
+  "Dwelling Type Population Data": {
+    "year": 2020,
+    "data": [
+      {
+        "year": 2020,
+        "total": 95930,
+        "others": 1460,
+        "total_hdb": 79040,
+        "planning_area": "Queenstown",
+        "hdb_3_room_flats": 29740,
+        "hdb_4_room_flats": 27570,
+        "landed_properties": 3540,
+        "hdb_1_and_2_room_flats": 7670,
+        "hdb_5_room_and_executive_flats": 14060,
+        "condominiums_and_other_apartments": 11910
+      }
+    ]
+  }
+}

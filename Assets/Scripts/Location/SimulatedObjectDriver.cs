@@ -104,6 +104,20 @@ namespace CDE2501.Wayfinding.Location
             lockYToInitial = shouldLock;
         }
 
+        public void ReanchorToCurrentPose()
+        {
+            if (simulationProvider == null || targetTransform == null)
+            {
+                return;
+            }
+
+            _originGeo = simulationProvider.CurrentPoint;
+            _originWorld = targetTransform.position;
+            _originY = targetTransform.position.y;
+            _isInitialized = true;
+            _wasDrivingLastFrame = true;
+        }
+
         private static Vector2 GeoOffsetMeters(GeoPoint origin, GeoPoint current)
         {
             const double metersPerDegreeLat = 111320.0;

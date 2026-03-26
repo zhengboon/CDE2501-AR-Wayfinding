@@ -13,6 +13,7 @@ It is designed around elderly-first guidance and safety-weighted routing, with:
 - Minimap route visualization and destination selection
 - Runtime map-area switching that swaps map texture + graph + locations together
 - Optional Street View image mode (data-driven)
+- Live website Street View preview via Google Street View Tiles API (Queenstown default location)
 - Cached auto-build launcher (`Python + Unity batchmode`) with no-change skip logic and build reports
 
 A project website is included in the repo root:
@@ -64,7 +65,21 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - `scripts/select_queenstown_videos.py` now supports configurable paths/counts and `--skip-thumbnail-check` for fast/offline runs
 - Improved play session recording workflow:
   - `AutoPlaySessionRecorder` now auto-prunes old MP4s and keeps only the latest `5` sessions in `Recordings/AutoSessions`
-  - Quick Start overlay now shows recent play-session recordings in Play Mode with `Open 1..5` buttons for in-editor preview access
+  - Recorder is auto-enabled by default (one-time migration), so entering Play Mode starts recording automatically
+  - Added editor menu utilities: `Open Latest Session` and `Prune Old Sessions Now`
+  - Quick Start overlay now shows recent play-session recordings in Play Mode with `Open 1..5`, `Refresh`, and `Folder` controls for in-editor preview access
+- Fixed map-area teleport visibility when switching Queenstown/NUS:
+  - Area teleport anchors are now stored as two serialized `GeoPoint` variables (`Queenstown`, `NUS`) with per-area heading
+  - Area switch teleport now re-anchors `SimulatedObjectDriver` immediately to prevent large geo-offset camera drift
+  - On graph reload after area switch, Quick Start force-snaps view to the selected area's graph context
+- Fixed NUS pathfinding start-node fallback:
+  - Area switch now resets start-node stabilization caches
+  - Added area-specific default start-node IDs (`QTMRT` for Queenstown, `NUS_E1` for NUS) to avoid cross-area carry-over
+  - Fallback start-node resolution now validates against current graph, then falls back to current locations/eligible graph nodes
+- Improved NUS wayfinding quality:
+  - Area teleport now only forces simulation mode in Editor/Standalone by default (mobile keeps current sensor mode)
+  - Initial auto-route avoids trivial `start == destination` by auto-selecting a nearby alternative destination
+  - Continuous route refresh now uses a larger movement threshold for device sensors (`2.0m`) to reduce GPS-jitter reroutes
 - Optimized A* pathfinder:
   - Replaced O(N) gScore initialization with lazy init — only visited nodes are tracked
   - Significant improvement for large graphs (1295+ nodes)
@@ -86,6 +101,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - troubleshooting section
   - copyable command snippets
   - updated controls and runtime notes
+  - live Google Street View Tiles panel in Demo section (API key, lat/lng, heading, pitch)
 - Added map-area toggle:
   - Quick Start button switches between `Queenstown` and `NUS Engineering`
   - Applies to minimap + map-reference tile + graph file + locations file at runtime
@@ -261,7 +277,20 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
    - `Assets/StreamingAssets/Data/queenstown_map_z19_x413314-413324_y260255-260265.png`
    - `Assets/StreamingAssets/Data/queenstown_map_z19_x413314-413324_y260255-260265.json`
 7. Optional one-click:
-   - `build_engineering_nus_map.bat`
+   - `build_engineering_nus_map.bat` (Now defaults to OneMap provider)
+
+## 7.2 OneMap API Integration
+The project natively supports integration with the **OneMap API** for localized Singapore map data.
+
+**Map Tiles:**
+The project uses OneMap as the default map tile provider. You can generate map atlases using the `onemap` provider which is free and does not require an API key for basic map layers:
+- `python scripts/generate_map_atlas_from_kml.py ... --provider onemap --onemap-style Default`
+
+**Routing & Barrier-Free Access (BFA):**
+For elderly and wheelchair safety profiles, the ideal route data is OneMap's Barrier-Free Access (BFA) API.
+> **Note:** The OneMap BFA API requires application approval via [go.gov.sg/bfa-enquires](https://go.gov.sg/bfa-enquires).
+To test routing queries with your OneMap API Token, use the provided Python utility:
+- `python scripts/fetch_onemap_route.py --start 1.296568,103.773253 --end 1.298701,103.771212 --route-type walk --token YOUR_TOKEN`
 
 ## 8) Build Targets
 - Android: ARCore plugin enabled in XR Plug-in Management.
@@ -272,7 +301,8 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
   - `NSMotionUsageDescription`
 
 ## 9) Known Gaps
-- Street View currently has no usable node imagery in manifest; new image data generation is required.
+- Unity Street View manifest currently has no usable node imagery; new dataset generation is required for in-app `StreetViewExplorer`.
+- Website Street View panel in `index.html` uses live Google Street View Tiles and does not depend on `street_view_manifest.json`.
 - Indoor elevation realism still depends on graph annotation quality and field tuning.
 - Full AR runtime validation still requires real ARCore/ARKit capable hardware.
 - NUS building inter-links include a synthetic connectivity assumption for MVP routing and should be field-validated.
@@ -294,6 +324,9 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
 - Symptom: Street View toggle shows empty view
   - Check: `Assets/StreamingAssets/Data/street_view_manifest.json` node count.
   - Action: regenerate imagery dataset using `scripts/build_street_view_map.py`.
+- Symptom: website Street View panel shows `Load failed`
+  - Check: Google key has Billing enabled and Map Tiles API enabled.
+  - Action: run site from `http://localhost` (not `file://`) and ensure key restrictions allow `localhost` referrer.
 - Symptom: cached launcher says Unity executable not found
   - Check: `scripts/unity_cached_builder_config.json` -> `unityExecutable`.
   - Action: set full path, e.g. `C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.62f3\\Editor\\Unity.exe`.
@@ -301,14 +334,41 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
   - Check: files changing under watched roots (`Assets`, `Packages`, `ProjectSettings`, `scripts`).
   - Action: narrow watch roots or include/exclude patterns in `scripts/unity_cached_builder_config.json`.
 - Symptom: no play-session previews shown in Quick Start overlay
-  - Check: editor menu `CDE2501 > Session Recorder > Enabled` is on, and at least one Play session has completed.
-  - Action: enter/exit Play Mode once to generate an MP4 in `Recordings/AutoSessions`; overlay lists latest five sessions with open buttons.
+  - Check: at least one Play session has completed (recording auto-starts by default on Play Mode entry).
+  - Action: enter/exit Play Mode once to generate an MP4 in `Recordings/AutoSessions`; overlay lists latest five sessions and includes `Refresh`/`Folder` controls.
+  - Optional: if manually disabled earlier, re-enable from `CDE2501 > Session Recorder > Enabled`.
+- Symptom: NUS area looks empty after map switch
+  - Check: Quick Start `Map Area` shows `NUS Engineering`; in Editor use `F2` if simulation is off.
+  - Action: latest build re-anchors simulation world mapping on area switch and snaps view on graph load; switch area once again and wait for route auto-refresh.
+- Symptom: NUS routing always fails after map switch
+  - Check: Quick Start status line `Start node: ME -> ...` should show a `NUS_...` node in NUS area (not `QTMRT`).
+  - Action: latest build resets start-node context on area switch and uses area-specific fallback start nodes.
+- Symptom: NUS initial route is trivial (`start == destination`)
+  - Check: first NUS auto-route shows same start/destination node (for example `NUS_E1 -> E1`).
+  - Action: latest build auto-selects a nearby alternative destination for the initial auto-route.
+- Symptom: route keeps refreshing too often while walking in NUS
+  - Check: route recalculation spam with small GPS jitter movement.
+  - Action: latest build uses a higher continuous-refresh movement threshold for device sensors.
 
 ## 10) Website Usage
 To view the generated project website:
-1. Open `index.html` in browser.
-2. Website assets use local `styles.css` and `app.js`.
-3. Content is aligned with this README and current project state.
+1. Start a local server from repo root:
+   - `python -m http.server 8000`
+2. Open `http://localhost:8000/index.html`.
+3. Website assets use local `styles.css` and `app.js`.
+4. Content is aligned with this README and current project state.
+
+### 10.1 Live Google Street View Panel (Demo Section)
+1. Scroll to the Demo section and paste your Google API key into the Street View field.
+2. Keep default Queenstown coordinates (`1.294500, 103.786300`) or provide your own lat/lng.
+3. Click `Load Queenstown View`.
+4. Use `Heading` and `Pitch` sliders to inspect the panorama.
+5. Required Google setup:
+   - Billing enabled
+   - Map Tiles API enabled
+6. Browser behavior:
+   - API key is stored locally in browser `localStorage` under `gsv_api_key`.
+   - Do not commit API keys into source files.
 
 ## 11) Recommended Next Work
 1. Regenerate Street View nodes/images for actual route coverage.

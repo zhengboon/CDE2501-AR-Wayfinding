@@ -49,6 +49,8 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private string queenstownLocationsFile = "locations.json";
         [SerializeField] private string nusGraphFile = "nus_estate_graph.json";
         [SerializeField] private string nusLocationsFile = "nus_locations.json";
+        [SerializeField] private string queenstownDefaultStartNodeId = "QTMRT";
+        [SerializeField] private string nusDefaultStartNodeId = "NUS_E1";
         [SerializeField] private string queenstownMiniMapImageFile = "queenstown_map_z19_x413314-413324_y260255-260265.png";
         [SerializeField] private string queenstownReferenceMapImageFile = "queenstown_map_z18_x206656-206662_y130127-130133.png";
         [SerializeField] private string nusMiniMapImageFile = "nus_map_z19_x413268-413276_y260247-260255.png";
@@ -56,11 +58,10 @@ namespace CDE2501.Wayfinding.UI
         [Header("Area Anchors")]
         [SerializeField] private bool teleportToAreaAnchorOnMapSwitch = true;
         [SerializeField] private bool forceSimulationModeOnAreaTeleport = true;
-        [SerializeField] private double queenstownAnchorLatitude = 1.294550851849307;
-        [SerializeField] private double queenstownAnchorLongitude = 103.8060771559821;
+        [SerializeField] private bool forceSimulationModeOnAreaTeleportInEditorOnly = true;
+        [SerializeField] private GeoPoint queenstownAnchorCoordinates = new GeoPoint(1.294550851849307, 103.8060771559821);
         [SerializeField] private float queenstownAnchorHeading = 0f;
-        [SerializeField] private double nusAnchorLatitude = 1.300429766736533;
-        [SerializeField] private double nusAnchorLongitude = 103.7713240720471;
+        [SerializeField] private GeoPoint nusAnchorCoordinates = new GeoPoint(1.300429766736533, 103.7713240720471);
         [SerializeField] private float nusAnchorHeading = 0f;
         [Header("Baritone-Inspired Pathing")]
         [SerializeField] private bool baritoneStyleStartResolution = true;
@@ -77,6 +78,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool continuousRouteRefresh = true;
         [SerializeField, Min(0.05f)] private float continuousRefreshIntervalSeconds = 0.25f;
         [SerializeField, Min(0f)] private float continuousRefreshMinMoveMeters = 0.2f;
+        [SerializeField, Min(0f)] private float deviceSensorContinuousRefreshMinMoveMeters = 2.0f;
         [Header("Overlay")]
         [SerializeField, Range(0.8f, 2.5f)] private float overlayScale = 1.0f;
         [SerializeField, Range(14, 48)] private int titleFontSize = 28;
@@ -137,6 +139,7 @@ namespace CDE2501.Wayfinding.UI
         private Coroutine _autoRouteRoutine;
         private readonly List<string> _recentPlaySessionRecordings = new List<string>(5);
         private float _nextPlaySessionRefreshTime;
+        private bool _pendingForceSnapAfterAreaSwitch;
 
         private const string AutoSessionRecordingsFolderRelative = "Recordings/AutoSessions";
         private const int MaxPlaySessionPreviewCount = 5;
@@ -405,22 +408,43 @@ namespace CDE2501.Wayfinding.UI
                 float sessionRowY = destinationRowY + 32f + dropdownHeight + 2f;
                 GUI.Label(new Rect(12f, sessionRowY, 190f, 24f), $"Sessions ({_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount}):", _bodyStyle);
 
-                float buttonX = 204f;
+                float refreshButtonX = Mathf.Max(12f, _panelRect.width - 178f);
+                if (GUI.Button(new Rect(refreshButtonX, sessionRowY, 80f, 24f), "Refresh"))
+                {
+                    RefreshPlaySessionRecordingsIfNeeded(forceRefresh: true);
+                }
+
+                if (GUI.Button(new Rect(refreshButtonX + 86f, sessionRowY, 80f, 24f), "Folder"))
+                {
+                    OpenPlaySessionFolder();
+                }
+
+                float buttonsStartX = 204f;
+                float buttonWidth = 74f;
+                float buttonGap = 6f;
+                float availableWidth = Mathf.Max(0f, _panelRect.width - buttonsStartX - 12f);
+                int buttonsPerRow = Mathf.Max(1, Mathf.FloorToInt((availableWidth + buttonGap) / (buttonWidth + buttonGap)));
+                int sessionRows = Mathf.Max(1, Mathf.CeilToInt(_recentPlaySessionRecordings.Count / (float)buttonsPerRow));
+
                 for (int i = 0; i < _recentPlaySessionRecordings.Count; i++)
                 {
-                    if (GUI.Button(new Rect(buttonX, sessionRowY, 74f, 24f), $"Open {i + 1}"))
+                    int row = i / buttonsPerRow;
+                    int col = i % buttonsPerRow;
+                    float buttonX = buttonsStartX + (col * (buttonWidth + buttonGap));
+                    float buttonY = sessionRowY + (row * 26f);
+
+                    if (GUI.Button(new Rect(buttonX, buttonY, buttonWidth, 24f), $"Open {i + 1}"))
                     {
                         OpenPlaySessionRecording(_recentPlaySessionRecordings[i]);
                     }
-
-                    buttonX += 78f;
                 }
 
+                float latestRowY = sessionRowY + Mathf.Max(24f, sessionRows * 26f);
                 string latestSessionText = _recentPlaySessionRecordings.Count > 0
                     ? $"Latest: {Path.GetFileName(_recentPlaySessionRecordings[0])}"
                     : "Latest: none";
-                GUI.Label(new Rect(12f, sessionRowY + 24f, _panelRect.width - 24f, 24f), latestSessionText, _bodyStyle);
-                sessionPreviewHeight = 50f;
+                GUI.Label(new Rect(12f, latestRowY, _panelRect.width - 24f, 24f), latestSessionText, _bodyStyle);
+                sessionPreviewHeight = (latestRowY - sessionRowY) + 24f;
             }
 
             if (shouldRecalculate)
@@ -549,6 +573,7 @@ namespace CDE2501.Wayfinding.UI
             // locations file to finish loading instead of reusing stale readiness state.
             _locationsLoaded = false;
             _uiDestinationsDirty = true;
+            _pendingForceSnapAfterAreaSwitch = true;
 
             string selectedMiniMapFile = useNusMapArea ? nusMiniMapImageFile : queenstownMiniMapImageFile;
             string selectedReferenceMapFile = useNusMapArea ? nusReferenceMapImageFile : queenstownReferenceMapImageFile;
@@ -594,15 +619,20 @@ namespace CDE2501.Wayfinding.UI
             _activeGraphFile = resolvedGraphFile;
             _activeLocationsFile = resolvedLocationsFile;
 
+            ResetStartNodeContextForAreaSwitch();
             TeleportToAreaAnchor();
             StartAutoRouteWait();
 
             string selectedAreaName = useNusMapArea ? "NUS Engineering" : "Queenstown";
+            GeoPoint anchor = GetSelectedAreaAnchor();
+            string sensorModeNote = ShouldForceSimulationModeOnAreaTeleport()
+                ? "Simulation mode forced for area teleport."
+                : "Sensor mode preserved for area teleport.";
             bool selectedMapMissing = !string.IsNullOrWhiteSpace(selectedMiniMapFile) && !DataFileExists(selectedMiniMapFile);
             string fallbackNote = selectedMapMissing && !string.Equals(selectedMiniMapFile, resolvedMiniMapFile, System.StringComparison.OrdinalIgnoreCase)
                 ? $" (fallback map: {resolvedMiniMapFile})"
                 : string.Empty;
-            _status = $"Map area switched to {selectedAreaName}{fallbackNote}. Data: graph={resolvedGraphFile}, locations={resolvedLocationsFile}.";
+            _status = $"Map area switched to {selectedAreaName}{fallbackNote}. Data: graph={resolvedGraphFile}, locations={resolvedLocationsFile}. Teleport anchor: {anchor.latitude:F6}, {anchor.longitude:F6}. {sensorModeNote}";
         }
 
         private void TeleportToAreaAnchor()
@@ -612,15 +642,68 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
-            if (forceSimulationModeOnAreaTeleport)
+            if (ShouldForceSimulationModeOnAreaTeleport())
             {
                 _simulationProvider.ForceSimulationMode = true;
             }
 
-            double lat = useNusMapArea ? nusAnchorLatitude : queenstownAnchorLatitude;
-            double lon = useNusMapArea ? nusAnchorLongitude : queenstownAnchorLongitude;
+            GeoPoint anchor = GetSelectedAreaAnchor();
             float heading = useNusMapArea ? nusAnchorHeading : queenstownAnchorHeading;
-            _simulationProvider.TeleportTo(new GeoPoint(lat, lon), heading, 0f, 0f);
+            _simulationProvider.TeleportTo(anchor, heading, 0f, 0f);
+
+            // Re-anchor simulation world mapping immediately so area teleports do not
+            // leave the camera offset by the large geo delta between map regions.
+            if (_simulatedObjectDriver != null)
+            {
+                Transform reference = GetStartReferenceTransform();
+                if (reference != null)
+                {
+                    _simulatedObjectDriver.SetTarget(reference);
+                }
+
+                _simulatedObjectDriver.SetSimulationProvider(_simulationProvider);
+                _simulatedObjectDriver.ReanchorToCurrentPose();
+            }
+        }
+
+        private GeoPoint GetSelectedAreaAnchor()
+        {
+            return useNusMapArea ? nusAnchorCoordinates : queenstownAnchorCoordinates;
+        }
+
+        private bool ShouldForceSimulationModeOnAreaTeleport()
+        {
+            if (!forceSimulationModeOnAreaTeleport)
+            {
+                return false;
+            }
+
+            if (!forceSimulationModeOnAreaTeleportInEditorOnly)
+            {
+                return true;
+            }
+
+#if UNITY_EDITOR || UNITY_STANDALONE
+            return true;
+#else
+            return false;
+#endif
+        }
+
+        private void ResetStartNodeContextForAreaSwitch()
+        {
+            _lastAutoStartNodeId = null;
+            _stableStartNodeId = null;
+            _stableStartLevel = int.MinValue;
+            _resolvedStartNodeId = null;
+            _consecutiveInvalidRouteChecks = 0;
+            _hasContinuousRefreshBaseline = false;
+
+            string areaDefaultStartNodeId = useNusMapArea ? nusDefaultStartNodeId : queenstownDefaultStartNodeId;
+            if (!string.IsNullOrWhiteSpace(areaDefaultStartNodeId))
+            {
+                startNodeId = areaDefaultStartNodeId.Trim();
+            }
         }
 
         private string ResolveAvailableMapFileName(string preferredFileName, string fallbackFileName, string preferredPrefix)
@@ -756,9 +839,9 @@ namespace CDE2501.Wayfinding.UI
             return false;
         }
 
-        private void RefreshPlaySessionRecordingsIfNeeded()
+        private void RefreshPlaySessionRecordingsIfNeeded(bool forceRefresh = false)
         {
-            if (Time.unscaledTime < _nextPlaySessionRefreshTime)
+            if (!forceRefresh && Time.unscaledTime < _nextPlaySessionRefreshTime)
             {
                 return;
             }
@@ -793,6 +876,26 @@ namespace CDE2501.Wayfinding.UI
             catch (System.Exception)
             {
                 _recentPlaySessionRecordings.Clear();
+            }
+        }
+
+        private static void OpenPlaySessionFolder()
+        {
+            try
+            {
+                string projectRoot = Directory.GetCurrentDirectory();
+                string recordingsFolder = Path.GetFullPath(Path.Combine(projectRoot, AutoSessionRecordingsFolderRelative));
+                if (!Directory.Exists(recordingsFolder))
+                {
+                    return;
+                }
+
+                string uri = new System.Uri(recordingsFolder).AbsoluteUri;
+                Application.OpenURL(uri);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"Unable to open play session folder: {ex.Message}");
             }
         }
 
@@ -1320,6 +1423,12 @@ namespace CDE2501.Wayfinding.UI
             RefreshUIDestinations();
             destinationIndex = Mathf.Clamp(destinationIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
             UpdateSelectedDestinationMarker();
+
+            if (success && _pendingForceSnapAfterAreaSwitch)
+            {
+                SnapViewToStartNodeIfNeeded(force: true);
+                _pendingForceSnapAfterAreaSwitch = false;
+            }
         }
 
         private void OnLocationsChanged()
@@ -1756,12 +1865,36 @@ namespace CDE2501.Wayfinding.UI
 
             ElevationLevel level = _levelManager != null ? _levelManager.CurrentLevel : ElevationLevel.Deck;
             _resolvedStartNodeId = ResolveStartNodeIdForRoute();
+            if (_graphLoader != null && _graphLoader.GetNode(_resolvedStartNodeId) == null)
+            {
+                string correctedStart = ResolveFallbackStartNodeId();
+                if (!string.IsNullOrWhiteSpace(correctedStart) && _graphLoader.GetNode(correctedStart) != null)
+                {
+                    _resolvedStartNodeId = correctedStart;
+                    _stableStartNodeId = correctedStart;
+                }
+                else
+                {
+                    _status = $"Start node '{_resolvedStartNodeId}' is not in the active graph.";
+                    return;
+                }
+            }
+
+            if (ShouldAutoAvoidTrivialDestination(reason) &&
+                !string.IsNullOrWhiteSpace(destination.indoor_node_id) &&
+                string.Equals(destination.indoor_node_id, _resolvedStartNodeId, System.StringComparison.OrdinalIgnoreCase) &&
+                TrySelectAlternativeDestinationForStart(_resolvedStartNodeId, out LocationPoint alternativeDestination))
+            {
+                destination = alternativeDestination;
+                _status = $"Auto-selected nearby destination '{destination.name}' for better wayfinding in {GetActiveAreaLabel()}.";
+            }
+
             _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destination.indoor_node_id, level, forceImmediateRouteRefresh, reason);
         }
 
-        private void SnapViewToStartNodeIfNeeded()
+        private void SnapViewToStartNodeIfNeeded(bool force = false)
         {
-            if (!snapViewToStartOnInitialRoute)
+            if (!force && !snapViewToStartOnInitialRoute)
             {
                 return;
             }
@@ -1855,23 +1988,89 @@ namespace CDE2501.Wayfinding.UI
             return startNodeId;
         }
 
+        private static bool ShouldAutoAvoidTrivialDestination(string reason)
+        {
+            return string.Equals(reason, "Initial Auto Route", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool TrySelectAlternativeDestinationForStart(string startNodeId, out LocationPoint selectedDestination)
+        {
+            selectedDestination = null;
+            if (string.IsNullOrWhiteSpace(startNodeId) || _graphLoader == null || _uiDestinations.Count <= 1)
+            {
+                return false;
+            }
+
+            Node startNode = _graphLoader.GetNode(startNodeId);
+            if (startNode == null)
+            {
+                return false;
+            }
+
+            int bestIndex = -1;
+            float bestDistance = float.PositiveInfinity;
+            for (int i = 0; i < _uiDestinations.Count; i++)
+            {
+                LocationPoint candidate = _uiDestinations[i];
+                if (candidate == null || string.IsNullOrWhiteSpace(candidate.indoor_node_id))
+                {
+                    continue;
+                }
+
+                if (string.Equals(candidate.indoor_node_id, startNodeId, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                Node destinationNode = _graphLoader.GetNode(candidate.indoor_node_id);
+                if (destinationNode == null)
+                {
+                    continue;
+                }
+
+                float distance = HorizontalDistance(startNode.position, destinationNode.position);
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex < 0)
+            {
+                return false;
+            }
+
+            destinationIndex = bestIndex;
+            selectedDestination = _uiDestinations[bestIndex];
+            _destinationDropdownExpanded = false;
+            UpdateSelectedDestinationMarker();
+            return true;
+        }
+
+        private string GetActiveAreaLabel()
+        {
+            return useNusMapArea ? "NUS Engineering" : "Queenstown";
+        }
+
         private string ResolveStartNodeId()
         {
+            string fallbackStartNodeId = ResolveFallbackStartNodeId();
             if (_graphLoader == null || _graphLoader.NodesById.Count == 0)
             {
-                return startNodeId;
+                return fallbackStartNodeId;
             }
 
             bool useDynamicStart = alwaysRouteFromCurrentPosition || useNearestNodeAsStart;
             if (!useDynamicStart)
             {
-                return startNodeId;
+                return fallbackStartNodeId;
             }
 
             Transform reference = GetStartReferenceTransform();
             if (reference == null)
             {
-                return startNodeId;
+                return fallbackStartNodeId;
             }
 
             bool filterToCurrentLevel = preferCurrentLevelForStartNode && _levelManager != null;
@@ -1901,7 +2100,117 @@ namespace CDE2501.Wayfinding.UI
             }
 
             string stabilized = StabilizeStartNode(candidate, reference.position);
-            return string.IsNullOrWhiteSpace(stabilized) ? startNodeId : stabilized;
+            return string.IsNullOrWhiteSpace(stabilized) ? fallbackStartNodeId : stabilized;
+        }
+
+        private string ResolveFallbackStartNodeId()
+        {
+            string areaDefaultStartNodeId = useNusMapArea ? nusDefaultStartNodeId : queenstownDefaultStartNodeId;
+            string configuredStartNodeId = !string.IsNullOrWhiteSpace(startNodeId)
+                ? startNodeId.Trim()
+                : null;
+
+            if (_graphLoader == null || _graphLoader.NodesById == null || _graphLoader.NodesById.Count == 0)
+            {
+                if (!string.IsNullOrWhiteSpace(areaDefaultStartNodeId))
+                {
+                    return areaDefaultStartNodeId.Trim();
+                }
+
+                return configuredStartNodeId;
+            }
+
+            if (IsValidFallbackStartNode(configuredStartNodeId))
+            {
+                return configuredStartNodeId;
+            }
+
+            if (IsValidFallbackStartNode(areaDefaultStartNodeId))
+            {
+                return areaDefaultStartNodeId.Trim();
+            }
+
+            string locationStartNodeId = FindFallbackStartNodeFromLocations();
+            if (IsValidFallbackStartNode(locationStartNodeId))
+            {
+                return locationStartNodeId;
+            }
+
+            string anyGraphNodeId = FindAnyEligibleGraphNodeId();
+            if (!string.IsNullOrWhiteSpace(anyGraphNodeId))
+            {
+                return anyGraphNodeId;
+            }
+
+            return configuredStartNodeId;
+        }
+
+        private bool IsValidFallbackStartNode(string nodeId)
+        {
+            if (string.IsNullOrWhiteSpace(nodeId) || _graphLoader == null)
+            {
+                return false;
+            }
+
+            string trimmed = nodeId.Trim();
+            if (_graphLoader.GetNode(trimmed) == null)
+            {
+                return false;
+            }
+
+            if (_boundaryConstraintManager != null && !_boundaryConstraintManager.IsNodeAllowed(trimmed))
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        private string FindFallbackStartNodeFromLocations()
+        {
+            if (_locationManager == null || _locationManager.Locations == null)
+            {
+                return null;
+            }
+
+            IReadOnlyList<LocationPoint> locations = _locationManager.Locations;
+            for (int i = 0; i < locations.Count; i++)
+            {
+                LocationPoint location = locations[i];
+                if (location == null || string.IsNullOrWhiteSpace(location.indoor_node_id))
+                {
+                    continue;
+                }
+
+                string nodeId = location.indoor_node_id.Trim();
+                if (IsValidFallbackStartNode(nodeId))
+                {
+                    return nodeId;
+                }
+            }
+
+            return null;
+        }
+
+        private string FindAnyEligibleGraphNodeId()
+        {
+            if (_graphLoader == null || _graphLoader.NodesById == null)
+            {
+                return null;
+            }
+
+            foreach (var kvp in _graphLoader.NodesById)
+            {
+                Node node = kvp.Value;
+                if (node == null || !IsNodeEligibleForStart(node, onlyCurrentLevel: false))
+                {
+                    continue;
+                }
+
+                return kvp.Key;
+            }
+
+            return null;
         }
 
         private Transform GetStartReferenceTransform()
@@ -2168,7 +2477,7 @@ namespace CDE2501.Wayfinding.UI
                 _hasContinuousRefreshBaseline = true;
             }
 
-            float minMove = Mathf.Max(0.2f, continuousRefreshMinMoveMeters);
+            float minMove = GetEffectiveContinuousRefreshMinMoveMeters();
             bool movedEnough = HorizontalDistance(reference.position, _lastContinuousRefreshPosition) >= minMove;
             if (!movedEnough)
             {
@@ -2177,6 +2486,18 @@ namespace CDE2501.Wayfinding.UI
 
             _lastContinuousRefreshPosition = reference.position;
             RecalculateCurrentRoute("Continuous movement refresh");
+        }
+
+        private float GetEffectiveContinuousRefreshMinMoveMeters()
+        {
+            float simulationThreshold = Mathf.Max(0.2f, continuousRefreshMinMoveMeters);
+            if (_gpsManager == null || _gpsManager.IsUsingSimulation)
+            {
+                return simulationThreshold;
+            }
+
+            float deviceThreshold = Mathf.Max(0f, deviceSensorContinuousRefreshMinMoveMeters);
+            return Mathf.Max(simulationThreshold, deviceThreshold);
         }
 
         private void MaybeRevalidateRouteFromPlayer()

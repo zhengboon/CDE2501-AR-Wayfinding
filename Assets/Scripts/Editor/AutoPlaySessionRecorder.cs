@@ -13,8 +13,11 @@ namespace CDE2501.Wayfinding.EditorTools
     {
         private const string EnabledPrefKey = "CDE2501.AutoPlaySessionRecorder.Enabled";
         private const string DisableMigrationPrefKey = "CDE2501.AutoPlaySessionRecorder.DisabledMigration_20260318";
+        private const string EnableByDefaultMigrationPrefKey = "CDE2501.AutoPlaySessionRecorder.EnabledMigration_20260326";
         private const string MenuEnabledPath = "CDE2501/Session Recorder/Enabled";
         private const string MenuOpenFolderPath = "CDE2501/Session Recorder/Open Output Folder";
+        private const string MenuOpenLatestPath = "CDE2501/Session Recorder/Open Latest Session";
+        private const string MenuPruneNowPath = "CDE2501/Session Recorder/Prune Old Sessions Now";
 
         private const string OutputFolderRelative = "Recordings/AutoSessions";
         private const int OutputWidth = 1920;
@@ -23,6 +26,8 @@ namespace CDE2501.Wayfinding.EditorTools
         private const int MaxRetainedSessions = 5;
 
         private static RecorderController _controller;
+        private static RecorderControllerSettings _controllerSettings;
+        private static MovieRecorderSettings _movieSettings;
         private static bool _isRecording;
         private static string _currentOutputStem;
 
@@ -32,6 +37,14 @@ namespace CDE2501.Wayfinding.EditorTools
             {
                 EditorPrefs.SetBool(EnabledPrefKey, false);
                 EditorPrefs.SetBool(DisableMigrationPrefKey, true);
+            }
+
+            // New behavior: auto-enable recorder by default so entering Play Mode
+            // immediately starts recording unless user explicitly turns it off later.
+            if (!EditorPrefs.GetBool(EnableByDefaultMigrationPrefKey, false))
+            {
+                EditorPrefs.SetBool(EnabledPrefKey, true);
+                EditorPrefs.SetBool(EnableByDefaultMigrationPrefKey, true);
             }
 
             EditorApplication.delayCall += EnsureMenuState;
@@ -73,6 +86,44 @@ namespace CDE2501.Wayfinding.EditorTools
             EditorUtility.RevealInFinder(absoluteFolder);
         }
 
+        [MenuItem(MenuOpenLatestPath)]
+        private static void OpenLatestSession()
+        {
+            if (!TryGetLatestRecordingPath(out string latestPath))
+            {
+                Debug.LogWarning("[AutoPlaySessionRecorder] No session recordings found.");
+                return;
+            }
+
+            try
+            {
+                Application.OpenURL(new Uri(latestPath).AbsoluteUri);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[AutoPlaySessionRecorder] Unable to open latest session '{latestPath}': {ex.Message}");
+            }
+        }
+
+        [MenuItem(MenuOpenLatestPath, true)]
+        private static bool ValidateOpenLatestSession()
+        {
+            return TryGetLatestRecordingPath(out _);
+        }
+
+        [MenuItem(MenuPruneNowPath)]
+        private static void PruneNow()
+        {
+            string absoluteFolder = GetAbsoluteOutputFolderPath();
+            if (!Directory.Exists(absoluteFolder))
+            {
+                Debug.Log("[AutoPlaySessionRecorder] No output folder found to prune.");
+                return;
+            }
+
+            PruneOlderRecordings(absoluteFolder, MaxRetainedSessions);
+        }
+
         private static void EnsureMenuState()
         {
             Menu.SetChecked(MenuEnabledPath, IsEnabled);
@@ -108,29 +159,30 @@ namespace CDE2501.Wayfinding.EditorTools
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 _currentOutputStem = $"{OutputFolderRelative}/session_{timestamp}";
 
-                var controllerSettings = ScriptableObject.CreateInstance<RecorderControllerSettings>();
-                var movieSettings = ScriptableObject.CreateInstance<MovieRecorderSettings>();
+                CleanupRecorderObjects();
+                _controllerSettings = ScriptableObject.CreateInstance<RecorderControllerSettings>();
+                _movieSettings = ScriptableObject.CreateInstance<MovieRecorderSettings>();
 
-                movieSettings.name = "Auto Play Session";
-                movieSettings.Enabled = true;
-                movieSettings.EncoderSettings = new CoreEncoderSettings
+                _movieSettings.name = "Auto Play Session";
+                _movieSettings.Enabled = true;
+                _movieSettings.EncoderSettings = new CoreEncoderSettings
                 {
                     Codec = CoreEncoderSettings.OutputCodec.MP4,
                     EncodingQuality = CoreEncoderSettings.VideoEncodingQuality.Medium
                 };
-                movieSettings.ImageInputSettings = new GameViewInputSettings
+                _movieSettings.ImageInputSettings = new GameViewInputSettings
                 {
                     OutputWidth = OutputWidth,
                     OutputHeight = OutputHeight
                 };
-                movieSettings.OutputFile = _currentOutputStem;
+                _movieSettings.OutputFile = _currentOutputStem;
 
-                controllerSettings.AddRecorderSettings(movieSettings);
-                controllerSettings.SetRecordModeToManual();
-                controllerSettings.FrameRate = OutputFrameRate;
-                controllerSettings.CapFrameRate = false;
+                _controllerSettings.AddRecorderSettings(_movieSettings);
+                _controllerSettings.SetRecordModeToManual();
+                _controllerSettings.FrameRate = OutputFrameRate;
+                _controllerSettings.CapFrameRate = false;
 
-                _controller = new RecorderController(controllerSettings);
+                _controller = new RecorderController(_controllerSettings);
                 _controller.PrepareRecording();
                 _controller.StartRecording();
                 _isRecording = true;
@@ -140,7 +192,7 @@ namespace CDE2501.Wayfinding.EditorTools
             catch (Exception ex)
             {
                 _isRecording = false;
-                _controller = null;
+                CleanupRecorderObjects();
                 Debug.LogError($"[AutoPlaySessionRecorder] Failed to start recording: {ex.Message}");
             }
         }
@@ -167,13 +219,15 @@ namespace CDE2501.Wayfinding.EditorTools
             }
             finally
             {
-                _controller = null;
+                CleanupRecorderObjects();
                 _isRecording = false;
                 string absoluteFolder = GetAbsoluteOutputFolderPath();
                 if (Directory.Exists(absoluteFolder))
                 {
                     PruneOlderRecordings(absoluteFolder, MaxRetainedSessions);
                 }
+
+                _currentOutputStem = null;
             }
         }
 
@@ -209,12 +263,56 @@ namespace CDE2501.Wayfinding.EditorTools
                 try
                 {
                     File.Delete(recordings[i]);
+                    string metaPath = recordings[i] + ".meta";
+                    if (File.Exists(metaPath))
+                    {
+                        File.Delete(metaPath);
+                    }
                     Debug.Log($"[AutoPlaySessionRecorder] Pruned old session: {recordings[i]}");
                 }
                 catch (Exception ex)
                 {
                     Debug.LogWarning($"[AutoPlaySessionRecorder] Failed to prune session '{recordings[i]}': {ex.Message}");
                 }
+            }
+        }
+
+        private static bool TryGetLatestRecordingPath(out string latestPath)
+        {
+            latestPath = null;
+            string absoluteFolder = GetAbsoluteOutputFolderPath();
+            if (!Directory.Exists(absoluteFolder))
+            {
+                return false;
+            }
+
+            string[] recordings = Directory.GetFiles(absoluteFolder, "session_*.mp4", SearchOption.TopDirectoryOnly);
+            if (recordings == null || recordings.Length == 0)
+            {
+                return false;
+            }
+
+            Array.Sort(recordings, (a, b) =>
+                File.GetLastWriteTimeUtc(b).CompareTo(File.GetLastWriteTimeUtc(a)));
+
+            latestPath = recordings[0];
+            return true;
+        }
+
+        private static void CleanupRecorderObjects()
+        {
+            _controller = null;
+
+            if (_movieSettings != null)
+            {
+                ScriptableObject.DestroyImmediate(_movieSettings);
+                _movieSettings = null;
+            }
+
+            if (_controllerSettings != null)
+            {
+                ScriptableObject.DestroyImmediate(_controllerSettings);
+                _controllerSettings = null;
             }
         }
     }

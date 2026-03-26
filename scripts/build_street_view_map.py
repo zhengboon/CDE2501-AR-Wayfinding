@@ -16,6 +16,7 @@ import re
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -384,6 +385,7 @@ def main() -> int:
     parser.add_argument("--max-fallback-distance-m", type=float, default=220.0)
     parser.add_argument("--google-api-key", default=os.environ.get("GOOGLE_MAPS_API_KEY", ""))
     parser.add_argument("--timeout-seconds", type=int, default=20)
+    parser.add_argument("--download-workers", type=int, default=1)
     parser.add_argument("--allow-frame0001-fallback", action="store_true")
     args = parser.parse_args()
 
@@ -510,20 +512,49 @@ def main() -> int:
             meta = request_json(meta_url, timeout=args.timeout_seconds)
             metadata_status = (meta or {}).get("status", "REQUEST_FAILED")
             if metadata_status == "OK":
-                for heading in headings:
-                    _meta_url, static_url = build_streetview_urls(
-                        lat,
-                        lon,
-                        args.google_api_key,
-                        args.image_size,
-                        heading,
-                        args.fov,
-                    )
-                    rel_path = f"{args.street_view_dir}/{nid}/h{heading:03d}.jpg".replace("\\", "/")
-                    abs_path = data_dir / rel_path
-                    ok = download_image(static_url, abs_path, timeout=args.timeout_seconds)
-                    if ok:
-                        heading_images.append({"heading": heading, "image": rel_path})
+                workers = max(1, int(args.download_workers))
+                if workers == 1:
+                    for heading in headings:
+                        _meta_url, static_url = build_streetview_urls(
+                            lat,
+                            lon,
+                            args.google_api_key,
+                            args.image_size,
+                            heading,
+                            args.fov,
+                        )
+                        rel_path = f"{args.street_view_dir}/{nid}/h{heading:03d}.jpg".replace("\\", "/")
+                        abs_path = data_dir / rel_path
+                        ok = download_image(static_url, abs_path, timeout=args.timeout_seconds)
+                        if ok:
+                            heading_images.append({"heading": heading, "image": rel_path})
+                else:
+                    futures = {}
+                    with ThreadPoolExecutor(max_workers=workers) as executor:
+                        for heading in headings:
+                            _meta_url, static_url = build_streetview_urls(
+                                lat,
+                                lon,
+                                args.google_api_key,
+                                args.image_size,
+                                heading,
+                                args.fov,
+                            )
+                            rel_path = f"{args.street_view_dir}/{nid}/h{heading:03d}.jpg".replace("\\", "/")
+                            abs_path = data_dir / rel_path
+                            future = executor.submit(download_image, static_url, abs_path, args.timeout_seconds)
+                            futures[future] = (heading, rel_path)
+
+                        for future in as_completed(futures):
+                            heading, rel_path = futures[future]
+                            try:
+                                ok = bool(future.result())
+                            except Exception:
+                                ok = False
+                            if ok:
+                                heading_images.append({"heading": heading, "image": rel_path})
+
+                    heading_images.sort(key=lambda item: item["heading"])
                 if heading_images:
                     view_type = f"google_{len(heading_images)}dir"
                     google_success += 1

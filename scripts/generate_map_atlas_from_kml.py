@@ -22,6 +22,7 @@ KML_NS = {"kml": "http://www.opengis.net/kml/2.2"}
 OSM_TILE_SERVER = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
 GOOGLE_TILE_SERVER = "https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session={session}&key={key}"
 GOOGLE_CREATE_SESSION = "https://tile.googleapis.com/v1/createSession?key={key}"
+ONEMAP_TILE_SERVER = "https://www.onemap.gov.sg/maps/tiles/{style}/{z}/{x}/{y}.png"
 USER_AGENT = "CDE2501-AR-Wayfinding/1.0 (educational map atlas generator)"
 TILE_SIZE = 256
 
@@ -167,6 +168,11 @@ def fetch_osm_tile(x: int, y: int, z: int, retries: int, timeout_seconds: int, s
     return fetch_image(url, retries=retries, timeout_seconds=timeout_seconds, sleep_seconds=sleep_seconds)
 
 
+def fetch_onemap_tile(x: int, y: int, z: int, style: str, retries: int, timeout_seconds: int, sleep_seconds: float) -> Image.Image:
+    url = ONEMAP_TILE_SERVER.format(style=style, z=z, x=x, y=y)
+    return fetch_image(url, retries=retries, timeout_seconds=timeout_seconds, sleep_seconds=sleep_seconds)
+
+
 def create_google_session(api_key: str, map_type: str, language: str, region: str, image_format: str, timeout_seconds: int) -> GoogleSession:
     payload = {
         "mapType": map_type,
@@ -266,7 +272,8 @@ def main() -> int:
     parser.add_argument("--zoom-levels", default="18,19", help="Comma-separated zoom levels (default: 18,19)")
     parser.add_argument("--padding-tiles", type=int, default=1, help="Extra tiles around bbox")
     parser.add_argument("--no-square", action="store_true", help="Do not expand atlas to square tiles")
-    parser.add_argument("--provider", choices=["google", "osm"], default="google", help="Tile provider")
+    parser.add_argument("--provider", choices=["google", "osm", "onemap"], default="google", help="Tile provider")
+    parser.add_argument("--onemap-style", choices=["Default", "Night", "Grey", "Original"], default="Default", help="OneMap styling")
     parser.add_argument("--google-api-key", default="", help="Google Maps API key (or use GOOGLE_MAPS_API_KEY env var)")
     parser.add_argument("--google-map-type", choices=["roadmap", "satellite", "terrain"], default="roadmap", help="Google map type")
     parser.add_argument("--google-language", default="en-US", help="Google language")
@@ -326,6 +333,10 @@ def main() -> int:
                     google_session = None
                 else:
                     raise
+    elif provider == "onemap":
+        source_name = "OneMap Desktop"
+        attribution = "Map data © OneMap"
+        tile_server = ONEMAP_TILE_SERVER.replace("{style}", args.onemap_style)
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -353,6 +364,16 @@ def main() -> int:
                         z=zoom,
                         api_key=google_key,
                         google_session=google_session,
+                        retries=max(1, args.retries),
+                        timeout_seconds=max(5, args.timeout_seconds),
+                        sleep_seconds=max(0.05, args.request_delay),
+                    )
+                elif provider == "onemap":
+                    tile = fetch_onemap_tile(
+                        x=x,
+                        y=y,
+                        z=zoom,
+                        style=args.onemap_style,
                         retries=max(1, args.retries),
                         timeout_seconds=max(5, args.timeout_seconds),
                         sleep_seconds=max(0.05, args.request_delay),
@@ -426,6 +447,7 @@ def main() -> int:
                 "googleRegion": args.google_region if provider == "google" else "",
                 "googleImageFormat": google_session.image_format if provider == "google" and google_session else "",
                 "googleSessionExpiry": google_session.expiry if provider == "google" and google_session else "",
+                "onemapStyle": args.onemap_style if provider == "onemap" else "",
             },
         }
 

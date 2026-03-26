@@ -23,6 +23,7 @@
             <ul id="navLinks" class="nav-links">
                 <li><a href="#hero" class="active">Home</a></li>
                 <li><a href="#features">Features</a></li>
+                <li><a href="#api">OneMap API</a></li>
                 <li><a href="#demo">Demo</a></li>
                 <li><a href="#quickstart">Quick Start</a></li>
                 <li><a href="#docs">Docs</a></li>
@@ -80,6 +81,18 @@
                 </div>
                 
                 <div class="card glass show-on-scroll">
+                    <div class="icon">♿</div>
+                    <h3>Inclusive Wayfinding</h3>
+                    <p>Future-ready architecture for continuous map integrations, targeting OneMap's Barrier-Free Access (BFA) API to provide safe, realistic routing profiles for wheelchair and elderly users.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
+                    <div class="icon">📈</div>
+                    <h3>Geo-Spatial Insights & Conversions</h3>
+                    <p>Designed to scale with OneMap's demographic and spatial APIs, including Reverse Geocoding, SVY21/WGS84 Coordinate Converters, Population Queries, and Planning Area boundaries to enrich the AR experience.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
                     <div class="icon">💻</div>
                     <h3>Simulation Reality</h3>
                     <p>Comprehensive keyboard simulation controls enable efficient laptop-first path testing before full hardware-dependent deployment.</p>
@@ -88,7 +101,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">⚡</div>
                     <h3>Extending Automation</h3>
-                    <p>Automated Unity cache-building, testing loops, and KML generation via portable Python CLIs with repo-relative defaults, cache toggles, and configurable input/output paths. Play-session recording now auto-keeps the latest 5 MP4 sessions.</p>
+                    <p>Automated Unity cache-building, testing loops, and KML generation via portable Python CLIs with repo-relative defaults, cache toggles, and configurable input/output paths. Play-session recording now auto-keeps the latest 5 MP4 sessions with quick latest/open-folder utilities.</p>
                 </div>
                 
                 <div class="card glass show-on-scroll">
@@ -112,13 +125,55 @@
         </div>
     </section>
 
+    <!-- API Integration Section -->
+    <section id="api" class="api section">
+        <div class="container">
+            <div class="section-header show-on-scroll">
+                <h2>OneMap API Ecosystem</h2>
+                <p>Comprehensive integrations planned with Singapore's authoritative national map data.</p>
+            </div>
+            
+            <div class="acc-wrapper show-on-scroll">
+                <div class="doc-card glass">
+                    <h4>🗺️ Map Tiles & Static Maps</h4>
+                    <p><b>Endpoints:</b> <code>/maps/tiles/{Style}/{z}/{x}/{y}.png</code> & <code>/api/staticmap/getStaticImage</code></p>
+                    <p>Native SG maps with highly accurate building footprints in Default, Night, Grey, and Original styles up to zoom level 19. Useful for caching local atlases and building standalone AR reference minimaps.</p>
+                </div>
+                
+                <div class="doc-card glass">
+                    <h4>♿ Barrier-Free Access (BFA) & Routing</h4>
+                    <p><b>Endpoints:</b> <code>/api/public/bfa/route</code> & <code>/api/public/routingsvc/route</code></p>
+                    <p>Provides specialized wheelchair routing by avoiding stairs, curbs, and steep inclines. General routing supports standard walk, drive, transit, and cycle pathing.</p>
+                </div>
+                
+                <div class="doc-card glass">
+                    <h4>📍 Search & Reverse Geocoding</h4>
+                    <p><b>Endpoints:</b> <code>/api/common/elastic/search</code> & <code>/api/public/revgeocode</code></p>
+                    <p>Translates Singapore postal codes, localized building names, and blocks into precise geometrical bounds or coordinates for dynamic AR destination placement.</p>
+                </div>
+                
+                <div class="doc-card glass">
+                    <h4>🏛️ Themes (POIs) & Planning Areas</h4>
+                    <p><b>Endpoints:</b> <code>/api/public/themes/retrieveTheme</code> & <code>/api/public/popapi/getPlanningarea</code></p>
+                    <p>Direct token access to over 100+ public amenity datasets (e.g., polyclinics, public parks, hawker centres) allowing the ecosystem to populate contextual POIs dynamically along a user's route.</p>
+                </div>
+                
+                <div class="doc-card glass">
+                    <h4>🔐 Authentication & Coordinate Converters</h4>
+                    <p><b>Endpoints:</b> <code>/api/auth/post/getToken</code> & <code>/api/public/revgeocode</code></p>
+                    <p>Secure JWT-based access supporting conversions between local SVY21 coordinate formats and standard WGS84 Lat/Lng values returned by device sensors.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <!-- Demo / Maps Section -->
     <section id="demo" class="demo section">
         <div class="container show-on-scroll">
             <div class="demo-wrapper glass">
                 <div class="demo-text">
                     <h2>Immersive Wayfinding</h2>
-                    <p>The core engine supports data-driven <b>Street View Images</b> to augment the user's route. Real-world location mapping allows easy validation on a minimap before committing to an AR trip.</p>
+                    <p>The core engine now supports data-driven <b>Google Street View Tiles</b> to augment the user's route. Use the live panel to load Queenstown views directly from the API.</p>
                     <ul class="feature-list">
                         <li>📍 GPS & Compass accurate tracking</li>
                         <li>🗺️ Data-driven OSM graph rendering</li>
@@ -127,20 +182,37 @@
                     </ul>
                 </div>
                 <div class="demo-visual">
-                    <!-- Placeholder visual since we don't have a real screenshot -->
-                    <div class="mock-ui">
-                        <div class="mock-header">
-                            <span class="status pulse">GPS Ready</span>
-                            <span class="status pulse">Compass Ready</span>
+                    <div class="streetview-card">
+                        <div class="streetview-toolbar">
+                            <input id="gsvApiKey" type="password" autocomplete="off" placeholder="Google Maps API key">
+                            <button id="gsvLoadBtn" class="btn primary" type="button">Load Queenstown View</button>
                         </div>
-                        <div class="mock-path">
-                            <div class="path-node start">A</div>
-                            <div class="path-line"></div>
-                            <div class="path-node end">B</div>
+
+                        <div class="streetview-location">
+                            <label for="gsvLat">Lat</label>
+                            <input id="gsvLat" type="number" step="0.000001" value="1.294500">
+                            <label for="gsvLng">Lng</label>
+                            <input id="gsvLng" type="number" step="0.000001" value="103.786300">
                         </div>
-                        <div class="mock-footer">
-                            <div class="mock-btn">Sim Mode [F2]</div>
-                            <div class="mock-btn secondary">Recalc [F5]</div>
+
+                        <canvas id="gsvCanvas" width="960" height="480" aria-label="Google Street View preview"></canvas>
+
+                        <div class="streetview-controls">
+                            <div class="streetview-slider">
+                                <label for="gsvHeading">Heading</label>
+                                <input id="gsvHeading" type="range" min="0" max="359" step="1" value="0">
+                                <span id="gsvHeadingValue">0°</span>
+                            </div>
+                            <div class="streetview-slider">
+                                <label for="gsvPitch">Pitch</label>
+                                <input id="gsvPitch" type="range" min="-45" max="45" step="1" value="0">
+                                <span id="gsvPitchValue">0°</span>
+                            </div>
+                        </div>
+
+                        <div class="streetview-footer">
+                            <p id="gsvStatus">Paste API key and click "Load Queenstown View".</p>
+                            <p id="gsvMeta"></p>
                         </div>
                     </div>
                 </div>
@@ -237,8 +309,28 @@
                 </div>
 
                 <div class="doc-card glass">
+                    <h4>NUS area looks empty after map switch</h4>
+                    <p><b>Check:</b> Quick Start shows <code>Map Area: NUS Engineering</code>; in Editor, toggle simulation with <kbd>F2</kbd> if needed. <br><b>Action:</b> Area switch now re-anchors simulation world mapping and force-snaps to the selected graph after reload; toggle area once and wait for auto-route refresh.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>NUS route keeps failing after map switch</h4>
+                    <p><b>Check:</b> Quick Start status line <code>Start node: ME -&gt; ...</code> should show a <code>NUS_...</code> node while in NUS area (not <code>QTMRT</code>). <br><b>Action:</b> Start-node context is now reset on area switch with area-specific defaults; switch area again and let auto-route run once.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>NUS starts with zero-length route</h4>
+                    <p><b>Check:</b> Initial NUS route has matching start and destination (for example <code>NUS_E1 -&gt; E1</code>). <br><b>Action:</b> Initial auto-route now auto-selects a nearby destination to avoid trivial guidance.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>NUS route refreshes too frequently while walking</h4>
+                    <p><b>Check:</b> Frequent recalculation due to small GPS jitter on device sensors. <br><b>Action:</b> Continuous refresh now uses a higher movement threshold for device sensor mode to keep guidance stable.</p>
+                </div>
+
+                <div class="doc-card glass">
                     <h4>No session preview entries in Play Mode</h4>
-                    <p><b>Check:</b> <code>CDE2501 &gt; Session Recorder &gt; Enabled</code> is turned on in the Unity Editor. <br><b>Action:</b> Complete one Play session; Quick Start then shows latest 5 recordings with <b>Open 1..5</b> preview buttons.</p>
+                    <p><b>Check:</b> At least one Play session has completed (recording auto-starts by default on Play entry). <br><b>Action:</b> Complete one Play session; Quick Start then shows latest 5 recordings with <b>Open 1..5</b>, plus <b>Refresh</b> and <b>Folder</b> controls. If manually disabled earlier, turn on <code>CDE2501 &gt; Session Recorder &gt; Enabled</code>.</p>
                 </div>
             </div>
         </div>
