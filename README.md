@@ -22,7 +22,7 @@ A project website is included in the repo root:
 
 ## 2) What Was Reviewed
 I reviewed the full project source/config/data structure relevant to runtime behavior:
-- `Assets/Scripts`: 30 C# scripts (plus `.meta`)
+- `Assets/Scripts`: 32 C# scripts (plus `.meta`)
 - `Assets/StreamingAssets/Data`: graph, locations, profiles, map tiles, boundary, street-view manifest
 - `Docs`: architecture/integration docs + video scan artifacts
 - `scripts`: data generators + cached Unity build/launch automation
@@ -40,7 +40,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - `nus_estate_graph.json` + `nus_locations.json` (NUS)
 - Current graph sizes:
   - Queenstown: `1295` nodes, `2795` edges
-  - NUS: `402` nodes, `996` edges
+  - NUS: `424` nodes, `1080` edges
 - Routing profiles loaded from `Assets/StreamingAssets/Data/routing_profiles.json`
 - Street View manifest currently has `0` usable nodes (no active imagery path)
 - Manual recalc key handling is improved to avoid input conflict with pitch controls in simulation mode.
@@ -55,6 +55,13 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - Fixed minimap follow-heading interaction mapping:
   - Click/hover world mapping now inverse-rotates pointer coordinates in follow-heading mode
   - Zoom pivot and pan drag deltas are transformed to the rotated map frame, so interaction stays aligned while turning
+- Fixed map-area auto-route stability:
+  - `QuickStartBootstrap` hotkey mode/rain toggles are now null-safe when `RouteCalculator` is not yet available
+  - Map area switches now reset location-readiness state and restart a single auto-route wait coroutine to prevent stale readiness and overlapping startup waits
+- Fixed data script portability and side-effect-free CLI behavior:
+  - `scripts/generate_osm_road_graph.py` now has argparse flags (`--project-root`, path overrides, `--use-cache`, Overpass URL/timeout), and `--help` no longer triggers network fetch
+  - `scripts/map_videos_to_kml.py` now uses repo-relative defaults with configurable input/output paths and anchor coordinates
+  - `scripts/select_queenstown_videos.py` now supports configurable paths/counts and `--skip-thumbnail-check` for fast/offline runs
 - Optimized A* pathfinder:
   - Replaced O(N) gScore initialization with lazy init — only visited nodes are tracked
   - Significant improvement for large graphs (1295+ nodes)
@@ -166,14 +173,14 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - `Assets/StreamingAssets/Data/nus_map_z19_x413268-413276_y260247-260255.json`
 
 ### 4.7 Data Generation / Utility Scripts
-- `scripts/generate_osm_road_graph.py`: fetches OSM roads and writes graph with safety attributes.
+- `scripts/generate_osm_road_graph.py`: fetches OSM roads and writes graph with safety attributes; supports cache-first CLI flags for reproducible runs.
 - `scripts/generate_osm_graph_from_kml.py`: generates area graph + locations + boundary directly from KML polygon + point placemarks.
 - `scripts/generate_osm_map_atlas.py`: downloads OSM tiles and generates map atlas PNG + metadata.
 - `scripts/generate_map_atlas_from_kml.py`: generates area map atlases from KML polygon with Google Map Tiles API support and OSM fallback.
 - `scripts/build_street_view_map.py`: builds route-area Street View dataset (Google + fallback logic).
 - `scripts/build_video_frame_map.py`: maps videos/frames to route nodes.
-- `scripts/select_queenstown_videos.py`: scoring/selection pipeline for candidate videos.
-- `scripts/map_videos_to_kml.py`: exports mapped routes back to KML.
+- `scripts/select_queenstown_videos.py`: scoring/selection pipeline for candidate videos (now with configurable CLI inputs/outputs).
+- `scripts/map_videos_to_kml.py`: exports mapped routes back to KML with configurable CLI paths/anchors.
 - `scripts/unity_cached_builder.py`: Unity auto-build orchestrator with fingerprint cache and report generation.
 - `scripts/unity_cached_builder_config.json`: editable config for Unity executable, target, output, and watch roots.
 - `build_engineering_nus_map.bat`: one-click map + NUS graph/locations generation.
@@ -306,7 +313,7 @@ To view the generated project website:
 6. Build Android APK for alpha, share with testers, and collect telemetry CSV data from field walks.
 
 ## 11.1) Future Plans
-1. Fix minimap follow-heading mode so route lines, markers, and overlays rotate correctly with the user's heading.
+1. Complete minimap follow-heading visual polish so all route/marker overlays remain visually consistent under heading rotation.
 2. Analyse collected telemetry CSV data to derive actual walking paths and compare against computed routes.
 3. Implement a post-processing pipeline that ingests telemetry CSVs and visualises walked vs. routed paths on a map.
 4. Use field-collected path data to refine graph edge weights and improve routing accuracy.

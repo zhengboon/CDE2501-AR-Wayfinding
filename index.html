@@ -76,7 +76,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">🛡️</div>
                     <h3>Safety-Weighted Routing</h3>
-                    <p>Optimized A* routes with ETA display, focused on elderly safety profiles and wheelchair accessibility over intricate local and OSM graphs.</p>
+                    <p>Optimized A* routes with ETA display, focused on elderly safety profiles and wheelchair accessibility over intricate local and OSM graphs, with stable auto-route behavior after map-area switches.</p>
                 </div>
                 
                 <div class="card glass show-on-scroll">
@@ -88,7 +88,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">⚡</div>
                     <h3>Extending Automation</h3>
-                    <p>Automated Unity cache-building, testing loops, and KML generation seamlessly handled by tailored backend python tooling.</p>
+                    <p>Automated Unity cache-building, testing loops, and KML generation via portable Python CLIs with repo-relative defaults, cache toggles, and configurable input/output paths.</p>
                 </div>
                 
                 <div class="card glass show-on-scroll">
@@ -229,6 +229,11 @@
                 <div class="doc-card glass">
                     <h4>Minimap elements break when turning (follow heading)</h4>
                     <p><b>Check:</b> Follow-heading mode is active and the user rotates. <br><b>Action:</b> Interaction mapping fix is applied (click/hover/zoom/pan now align with heading). If any visual overlay drift remains, toggle follow-heading off as a temporary fallback.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>Route not auto-refreshing after map-area switch</h4>
+                    <p><b>Check:</b> Quick Start map area changed recently. <br><b>Action:</b> Area switch now resets location-readiness and restarts a single startup wait; if needed, press <kbd>F5</kbd> once to force a manual recalc.</p>
                 </div>
             </div>
         </div>
