@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import argparse
 import json
 import math
 import pathlib
@@ -6,17 +7,17 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 EARTH_RADIUS_M = 6378137.0
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+DEFAULT_OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
 
 def clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
-def parse_float(value, default: float = 0.0) -> float:
+def parse_float(value, default: Optional[float] = 0.0) -> Optional[float]:
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -42,7 +43,6 @@ def latlon_to_local(anchor_lat: float, anchor_lon: float, lat: float, lon: float
 
 
 def highway_defaults(highway: str) -> Tuple[float, float, float]:
-    # Returns (width_level, clutter_level, lighting_level)
     h = (highway or "").lower()
     if h in {"footway", "path", "pedestrian", "corridor", "steps"}:
         return 0.50, 0.28, 0.62
@@ -61,10 +61,9 @@ def normalize_width_level(tags: Dict[str, str], default_level: float) -> float:
         return default_level
 
     width_m = parse_float(str(width_raw).split(";")[0], default=-1.0)
-    if width_m <= 0.0:
+    if width_m is None or width_m <= 0.0:
         return default_level
 
-    # Normalize roughly: 1.0m -> 0.25, 4.0m -> 1.0
     normalized = 0.25 + ((width_m - 1.0) / 3.0) * 0.75
     return clamp(normalized, 0.25, 1.0)
 
@@ -108,7 +107,7 @@ def build_node_attributes(highway_hint: str = "") -> Dict[str, float]:
     }
 
 
-def overpass_query(min_lat: float, min_lon: float, max_lat: float, max_lon: float) -> Dict:
+def overpass_query(min_lat: float, min_lon: float, max_lat: float, max_lon: float, overpass_url: str, timeout_seconds: int) -> Dict:
     query = f"""
 [out:json][timeout:180];
 (
@@ -119,18 +118,45 @@ out body;
 """.strip()
 
     data = urllib.parse.urlencode({"data": query}).encode("utf-8")
-    req = urllib.request.Request(OVERPASS_URL, data=data, headers={"User-Agent": "CDE2501-AR-Wayfinding/1.0"})
-    with urllib.request.urlopen(req, timeout=240) as resp:
+    req = urllib.request.Request(overpass_url, data=data, headers={"User-Agent": "CDE2501-AR-Wayfinding/1.0"})
+    with urllib.request.urlopen(req, timeout=max(30, timeout_seconds)) as resp:
         raw = resp.read().decode("utf-8")
     return json.loads(raw)
 
 
+def resolve_path(project_root: pathlib.Path, raw_path: str) -> pathlib.Path:
+    candidate = pathlib.Path(raw_path).expanduser()
+    if candidate.is_absolute():
+        return candidate
+    return (project_root / candidate).resolve()
+
+
+def parse_args() -> argparse.Namespace:
+    project_root_default = pathlib.Path(__file__).resolve().parents[1]
+    parser = argparse.ArgumentParser(description="Generate Queenstown OSM road graph and merge destination connectors.")
+    parser.add_argument("--project-root", default=str(project_root_default), help="Project root (defaults to repo root)")
+    parser.add_argument("--estate-graph", default="Assets/StreamingAssets/Data/estate_graph.json", help="Input/output estate graph JSON path")
+    parser.add_argument("--locations", default="Assets/StreamingAssets/Data/locations.json", help="Locations JSON path")
+    parser.add_argument("--raw-cache", default="Docs/queenstown_osm_raw.json", help="Path to save/load raw Overpass JSON")
+    parser.add_argument("--use-cache", action="store_true", help="Use --raw-cache instead of querying Overpass")
+    parser.add_argument("--overpass-url", default=DEFAULT_OVERPASS_URL, help="Overpass API interpreter URL")
+    parser.add_argument("--overpass-timeout-seconds", type=int, default=240, help="Overpass HTTP timeout seconds")
+    return parser.parse_args()
+
+
 def main() -> int:
-    project_root = pathlib.Path(__file__).resolve().parents[1]
-    data_dir = project_root / "Assets" / "StreamingAssets" / "Data"
-    estate_graph_path = data_dir / "estate_graph.json"
-    locations_path = data_dir / "locations.json"
-    overpass_cache_path = project_root / "Docs" / "queenstown_osm_raw.json"
+    args = parse_args()
+    project_root = pathlib.Path(args.project_root).expanduser().resolve()
+    estate_graph_path = resolve_path(project_root, args.estate_graph)
+    locations_path = resolve_path(project_root, args.locations)
+    overpass_cache_path = resolve_path(project_root, args.raw_cache)
+
+    if not estate_graph_path.exists():
+        print(f"Missing estate graph: {estate_graph_path}", file=sys.stderr)
+        return 1
+    if not locations_path.exists():
+        print(f"Missing locations file: {locations_path}", file=sys.stderr)
+        return 1
 
     estate_graph = json.loads(estate_graph_path.read_text(encoding="utf-8"))
     locations = json.loads(locations_path.read_text(encoding="utf-8"))
@@ -155,10 +181,15 @@ def main() -> int:
     anchor_lat = parse_float(anchor.get("lat"), (min_lat + max_lat) * 0.5)
     anchor_lon = parse_float(anchor.get("lon"), (min_lon + max_lon) * 0.5)
 
-    print(f"Fetching OSM highways in bbox: [{min_lat}, {min_lon}, {max_lat}, {max_lon}]")
-    osm = overpass_query(min_lat, min_lon, max_lat, max_lon)
-    overpass_cache_path.parent.mkdir(parents=True, exist_ok=True)
-    overpass_cache_path.write_text(json.dumps(osm, indent=2), encoding="utf-8")
+    osm = None
+    if args.use_cache and overpass_cache_path.exists():
+        print(f"Loading cached OSM from: {overpass_cache_path}")
+        osm = json.loads(overpass_cache_path.read_text(encoding="utf-8"))
+    else:
+        print(f"Fetching OSM highways in bbox: [{min_lat}, {min_lon}, {max_lat}, {max_lon}]")
+        osm = overpass_query(min_lat, min_lon, max_lat, max_lon, args.overpass_url, args.overpass_timeout_seconds)
+        overpass_cache_path.parent.mkdir(parents=True, exist_ok=True)
+        overpass_cache_path.write_text(json.dumps(osm, indent=2), encoding="utf-8")
 
     elements = osm.get("elements", [])
     node_geo: Dict[int, Tuple[float, float]] = {}
@@ -225,7 +256,6 @@ def main() -> int:
                 if existing is None or edge["distance"] < existing["distance"]:
                     edge_by_key[key] = edge
 
-    # Keep current destination node IDs and connect them to nearest road nodes.
     osm_node_ids = [nid for nid in nodes_by_id.keys() if nid.startswith("OSM_")]
 
     def nearest_osm_node(lat: float, lon: float) -> Tuple[str, float]:
@@ -247,7 +277,7 @@ def main() -> int:
         node_id = (location.get("indoor_node_id") or "").strip()
         lat = parse_float(location.get("gps_lat"), float("nan"))
         lon = parse_float(location.get("gps_lon"), float("nan"))
-        if not node_id or math.isnan(lat) or math.isnan(lon):
+        if not node_id or lat is None or lon is None or math.isnan(lat) or math.isnan(lon):
             continue
 
         x, z = latlon_to_local(anchor_lat, anchor_lon, lat, lon)
@@ -310,6 +340,7 @@ def main() -> int:
     estate_graph["edges"] = edge_list
     estate_graph["metadata"] = metadata
 
+    estate_graph_path.parent.mkdir(parents=True, exist_ok=True)
     estate_graph_path.write_text(json.dumps(estate_graph, indent=2), encoding="utf-8")
     print(f"Wrote {estate_graph_path}")
     print(f"Nodes: {len(node_list)} | Edges: {len(edge_list)} | Connectors: {connector_count}")

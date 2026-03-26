@@ -86,7 +86,7 @@ document.querySelectorAll('.btn-copy').forEach(button => {
 
 const generatedAt = document.getElementById('generatedAt');
 if (generatedAt) {
-    generatedAt.textContent = '2026-03-25';
+    generatedAt.textContent = '2026-03-26';
 }
 
 // Hero waveform animation

@@ -94,7 +94,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">⏱️</div>
                     <h3>Route ETA Display</h3>
-                    <p>Real-time walk-time estimates based on configurable speeds (1.0 m/s elderly, 0.8 m/s wheelchair) shown in the simulation overlay.</p>
+                    <p>Real-time walk-time estimates based on configurable speeds (1.0 m/s elderly, 0.8 m/s wheelchair) shown in the simulation overlay, including cached/hysteresis route reuse states.</p>
                 </div>
                 
                 <div class="card glass show-on-scroll">
@@ -228,7 +228,7 @@
                 
                 <div class="doc-card glass">
                     <h4>Minimap elements break when turning (follow heading)</h4>
-                    <p><b>Check:</b> Follow-heading mode is active and the user rotates. <br><b>Action:</b> Known issue — route lines, markers and overlays misalign during rotation. A fix is planned for a future update.</p>
+                    <p><b>Check:</b> Follow-heading mode is active and the user rotates. <br><b>Action:</b> Interaction mapping fix is applied (click/hover/zoom/pan now align with heading). If any visual overlay drift remains, toggle follow-heading off as a temporary fallback.</p>
                 </div>
             </div>
         </div>
@@ -244,8 +244,8 @@
 
             <div class="acc-wrapper">
                 <div class="doc-card glass">
-                    <h4>🛠️ Fix minimap follow-heading rotation</h4>
-                    <p>Route lines, destination markers, and overlay elements need to rotate consistently with the user's compass heading in follow mode.</p>
+                    <h4>🛠️ Complete minimap follow-heading polish</h4>
+                    <p>Interaction mapping is fixed; remaining work is final visual consistency tuning for all overlay layers under heading rotation.</p>
                 </div>
                 <div class="doc-card glass">
                     <h4>📊 Telemetry analysis pipeline</h4>

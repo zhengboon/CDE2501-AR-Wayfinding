@@ -50,6 +50,11 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - Added route ETA display:
   - `RouteResult.estimatedWalkTimeSeconds` computed from configurable walk speeds (1.0 m/s elderly, 0.8 m/s wheelchair)
   - Overlay now shows `dist: 245.2 m, ~3.4 min` alongside node count
+- Fixed route ETA persistence on reused routes:
+  - `RouteCalculator.CloneRouteResult(...)` now copies `estimatedWalkTimeSeconds`, so cached/throttled/hysteresis reuse keeps correct ETA in overlay
+- Fixed minimap follow-heading interaction mapping:
+  - Click/hover world mapping now inverse-rotates pointer coordinates in follow-heading mode
+  - Zoom pivot and pan drag deltas are transformed to the rotated map frame, so interaction stays aligned while turning
 - Optimized A* pathfinder:
   - Replaced O(N) gScore initialization with lazy init — only visited nodes are tracked
   - Significant improvement for large graphs (1295+ nodes)
@@ -261,7 +266,7 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
 - Indoor elevation realism still depends on graph annotation quality and field tuning.
 - Full AR runtime validation still requires real ARCore/ARKit capable hardware.
 - NUS building inter-links include a synthetic connectivity assumption for MVP routing and should be field-validated.
-- Minimap follow-heading mode: when the user turns, route lines, destination markers, and other overlay elements break or misalign because the rotation transform is not applied consistently to all rendered elements.
+- Minimap follow-heading mode: click/hover/zoom/pan interaction mapping has been fixed, but visual rotation consistency for every overlay element still needs additional validation/tuning.
 
 ## 9.1 Troubleshooting Matrix
 - Symptom: route does not update while moving

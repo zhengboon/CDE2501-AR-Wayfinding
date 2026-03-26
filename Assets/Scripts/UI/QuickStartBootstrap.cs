@@ -134,6 +134,7 @@ namespace CDE2501.Wayfinding.UI
         private bool _uiDestinationsDirty = true;
         private string _selectedDestinationNodeId;
         private string _selectedDestinationName;
+        private Coroutine _autoRouteRoutine;
 
         private void Awake()
         {
@@ -181,11 +182,12 @@ namespace CDE2501.Wayfinding.UI
             ApplyMapAreaSelection();
             Subscribe();
             _locationManager.LoadLocations();
-            StartCoroutine(WaitAndTryAutoRoute());
+            StartAutoRouteWait();
         }
 
         private void OnDestroy()
         {
+            StopAutoRouteWait();
             Unsubscribe();
         }
 
@@ -207,19 +209,19 @@ namespace CDE2501.Wayfinding.UI
                 RecalculateCurrentRoute(manualRecalcReason);
             }
 
-            if (Input.GetKeyDown(KeyCode.Alpha1))
+            if (_routeCalculator != null && Input.GetKeyDown(KeyCode.Alpha1))
             {
                 _routeCalculator.CurrentMode = RoutingMode.NormalElderly;
                 RecalculateCurrentRoute("Mode changed to Elderly");
             }
 
-            if (Input.GetKeyDown(KeyCode.Alpha2))
+            if (_routeCalculator != null && Input.GetKeyDown(KeyCode.Alpha2))
             {
                 _routeCalculator.CurrentMode = RoutingMode.Wheelchair;
                 RecalculateCurrentRoute("Mode changed to Wheelchair");
             }
 
-            if (Input.GetKeyDown(KeyCode.T))
+            if (_routeCalculator != null && Input.GetKeyDown(KeyCode.T))
             {
                 _routeCalculator.RainMode = !_routeCalculator.RainMode;
                 RecalculateCurrentRoute("Rain mode toggled");
@@ -510,6 +512,11 @@ namespace CDE2501.Wayfinding.UI
 
         private void ApplyMapAreaSelection()
         {
+            // Force fresh readiness gating so auto-route waits for the newly selected
+            // locations file to finish loading instead of reusing stale readiness state.
+            _locationsLoaded = false;
+            _uiDestinationsDirty = true;
+
             string selectedMiniMapFile = useNusMapArea ? nusMiniMapImageFile : queenstownMiniMapImageFile;
             string selectedReferenceMapFile = useNusMapArea ? nusReferenceMapImageFile : queenstownReferenceMapImageFile;
             string fallbackMiniMapFile = useNusMapArea ? queenstownMiniMapImageFile : nusMiniMapImageFile;
@@ -555,7 +562,7 @@ namespace CDE2501.Wayfinding.UI
             _activeLocationsFile = resolvedLocationsFile;
 
             TeleportToAreaAnchor();
-            StartCoroutine(WaitAndTryAutoRoute());
+            StartAutoRouteWait();
 
             string selectedAreaName = useNusMapArea ? "NUS Engineering" : "Queenstown";
             bool selectedMapMissing = !string.IsNullOrWhiteSpace(selectedMiniMapFile) && !DataFileExists(selectedMiniMapFile);
@@ -714,6 +721,21 @@ namespace CDE2501.Wayfinding.UI
             }
 
             return false;
+        }
+
+        private void StartAutoRouteWait()
+        {
+            StopAutoRouteWait();
+            _autoRouteRoutine = StartCoroutine(WaitAndTryAutoRoute());
+        }
+
+        private void StopAutoRouteWait()
+        {
+            if (_autoRouteRoutine != null)
+            {
+                StopCoroutine(_autoRouteRoutine);
+                _autoRouteRoutine = null;
+            }
         }
 
         private void EnsurePanelRect(float scale)
@@ -1188,6 +1210,7 @@ namespace CDE2501.Wayfinding.UI
                 {
                     SnapViewToStartNodeIfNeeded();
                     RecalculateCurrentRoute("Initial Auto Route");
+                    _autoRouteRoutine = null;
                     yield break;
                 }
 
@@ -1195,6 +1218,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             _status = "Startup timeout. Use R to retry route calculation.";
+            _autoRouteRoutine = null;
         }
 
         private void OnGraphLoaded(bool success, string message)

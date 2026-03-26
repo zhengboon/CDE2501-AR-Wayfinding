@@ -673,6 +673,7 @@ namespace CDE2501.Wayfinding.Routing
                 success = result.success,
                 totalCost = result.totalCost,
                 totalDistance = result.totalDistance,
+                estimatedWalkTimeSeconds = result.estimatedWalkTimeSeconds,
                 message = result.message,
                 recalcReason = result.recalcReason,
                 nodePath = result.nodePath != null ? new List<string>(result.nodePath) : new List<string>()

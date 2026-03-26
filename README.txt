@@ -47,6 +47,11 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - GPS/Compass overlays now include detailed runtime status messages to speed up debugging.
 
 ## 3.1 Recent Improvements (This Update)
+- Fixed route ETA persistence on reused routes:
+  - `RouteCalculator.CloneRouteResult(...)` now copies `estimatedWalkTimeSeconds`, so cached/throttled/hysteresis reuse keeps correct ETA in overlay
+- Fixed minimap follow-heading interaction mapping:
+  - Click/hover world mapping now inverse-rotates pointer coordinates in follow-heading mode
+  - Zoom pivot and pan drag deltas are transformed to the rotated map frame, so interaction stays aligned while turning
 - Added sensor diagnostics:
   - `GPSManager.StatusMessage`
   - `CompassManager.StatusMessage`

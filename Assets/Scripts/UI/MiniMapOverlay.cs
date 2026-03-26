@@ -439,11 +439,7 @@ namespace CDE2501.Wayfinding.UI
             HandleMapInteraction(mapRect);
             UpdateMapView(mapRect.size);
 
-            float currentHeading = 0f;
-            if (followHeading && startReferenceTransform != null)
-            {
-                currentHeading = startReferenceTransform.eulerAngles.y;
-            }
+            float currentHeading = GetCurrentHeadingDegrees();
 
             DrawFilledRect(mapRect, mapBackgroundColor);
 
@@ -1828,6 +1824,7 @@ namespace CDE2501.Wayfinding.UI
                     : _targetMapZoom / (1f + zoomStep);
 
                 Vector2 pivotLocal = mouse - mapRect.position;
+                pivotLocal = ScreenLocalToMapLocal(pivotLocal, mapRect.size);
                 SetMapZoom(targetZoom, mapRect.size, pivotLocal);
                 e.Use();
                 return;
@@ -1852,7 +1849,7 @@ namespace CDE2501.Wayfinding.UI
             {
                 Vector2 delta = mouse - _lastPanMousePosition;
                 _lastPanMousePosition = mouse;
-                _targetMapPanPixels += delta;
+                _targetMapPanPixels += ScreenDeltaToMapDelta(delta);
                 ClampMapPan(ref _targetMapPanPixels, _targetMapZoom, mapRect.size);
 
                 if (_clickCandidate &&
@@ -1879,6 +1876,7 @@ namespace CDE2501.Wayfinding.UI
                 if (isClick)
                 {
                     Vector2 local = mouse - mapRect.position;
+                    local = ScreenLocalToMapLocal(local, mapRect.size);
 
                     if (!TrySelectVideoFromMiniMap(local, mapRect.size))
                     {
@@ -2208,6 +2206,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             Vector2 mapLocalPoint = mouse - mapRect.position;
+            mapLocalPoint = ScreenLocalToMapLocal(mapLocalPoint, mapRect.size);
             Vector3 worldEstimate = MiniMapPointToWorld(mapLocalPoint, mapRect.size);
             if (!TryGetNearestNode(worldEstimate, out Node nearestNode, out float distanceMeters))
             {
@@ -2263,6 +2262,39 @@ namespace CDE2501.Wayfinding.UI
             }
             
             return nearestVideo != null;
+        }
+
+        private float GetCurrentHeadingDegrees()
+        {
+            if (followHeading && startReferenceTransform != null)
+            {
+                return startReferenceTransform.eulerAngles.y;
+            }
+
+            return 0f;
+        }
+
+        private Vector2 ScreenLocalToMapLocal(Vector2 screenLocalPoint, Vector2 mapSize)
+        {
+            float heading = GetCurrentHeadingDegrees();
+            if (!followHeading || Mathf.Abs(heading) < 0.0001f)
+            {
+                return screenLocalPoint;
+            }
+
+            Vector2 center = mapSize * 0.5f;
+            return center + Rotate2D(screenLocalPoint - center, heading);
+        }
+
+        private Vector2 ScreenDeltaToMapDelta(Vector2 screenDelta)
+        {
+            float heading = GetCurrentHeadingDegrees();
+            if (!followHeading || Mathf.Abs(heading) < 0.0001f)
+            {
+                return screenDelta;
+            }
+
+            return Rotate2D(screenDelta, heading);
         }
 
         private void DrawScreenHoverTooltip(float scale)
