@@ -34,7 +34,7 @@ namespace CDE2501.Wayfinding.Profiles
         public RoutingProfile GetByMode(RoutingMode mode)
         {
             string expected = mode == RoutingMode.Wheelchair ? "Wheelchair" : "NormalElderly";
-            return profiles.Find(p => p.profileName == expected);
+            return profiles.Find(p => string.Equals(p.profileName, expected, System.StringComparison.OrdinalIgnoreCase));
         }
     }
 }

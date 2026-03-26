@@ -100,6 +100,7 @@ namespace CDE2501.Wayfinding.UI
         private VideoFrameMapVisualizer _videoFrameMapVisualizer;
         private StreetViewExplorer _streetViewExplorer;
         private BoundaryConstraintManager _boundaryConstraintManager;
+        private TelemetryRecorder _telemetryRecorder;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
@@ -293,12 +294,23 @@ namespace CDE2501.Wayfinding.UI
                 }
             }
 
-            bool newNearestStart = GUI.Toggle(new Rect(512f, 34f, 220f, 24f), useNearestNodeAsStart, $"Nearest Start: {(useNearestNodeAsStart ? "True" : "False")}");
+            bool newNearestStart = GUI.Toggle(new Rect(512f, 34f, 140f, 24f), useNearestNodeAsStart, $"Nearest Start: {(useNearestNodeAsStart ? "True" : "False")}");
             if (newNearestStart != useNearestNodeAsStart)
             {
                 useNearestNodeAsStart = newNearestStart;
                 shouldRecalculate = true;
                 pendingRecalcReason = "Nearest Start UI toggle";
+            }
+
+            if (_telemetryRecorder != null)
+            {
+                bool isRecording = _telemetryRecorder.IsRecording;
+                bool newRecording = GUI.Toggle(new Rect(658f, 34f, 80f, 24f), isRecording, isRecording ? "Rec: ON" : "Rec: OFF");
+                if (newRecording != isRecording)
+                {
+                    if (newRecording) _telemetryRecorder.StartRecording();
+                    else _telemetryRecorder.StopRecording();
+                }
             }
 
             if (!disableYoutubeImageSystems && _streetViewExplorer != null)
@@ -385,7 +397,7 @@ namespace CDE2501.Wayfinding.UI
             string routeMessage = _lastRouteResult == null
                 ? "No route yet."
                 : (_lastRouteResult.success
-                    ? $"Path nodes: {_lastRouteResult.nodePath.Count}, dist: {_lastRouteResult.totalDistance:0.0} m, msg: {_lastRouteResult.message}"
+                    ? $"Route: {_lastRouteResult.totalDistance:0.0} m, ~{_lastRouteResult.estimatedWalkTimeSeconds / 60f:0.1} min ({_lastRouteResult.nodePath.Count} nodes)"
                     : $"Route failed: {_lastRouteResult.message}");
 
             string mediaSystemsText = disableYoutubeImageSystems
@@ -414,6 +426,7 @@ namespace CDE2501.Wayfinding.UI
                 $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
+                $"Telemetry: {(_telemetryRecorder != null ? (_telemetryRecorder.IsRecording ? $"Rec -> {_telemetryRecorder.CurrentSessionFile}" : "Ready") : "missing")}\n" +
                 $"Map area: {(useNusMapArea ? "NUS Engineering" : "Queenstown")}\n" +
                 $"Map files: mini={(_activeMiniMapImageFile ?? "n/a")}, ref={(_activeReferenceMapImageFile ?? "n/a")}\n" +
                 $"Data files: graph={(_activeGraphFile ?? "n/a")}, locations={(_activeLocationsFile ?? "n/a")}\n" +
@@ -780,6 +793,7 @@ namespace CDE2501.Wayfinding.UI
             _locationManager = FindObjectOfType<LocationManager>();
             _levelManager = FindObjectOfType<LevelManager>();
             _boundaryConstraintManager = FindObjectOfType<BoundaryConstraintManager>();
+            _telemetryRecorder = FindObjectOfType<TelemetryRecorder>();
 
             if (!autoCreateManagers)
             {
@@ -819,6 +833,11 @@ namespace CDE2501.Wayfinding.UI
             if (_levelManager == null)
             {
                 _levelManager = gameObject.AddComponent<LevelManager>();
+            }
+
+            if (_telemetryRecorder == null)
+            {
+                _telemetryRecorder = gameObject.AddComponent<TelemetryRecorder>();
             }
 
             if (_boundaryConstraintManager == null)
@@ -1110,6 +1129,11 @@ namespace CDE2501.Wayfinding.UI
                 _locationManager.OnLocationsChanged += OnLocationsChanged;
             }
 
+            if (_graphLoader != null)
+            {
+                _graphLoader.OnGraphLoaded += OnGraphLoaded;
+            }
+
             if (_routeCalculator != null)
             {
                 _routeCalculator.OnRouteUpdated += OnRouteUpdated;
@@ -1133,6 +1157,11 @@ namespace CDE2501.Wayfinding.UI
             if (_locationManager != null)
             {
                 _locationManager.OnLocationsChanged -= OnLocationsChanged;
+            }
+
+            if (_graphLoader != null)
+            {
+                _graphLoader.OnGraphLoaded -= OnGraphLoaded;
             }
 
             if (_routeCalculator != null)
@@ -1168,6 +1197,16 @@ namespace CDE2501.Wayfinding.UI
             _status = "Startup timeout. Use R to retry route calculation.";
         }
 
+        private void OnGraphLoaded(bool success, string message)
+        {
+            // Re-validate destinations after graph loads — they may have been
+            // deferred if locations arrived before the graph was ready.
+            _uiDestinationsDirty = true;
+            RefreshUIDestinations();
+            destinationIndex = Mathf.Clamp(destinationIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
+            UpdateSelectedDestinationMarker();
+        }
+
         private void OnLocationsChanged()
         {
             if (_isSeedingFallbackLocations)
@@ -1192,6 +1231,20 @@ namespace CDE2501.Wayfinding.UI
                 _destinationDropdownExpanded = _destinationDropdownExpanded && _uiDestinations.Count > 0;
                 UpdateSelectedDestinationMarker();
                 _status = "Fallback cube locations seeded.";
+                return;
+            }
+
+            // Defer routability check if graph hasn't loaded yet — the check
+            // requires graph nodes to exist. Once the graph loads, the UI
+            // destinations will be re-validated via the normal refresh cycle.
+            bool graphReady = _graphLoader != null && _graphLoader.NodesById.Count > 0;
+            if (!graphReady)
+            {
+                RefreshUIDestinations();
+                destinationIndex = Mathf.Clamp(destinationIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
+                _destinationDropdownExpanded = _destinationDropdownExpanded && _uiDestinations.Count > 0;
+                UpdateSelectedDestinationMarker();
+                _status = "Locations loaded (graph pending).";
                 return;
             }
 

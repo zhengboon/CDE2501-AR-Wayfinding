@@ -50,17 +50,10 @@ namespace CDE2501.Wayfinding.Routing
             var cameFrom = new Dictionary<string, string>();
             var gScore = new Dictionary<string, float>();
 
-            foreach (var nodeId in _nodes.Keys)
-            {
-                if (nodeEligibility != null && !nodeEligibility(nodeId))
-                {
-                    continue;
-                }
-
-                gScore[nodeId] = float.PositiveInfinity;
-            }
-
-            if (!gScore.ContainsKey(request.startNodeId) || !gScore.ContainsKey(request.endNodeId))
+            // Lazy initialization: only set start node score.
+            // Unvisited nodes are implicitly float.PositiveInfinity.
+            if (nodeEligibility != null &&
+                (!nodeEligibility(request.startNodeId) || !nodeEligibility(request.endNodeId)))
             {
                 return RouteResult.Failed("Start or destination is outside the active boundary.");
             }
@@ -86,6 +79,8 @@ namespace CDE2501.Wayfinding.Routing
                     continue;
                 }
 
+                float currentG = gScore.TryGetValue(current, out float cg) ? cg : float.PositiveInfinity;
+
                 foreach (Edge edge in neighbors)
                 {
                     string neighbor = edge.toNode;
@@ -94,14 +89,15 @@ namespace CDE2501.Wayfinding.Routing
                         continue;
                     }
 
-                    if (!gScore.ContainsKey(neighbor))
+                    if (!_nodes.ContainsKey(neighbor))
                     {
                         continue;
                     }
 
-                    float tentativeG = gScore[current] + ComputeEdgeCost(edge, request, profile, rainSlopeMultiplier);
+                    float tentativeG = currentG + ComputeEdgeCost(edge, request, profile, rainSlopeMultiplier);
+                    float neighborG = gScore.TryGetValue(neighbor, out float ng) ? ng : float.PositiveInfinity;
 
-                    if (tentativeG >= gScore[neighbor])
+                    if (tentativeG >= neighborG)
                     {
                         continue;
                     }

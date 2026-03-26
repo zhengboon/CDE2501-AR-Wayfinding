@@ -14,6 +14,42 @@ EARTH_RADIUS_M = 6378137.0
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 KML_NS = {"kml": "http://www.opengis.net/kml/2.2"}
 
+# Through-building corridor definitions for NUS Engineering.
+# Each tuple: (building_A, building_B, sheltered, estimated_corridor_distance_m)
+# Based on Faculty of Engineering campus layout — covered link bridges and corridors.
+CORRIDOR_DEFINITIONS: List[Tuple[str, str, bool, float]] = [
+    # EA wing <-> E1A <-> E2 chain (Level 2 link bridge)
+    ("EA", "E1A", True, 35.0),
+    ("EA", "E3A", True, 50.0),
+    ("E1A", "E2", True, 30.0),
+    ("E1A", "E1", True, 25.0),
+    # E2 wing connections
+    ("E2", "E2A", True, 25.0),
+    ("E2", "LT1", True, 20.0),
+    ("E2", "LT2", True, 15.0),
+    ("E2", "E3", True, 30.0),
+    # E3 cluster
+    ("E3", "E3A", True, 45.0),
+    ("E3", "LT1", True, 25.0),
+    ("E3", "LT2", True, 20.0),
+    ("E3", "T-Labs", True, 55.0),
+    # E4 wing
+    ("E4", "E4A", True, 30.0),
+    ("E4", "LT6", True, 35.0),
+    ("E4", "E5", True, 55.0),
+    # E1 <-> E2A south path
+    ("E1", "E2A", True, 30.0),
+    ("E2A", "LT6", True, 40.0),
+    # E5/E4A south links
+    ("E4A", "E5", True, 40.0),
+    ("E5", "IT(Bus Stop)", False, 50.0),
+    ("E4A", "IT(Bus Stop)", False, 45.0),
+    # E6 east wing
+    ("E6", "E4", True, 55.0),
+    ("E6", "E4A", True, 40.0),
+    ("E6", "T-Labs", True, 60.0),
+]
+
 
 def clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
@@ -86,6 +122,10 @@ def parse_kml_points(kml_path: pathlib.Path, polygon_name: str) -> List[Dict[str
         name_el = placemark.find("kml:name", KML_NS)
         name_text = (name_el.text.strip() if name_el is not None and name_el.text else "")
         if not name_text or name_text == polygon_name:
+            continue
+
+        # Skip unnamed/untitled placemarks — they have no meaningful destination name.
+        if name_text.lower().startswith("untitled"):
             continue
 
         point_el = placemark.find(".//kml:Point//kml:coordinates", KML_NS)
@@ -280,7 +320,11 @@ def main() -> int:
     parser.add_argument("--connector-max-distance-m", type=float, default=120.0)
     parser.add_argument("--synthetic-k", type=int, default=3)
     parser.add_argument("--synthetic-max-distance-m", type=float, default=220.0)
+    parser.add_argument("--through-building-corridors", action="store_true", default=False,
+                        help="Generate through-building corridor walkway edges using CORRIDOR_DEFINITIONS")
     parser.add_argument("--raw-cache", type=pathlib.Path, default=None)
+    parser.add_argument("--use-cache", action="store_true", default=False,
+                        help="Use cached OSM data from --raw-cache instead of querying Overpass API")
     args = parser.parse_args()
 
     if not args.kml.exists():
@@ -305,11 +349,17 @@ def main() -> int:
 
     anchor_lat, anchor_lon = polygon_centroid(polygon)
 
-    print(f"[info] Overpass bbox: [{min_lat}, {min_lon}, {max_lat}, {max_lon}]")
-    osm = overpass_query(min_lat, min_lon, max_lat, max_lon)
-    if args.raw_cache is not None:
-        args.raw_cache.parent.mkdir(parents=True, exist_ok=True)
-        args.raw_cache.write_text(json.dumps(osm, indent=2), encoding="utf-8")
+    # Load OSM data: use cache if available and --use-cache is set, otherwise query Overpass API.
+    osm = None
+    if args.use_cache and args.raw_cache is not None and args.raw_cache.exists():
+        print(f"[info] Loading OSM data from cache: {args.raw_cache}")
+        osm = json.loads(args.raw_cache.read_text(encoding="utf-8"))
+    else:
+        print(f"[info] Overpass bbox: [{min_lat}, {min_lon}, {max_lat}, {max_lon}]")
+        osm = overpass_query(min_lat, min_lon, max_lat, max_lon)
+        if args.raw_cache is not None:
+            args.raw_cache.parent.mkdir(parents=True, exist_ok=True)
+            args.raw_cache.write_text(json.dumps(osm, indent=2), encoding="utf-8")
 
     elements = osm.get("elements", [])
     node_geo: Dict[int, Tuple[float, float]] = {}
@@ -488,6 +538,59 @@ def main() -> int:
             synthetic_count += 1
             linked += 1
 
+    # Through-building corridor edges (sheltered indoor paths between buildings).
+    corridor_count = 0
+    if args.through_building_corridors:
+        # Build a name→node_id map from the KML points
+        name_to_node: Dict[str, str] = {}
+        name_to_geo: Dict[str, Tuple[float, float]] = {}
+        for loc in locations_json:
+            name_to_node[loc["name"]] = loc["indoor_node_id"]
+            name_to_geo[loc["name"]] = (float(loc["gps_lat"]), float(loc["gps_lon"]))
+
+        for bldg_a, bldg_b, sheltered, corridor_dist in CORRIDOR_DEFINITIONS:
+            a_id = name_to_node.get(bldg_a)
+            b_id = name_to_node.get(bldg_b)
+            if a_id is None or b_id is None:
+                continue
+            if a_id not in nodes_by_id or b_id not in nodes_by_id:
+                continue
+
+            # Create a corridor junction node at the midpoint
+            a_pos = nodes_by_id[a_id]["position"]
+            b_pos = nodes_by_id[b_id]["position"]
+            mid_x = round((a_pos["x"] + b_pos["x"]) * 0.5, 3)
+            mid_z = round((a_pos["z"] + b_pos["z"]) * 0.5, 3)
+            junction_id = f"{args.node_prefix}_COR_{sanitize_id(bldg_a)}_{sanitize_id(bldg_b)}"
+
+            nodes_by_id[junction_id] = {
+                "id": junction_id,
+                "position": {"x": mid_x, "y": 0.0, "z": mid_z},
+                "elevationLevel": 0,
+                "hasStairs": False,
+                "slopeLevel": 0.02,
+                "lightingLevel": 0.85,
+                "clutterLevel": 0.15,
+                "widthLevel": 0.75,
+                "sheltered": sheltered,
+            }
+
+            half_dist = round(max(0.5, corridor_dist * 0.5), 3)
+            corridor_attrs = {
+                "distance": half_dist,
+                "slope": 0.02,
+                "hasStairs": False,
+                "sheltered": sheltered,
+                "clutter": 0.15,
+                "lighting": 0.85,
+                "width": 0.75,
+            }
+            add_edge(edge_by_key, a_id, junction_id, corridor_attrs)
+            add_edge(edge_by_key, junction_id, a_id, corridor_attrs)
+            add_edge(edge_by_key, junction_id, b_id, corridor_attrs)
+            add_edge(edge_by_key, b_id, junction_id, corridor_attrs)
+            corridor_count += 1
+
     node_list = [nodes_by_id[k] for k in sorted(nodes_by_id.keys())]
     edge_list = [edge_by_key[k] for k in sorted(edge_by_key.keys())]
 
@@ -523,6 +626,7 @@ def main() -> int:
                 "totalEdges": len(edge_list),
                 "locationConnectors": connector_count,
                 "syntheticLinks": synthetic_count,
+                "corridorLinks": corridor_count,
                 "keptRoadSegments": kept_segments,
             },
         },
@@ -541,7 +645,7 @@ def main() -> int:
     print(f"[ok] graph: {args.graph_output}")
     print(f"[ok] locations: {args.locations_output}")
     print(f"[ok] boundary: {args.boundary_output}")
-    print(f"[ok] nodes={len(node_list)} edges={len(edge_list)} osmNodes={len(osm_node_ids)} connectors={connector_count} synthetic={synthetic_count}")
+    print(f"[ok] nodes={len(node_list)} edges={len(edge_list)} osmNodes={len(osm_node_ids)} connectors={connector_count} synthetic={synthetic_count} corridors={corridor_count}")
     return 0
 
 

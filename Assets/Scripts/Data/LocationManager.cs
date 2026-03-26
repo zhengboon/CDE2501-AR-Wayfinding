@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using CDE2501.Wayfinding.Utility;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -240,18 +241,7 @@ namespace CDE2501.Wayfinding.Data
 
         private static string WrapTopLevelArrayIfNeeded(string rawJson, string key)
         {
-            if (string.IsNullOrWhiteSpace(rawJson))
-            {
-                return "{}";
-            }
-
-            string trimmed = rawJson.TrimStart();
-            if (trimmed.StartsWith("["))
-            {
-                return "{\"" + key + "\":" + rawJson + "}";
-            }
-
-            return rawJson;
+            return DataFileUtility.WrapTopLevelArrayIfNeeded(rawJson, key);
         }
 
         private static IEnumerator CopyFromStreamingAssets(string sourcePath, string destinationPath)
@@ -274,15 +264,7 @@ namespace CDE2501.Wayfinding.Data
 
         private static string ToUnityWebRequestPath(string path)
         {
-            if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
-                path.Contains("://"))
-            {
-                return path;
-            }
-
-            return "file://" + path;
+            return DataFileUtility.ToUnityWebRequestPath(path);
         }
 
         private static string GetStreamingPath(string fileName)

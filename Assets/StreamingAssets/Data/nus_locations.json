@@ -91,13 +91,6 @@
     "indoor_node_id": "NUS_IT_BUS_STOP"
   },
   {
-    "name": "Untitled placemark",
-    "type": "Campus",
-    "gps_lat": 1.29933009461545,
-    "gps_lon": 103.7724498805967,
-    "indoor_node_id": "NUS_UNTITLED_PLACEMARK"
-  },
-  {
     "name": "E6",
     "type": "Campus",
     "gps_lat": 1.299165334236885,

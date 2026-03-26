@@ -5,6 +5,7 @@ using System.IO;
 using CDE2501.Wayfinding.Data;
 using CDE2501.Wayfinding.IndoorGraph;
 using CDE2501.Wayfinding.Profiles;
+using CDE2501.Wayfinding.Utility;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -36,6 +37,7 @@ namespace CDE2501.Wayfinding.Routing
         public List<string> nodePath = new List<string>();
         public float totalCost;
         public float totalDistance;
+        public float estimatedWalkTimeSeconds;
         public bool success;
         public string message;
 
@@ -73,6 +75,8 @@ namespace CDE2501.Wayfinding.Routing
         [SerializeField, Min(0f)] private float recalcCooldownSeconds = 0f;
         [SerializeField] private bool queueRecalculationDuringCooldown = true;
         [SerializeField, Min(0f)] private float switchRouteCostAdvantage = 2.0f;
+        [SerializeField, Min(0.1f)] private float elderlyWalkSpeedMetersPerSecond = 1.0f;
+        [SerializeField, Min(0.1f)] private float wheelchairSpeedMetersPerSecond = 0.8f;
 
         private RoutingProfilesConfig _profilesConfig;
         private AStarPathfinder _pathfinder;
@@ -462,6 +466,10 @@ namespace CDE2501.Wayfinding.Routing
             if (result.success)
             {
                 result.totalDistance = ComputePathDistance(result.nodePath);
+                float speed = request.mode == RoutingMode.Wheelchair
+                    ? Mathf.Max(0.1f, wheelchairSpeedMetersPerSecond)
+                    : Mathf.Max(0.1f, elderlyWalkSpeedMetersPerSecond);
+                result.estimatedWalkTimeSeconds = result.totalDistance / speed;
 
                 // Apply Hysteresis: Only switch if the new route is significantly better, and destination matches.
                 if (_lastComputedResult != null && _lastComputedResult.success && _lastComputedResult.nodePath != null && _lastComputedResult.nodePath.Count > 0)
@@ -673,18 +681,7 @@ namespace CDE2501.Wayfinding.Routing
 
         private static string WrapTopLevelArrayIfNeeded(string rawJson, string key)
         {
-            if (string.IsNullOrWhiteSpace(rawJson))
-            {
-                return "{}";
-            }
-
-            string trimmed = rawJson.TrimStart();
-            if (trimmed.StartsWith("["))
-            {
-                return "{\"" + key + "\":" + rawJson + "}";
-            }
-
-            return rawJson;
+            return DataFileUtility.WrapTopLevelArrayIfNeeded(rawJson, key);
         }
 
         private static IEnumerator CopyFromStreamingAssets(string sourcePath, string destinationPath)
@@ -712,15 +709,7 @@ namespace CDE2501.Wayfinding.Routing
 
         private static string ToUnityWebRequestPath(string path)
         {
-            if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
-                path.Contains("://"))
-            {
-                return path;
-            }
-
-            return "file://" + path;
+            return DataFileUtility.ToUnityWebRequestPath(path);
         }
     }
 }

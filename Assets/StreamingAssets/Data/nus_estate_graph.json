@@ -28,14 +28,360 @@
         "maxLon": 103.77402113151231
       },
       "osmRoadNodes": 385,
-      "totalNodes": 402,
-      "totalEdges": 996,
-      "locationConnectors": 51,
-      "syntheticLinks": 51,
+      "totalNodes": 424,
+      "totalEdges": 1080,
+      "locationConnectors": 48,
+      "syntheticLinks": 48,
+      "corridorLinks": 23,
       "keptRoadSegments": 413
     }
   },
   "nodes": [
+    {
+      "id": "NUS_COR_E1A_E1",
+      "position": {
+        "x": -101.737,
+        "y": 0.0,
+        "z": 31.155
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E1A_E2",
+      "position": {
+        "x": -102.559,
+        "y": 0.0,
+        "z": 70.875
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E1_E2A",
+      "position": {
+        "x": -77.477,
+        "y": 0.0,
+        "z": 2.021
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E2A_LT6",
+      "position": {
+        "x": -30.521,
+        "y": 0.0,
+        "z": 0.647
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E2_E2A",
+      "position": {
+        "x": -78.298,
+        "y": 0.0,
+        "z": 41.741
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E2_E3",
+      "position": {
+        "x": -56.043,
+        "y": 0.0,
+        "z": 68.805
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E2_LT1",
+      "position": {
+        "x": -82.569,
+        "y": 0.0,
+        "z": 78.12
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E2_LT2",
+      "position": {
+        "x": -78.962,
+        "y": 0.0,
+        "z": 66.176
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E3_E3A",
+      "position": {
+        "x": -40.532,
+        "y": 0.0,
+        "z": 117.595
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E3_LT1",
+      "position": {
+        "x": -47.568,
+        "y": 0.0,
+        "z": 70.587
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E3_LT2",
+      "position": {
+        "x": -43.961,
+        "y": 0.0,
+        "z": 58.642
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E3_T_LABS",
+      "position": {
+        "x": -0.323,
+        "y": 0.0,
+        "z": 87.723
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E4A_E5",
+      "position": {
+        "x": 64.011,
+        "y": 0.0,
+        "z": -50.252
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E4A_IT_BUS_STOP",
+      "position": {
+        "x": 69.54,
+        "y": 0.0,
+        "z": -71.444
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": false
+    },
+    {
+      "id": "NUS_COR_E4_E4A",
+      "position": {
+        "x": 60.529,
+        "y": 0.0,
+        "z": -26.02
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E4_E5",
+      "position": {
+        "x": 48.622,
+        "y": 0.0,
+        "z": -60.078
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E4_LT6",
+      "position": {
+        "x": 24.826,
+        "y": 0.0,
+        "z": -20.848
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E5_IT_BUS_STOP",
+      "position": {
+        "x": 57.633,
+        "y": 0.0,
+        "z": -105.502
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": false
+    },
+    {
+      "id": "NUS_COR_E6_E4",
+      "position": {
+        "x": 82.54,
+        "y": 0.0,
+        "z": 3.975
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E6_E4A",
+      "position": {
+        "x": 97.928,
+        "y": 0.0,
+        "z": 13.801
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_E6_T_LABS",
+      "position": {
+        "x": 70.167,
+        "y": 0.0,
+        "z": 78.984
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_EA_E1A",
+      "position": {
+        "x": -115.45,
+        "y": 0.0,
+        "z": 100.864
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
+    {
+      "id": "NUS_COR_EA_E3A",
+      "position": {
+        "x": -88.423,
+        "y": 0.0,
+        "z": 155.117
+      },
+      "elevationLevel": 0,
+      "hasStairs": false,
+      "slopeLevel": 0.02,
+      "lightingLevel": 0.85,
+      "clutterLevel": 0.15,
+      "widthLevel": 0.75,
+      "sheltered": true
+    },
     {
       "id": "NUS_E1",
       "position": {
@@ -267,21 +613,6 @@
         "x": 20.396,
         "y": 0.0,
         "z": 114.174
-      },
-      "elevationLevel": 0,
-      "hasStairs": false,
-      "slopeLevel": 0.04,
-      "lightingLevel": 0.78,
-      "clutterLevel": 0.2,
-      "widthLevel": 0.8,
-      "sheltered": false
-    },
-    {
-      "id": "NUS_UNTITLED_PLACEMARK",
-      "position": {
-        "x": 56.221,
-        "y": 0.0,
-        "z": 62.136
       },
       "elevationLevel": 0,
       "hasStairs": false,
@@ -6069,6 +6400,534 @@
   ],
   "edges": [
     {
+      "fromNode": "NUS_COR_E1A_E1",
+      "toNode": "NUS_E1",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E1A_E1",
+      "toNode": "NUS_E1A",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E1A_E2",
+      "toNode": "NUS_E1A",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E1A_E2",
+      "toNode": "NUS_E2",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E1_E2A",
+      "toNode": "NUS_E1",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E1_E2A",
+      "toNode": "NUS_E2A",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2A_LT6",
+      "toNode": "NUS_E2A",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2A_LT6",
+      "toNode": "NUS_LT6",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_E2A",
+      "toNode": "NUS_E2",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_E2A",
+      "toNode": "NUS_E2A",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_E3",
+      "toNode": "NUS_E2",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_E3",
+      "toNode": "NUS_E3",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_LT1",
+      "toNode": "NUS_E2",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_LT1",
+      "toNode": "NUS_LT1",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_LT2",
+      "toNode": "NUS_E2",
+      "distance": 7.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E2_LT2",
+      "toNode": "NUS_LT2",
+      "distance": 7.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_E3A",
+      "toNode": "NUS_E3",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_E3A",
+      "toNode": "NUS_E3A",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_LT1",
+      "toNode": "NUS_E3",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_LT1",
+      "toNode": "NUS_LT1",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_LT2",
+      "toNode": "NUS_E3",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_LT2",
+      "toNode": "NUS_LT2",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_T_LABS",
+      "toNode": "NUS_E3",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E3_T_LABS",
+      "toNode": "NUS_T_LABS",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4A_E5",
+      "toNode": "NUS_E4A",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4A_E5",
+      "toNode": "NUS_E5",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4A_IT_BUS_STOP",
+      "toNode": "NUS_E4A",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4A_IT_BUS_STOP",
+      "toNode": "NUS_IT_BUS_STOP",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4_E4A",
+      "toNode": "NUS_E4",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4_E4A",
+      "toNode": "NUS_E4A",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4_E5",
+      "toNode": "NUS_E4",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4_E5",
+      "toNode": "NUS_E5",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4_LT6",
+      "toNode": "NUS_E4",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E4_LT6",
+      "toNode": "NUS_LT6",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E5_IT_BUS_STOP",
+      "toNode": "NUS_E5",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E5_IT_BUS_STOP",
+      "toNode": "NUS_IT_BUS_STOP",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E6_E4",
+      "toNode": "NUS_E4",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E6_E4",
+      "toNode": "NUS_E6",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E6_E4A",
+      "toNode": "NUS_E4A",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E6_E4A",
+      "toNode": "NUS_E6",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E6_T_LABS",
+      "toNode": "NUS_E6",
+      "distance": 30.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_E6_T_LABS",
+      "toNode": "NUS_T_LABS",
+      "distance": 30.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_EA_E1A",
+      "toNode": "NUS_E1A",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_EA_E1A",
+      "toNode": "NUS_EA",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_EA_E3A",
+      "toNode": "NUS_E3A",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_COR_EA_E3A",
+      "toNode": "NUS_EA",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E1",
+      "toNode": "NUS_COR_E1A_E1",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E1",
+      "toNode": "NUS_COR_E1_E2A",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
       "fromNode": "NUS_E1",
       "toNode": "NUS_E1A",
       "distance": 72.818,
@@ -6133,6 +6992,39 @@
       "clutter": 0.2,
       "lighting": 0.8,
       "width": 0.8
+    },
+    {
+      "fromNode": "NUS_E1A",
+      "toNode": "NUS_COR_E1A_E1",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E1A",
+      "toNode": "NUS_COR_E1A_E2",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E1A",
+      "toNode": "NUS_COR_EA_E1A",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
     },
     {
       "fromNode": "NUS_E1A",
@@ -6213,6 +7105,61 @@
     },
     {
       "fromNode": "NUS_E2",
+      "toNode": "NUS_COR_E1A_E2",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E2",
+      "toNode": "NUS_COR_E2_E2A",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E2",
+      "toNode": "NUS_COR_E2_E3",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E2",
+      "toNode": "NUS_COR_E2_LT1",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E2",
+      "toNode": "NUS_COR_E2_LT2",
+      "distance": 7.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E2",
       "toNode": "NUS_E1A",
       "distance": 25.491,
       "slope": 0.05,
@@ -6287,6 +7234,39 @@
       "clutter": 0.2,
       "lighting": 0.8,
       "width": 0.8
+    },
+    {
+      "fromNode": "NUS_E2A",
+      "toNode": "NUS_COR_E1_E2A",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E2A",
+      "toNode": "NUS_COR_E2A_LT6",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E2A",
+      "toNode": "NUS_COR_E2_E2A",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
     },
     {
       "fromNode": "NUS_E2A",
@@ -6367,6 +7347,61 @@
     },
     {
       "fromNode": "NUS_E3",
+      "toNode": "NUS_COR_E2_E3",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E3",
+      "toNode": "NUS_COR_E3_E3A",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E3",
+      "toNode": "NUS_COR_E3_LT1",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E3",
+      "toNode": "NUS_COR_E3_LT2",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E3",
+      "toNode": "NUS_COR_E3_T_LABS",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E3",
       "toNode": "NUS_E2A",
       "distance": 70.08,
       "slope": 0.05,
@@ -6422,17 +7457,6 @@
     },
     {
       "fromNode": "NUS_E3",
-      "toNode": "NUS_UNTITLED_PLACEMARK",
-      "distance": 77.267,
-      "slope": 0.05,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.22,
-      "lighting": 0.78,
-      "width": 0.78
-    },
-    {
-      "fromNode": "NUS_E3",
       "toNode": "OSM_11919923184",
       "distance": 21.394,
       "slope": 0.04,
@@ -6463,6 +7487,28 @@
       "clutter": 0.2,
       "lighting": 0.8,
       "width": 0.8
+    },
+    {
+      "fromNode": "NUS_E3A",
+      "toNode": "NUS_COR_E3_E3A",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E3A",
+      "toNode": "NUS_COR_EA_E3A",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
     },
     {
       "fromNode": "NUS_E3A",
@@ -6529,6 +7575,50 @@
       "clutter": 0.2,
       "lighting": 0.8,
       "width": 0.8
+    },
+    {
+      "fromNode": "NUS_E4",
+      "toNode": "NUS_COR_E4_E4A",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E4",
+      "toNode": "NUS_COR_E4_E5",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E4",
+      "toNode": "NUS_COR_E4_LT6",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E4",
+      "toNode": "NUS_COR_E6_E4",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
     },
     {
       "fromNode": "NUS_E4",
@@ -6620,6 +7710,50 @@
     },
     {
       "fromNode": "NUS_E4A",
+      "toNode": "NUS_COR_E4A_E5",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E4A",
+      "toNode": "NUS_COR_E4A_IT_BUS_STOP",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E4A",
+      "toNode": "NUS_COR_E4_E4A",
+      "distance": 15.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E4A",
+      "toNode": "NUS_COR_E6_E4A",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E4A",
       "toNode": "NUS_E4",
       "distance": 36.517,
       "slope": 0.05,
@@ -6708,6 +7842,39 @@
     },
     {
       "fromNode": "NUS_E5",
+      "toNode": "NUS_COR_E4A_E5",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E5",
+      "toNode": "NUS_COR_E4_E5",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E5",
+      "toNode": "NUS_COR_E5_IT_BUS_STOP",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E5",
       "toNode": "NUS_E4",
       "distance": 48.961,
       "slope": 0.05,
@@ -6774,6 +7941,39 @@
     },
     {
       "fromNode": "NUS_E6",
+      "toNode": "NUS_COR_E6_E4",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E6",
+      "toNode": "NUS_COR_E6_E4A",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E6",
+      "toNode": "NUS_COR_E6_T_LABS",
+      "distance": 30.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_E6",
       "toNode": "NUS_E4",
       "distance": 109.259,
       "slope": 0.05,
@@ -6796,8 +7996,8 @@
     },
     {
       "fromNode": "NUS_E6",
-      "toNode": "NUS_UNTITLED_PLACEMARK",
-      "distance": 66.306,
+      "toNode": "NUS_T_LABS",
+      "distance": 121.91,
       "slope": 0.05,
       "hasStairs": false,
       "sheltered": false,
@@ -6837,6 +8037,28 @@
       "clutter": 0.2,
       "lighting": 0.8,
       "width": 0.8
+    },
+    {
+      "fromNode": "NUS_EA",
+      "toNode": "NUS_COR_EA_E1A",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_EA",
+      "toNode": "NUS_COR_EA_E3A",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
     },
     {
       "fromNode": "NUS_EA",
@@ -6906,6 +8128,28 @@
     },
     {
       "fromNode": "NUS_IT_BUS_STOP",
+      "toNode": "NUS_COR_E4A_IT_BUS_STOP",
+      "distance": 22.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_IT_BUS_STOP",
+      "toNode": "NUS_COR_E5_IT_BUS_STOP",
+      "distance": 25.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_IT_BUS_STOP",
       "toNode": "NUS_E4",
       "distance": 92.619,
       "slope": 0.05,
@@ -6969,6 +8213,28 @@
       "clutter": 0.2,
       "lighting": 0.8,
       "width": 0.8
+    },
+    {
+      "fromNode": "NUS_LT1",
+      "toNode": "NUS_COR_E2_LT1",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_LT1",
+      "toNode": "NUS_COR_E3_LT1",
+      "distance": 12.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
     },
     {
       "fromNode": "NUS_LT1",
@@ -7038,6 +8304,17 @@
     },
     {
       "fromNode": "NUS_LT1",
+      "toNode": "NUS_T_LABS",
+      "distance": 100.514,
+      "slope": 0.05,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.22,
+      "lighting": 0.78,
+      "width": 0.78
+    },
+    {
+      "fromNode": "NUS_LT1",
       "toNode": "OSM_11920135896",
       "distance": 11.136,
       "slope": 0.04,
@@ -7068,6 +8345,28 @@
       "clutter": 0.2,
       "lighting": 0.8,
       "width": 0.8
+    },
+    {
+      "fromNode": "NUS_LT2",
+      "toNode": "NUS_COR_E2_LT2",
+      "distance": 7.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_LT2",
+      "toNode": "NUS_COR_E3_LT2",
+      "distance": 10.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
     },
     {
       "fromNode": "NUS_LT2",
@@ -7170,6 +8469,28 @@
     },
     {
       "fromNode": "NUS_LT6",
+      "toNode": "NUS_COR_E2A_LT6",
+      "distance": 20.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_LT6",
+      "toNode": "NUS_COR_E4_LT6",
+      "distance": 17.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_LT6",
       "toNode": "NUS_E2A",
       "distance": 71.257,
       "slope": 0.05,
@@ -7247,6 +8568,28 @@
     },
     {
       "fromNode": "NUS_T_LABS",
+      "toNode": "NUS_COR_E3_T_LABS",
+      "distance": 27.5,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_T_LABS",
+      "toNode": "NUS_COR_E6_T_LABS",
+      "distance": 30.0,
+      "slope": 0.02,
+      "hasStairs": false,
+      "sheltered": true,
+      "clutter": 0.15,
+      "lighting": 0.85,
+      "width": 0.75
+    },
+    {
+      "fromNode": "NUS_T_LABS",
       "toNode": "NUS_E3",
       "distance": 67.199,
       "slope": 0.05,
@@ -7269,8 +8612,19 @@
     },
     {
       "fromNode": "NUS_T_LABS",
-      "toNode": "NUS_UNTITLED_PLACEMARK",
-      "distance": 63.177,
+      "toNode": "NUS_E6",
+      "distance": 121.91,
+      "slope": 0.05,
+      "hasStairs": false,
+      "sheltered": false,
+      "clutter": 0.22,
+      "lighting": 0.78,
+      "width": 0.78
+    },
+    {
+      "fromNode": "NUS_T_LABS",
+      "toNode": "NUS_LT1",
+      "distance": 100.514,
       "slope": 0.05,
       "hasStairs": false,
       "sheltered": false,
@@ -7304,72 +8658,6 @@
       "fromNode": "NUS_T_LABS",
       "toNode": "OSM_6944878781",
       "distance": 30.903,
-      "slope": 0.04,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.2,
-      "lighting": 0.8,
-      "width": 0.8
-    },
-    {
-      "fromNode": "NUS_UNTITLED_PLACEMARK",
-      "toNode": "NUS_E3",
-      "distance": 77.267,
-      "slope": 0.05,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.22,
-      "lighting": 0.78,
-      "width": 0.78
-    },
-    {
-      "fromNode": "NUS_UNTITLED_PLACEMARK",
-      "toNode": "NUS_E6",
-      "distance": 66.306,
-      "slope": 0.05,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.22,
-      "lighting": 0.78,
-      "width": 0.78
-    },
-    {
-      "fromNode": "NUS_UNTITLED_PLACEMARK",
-      "toNode": "NUS_T_LABS",
-      "distance": 63.177,
-      "slope": 0.05,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.22,
-      "lighting": 0.78,
-      "width": 0.78
-    },
-    {
-      "fromNode": "NUS_UNTITLED_PLACEMARK",
-      "toNode": "OSM_11919937966",
-      "distance": 3.38,
-      "slope": 0.04,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.2,
-      "lighting": 0.8,
-      "width": 0.8
-    },
-    {
-      "fromNode": "NUS_UNTITLED_PLACEMARK",
-      "toNode": "OSM_11919937968",
-      "distance": 24.647,
-      "slope": 0.04,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.2,
-      "lighting": 0.8,
-      "width": 0.8
-    },
-    {
-      "fromNode": "NUS_UNTITLED_PLACEMARK",
-      "toNode": "OSM_4636541603",
-      "distance": 24.598,
       "slope": 0.04,
       "hasStairs": false,
       "sheltered": false,
@@ -8721,17 +10009,6 @@
     },
     {
       "fromNode": "OSM_11919937966",
-      "toNode": "NUS_UNTITLED_PLACEMARK",
-      "distance": 3.38,
-      "slope": 0.04,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.2,
-      "lighting": 0.8,
-      "width": 0.8
-    },
-    {
-      "fromNode": "OSM_11919937966",
       "toNode": "OSM_11919937968",
       "distance": 23.661,
       "slope": 0.05,
@@ -8751,17 +10028,6 @@
       "clutter": 0.25,
       "lighting": 0.68,
       "width": 0.52
-    },
-    {
-      "fromNode": "OSM_11919937968",
-      "toNode": "NUS_UNTITLED_PLACEMARK",
-      "distance": 24.647,
-      "slope": 0.04,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.2,
-      "lighting": 0.8,
-      "width": 0.8
     },
     {
       "fromNode": "OSM_11919937968",
@@ -14504,17 +15770,6 @@
       "clutter": 0.25,
       "lighting": 0.68,
       "width": 0.52
-    },
-    {
-      "fromNode": "OSM_4636541603",
-      "toNode": "NUS_UNTITLED_PLACEMARK",
-      "distance": 24.598,
-      "slope": 0.04,
-      "hasStairs": false,
-      "sheltered": false,
-      "clutter": 0.2,
-      "lighting": 0.8,
-      "width": 0.8
     },
     {
       "fromNode": "OSM_4636541603",

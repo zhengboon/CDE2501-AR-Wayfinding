@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using CDE2501.Wayfinding.Utility;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -166,15 +167,7 @@ namespace CDE2501.Wayfinding.IndoorGraph
 
         private static string ToUnityWebRequestPath(string path)
         {
-            if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
-                path.StartsWith("file://", StringComparison.OrdinalIgnoreCase) ||
-                path.Contains("://"))
-            {
-                return path;
-            }
-
-            return "file://" + path;
+            return DataFileUtility.ToUnityWebRequestPath(path);
         }
 
         private static string GetStreamingPath(string fileName)

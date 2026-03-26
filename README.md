@@ -47,6 +47,19 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - GPS/Compass overlays now include detailed runtime status messages to speed up debugging.
 
 ## 3.1 Recent Improvements (This Update)
+- Added route ETA display:
+  - `RouteResult.estimatedWalkTimeSeconds` computed from configurable walk speeds (1.0 m/s elderly, 0.8 m/s wheelchair)
+  - Overlay now shows `dist: 245.2 m, ~3.4 min` alongside node count
+- Optimized A* pathfinder:
+  - Replaced O(N) gScore initialization with lazy init — only visited nodes are tracked
+  - Significant improvement for large graphs (1295+ nodes)
+- Created shared `DataFileUtility.cs`:
+  - Consolidated `ToUnityWebRequestPath`, `WrapTopLevelArrayIfNeeded`, `MakeSolidTexture` from 4+ files
+  - Reduces code duplication by ~80 lines
+- Fixed `CompassManager` fallback status:
+  - `StatusMessage` now correctly reports simulation fallback reasons on both sensor-unavailable paths
+- Fixed `RoutingProfile.GetByMode`:
+  - Profile name matching is now case-insensitive to prevent silent failures from JSON casing
 - Added sensor diagnostics:
   - `GPSManager.StatusMessage`
   - `CompassManager.StatusMessage`
@@ -81,6 +94,12 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - `UnityBuildCache/latest_build_summary.json`
   - `UnityBuildCache/latest_build_report.md`
   - `UnityBuildCache/logs/*.log`
+- Added telemetry data recording for alpha field testing:
+  - `Assets/Scripts/Location/TelemetryRecorder.cs`: records GPS, compass, route, and simulation state to CSV
+  - Quick Start overlay now has a `Rec: ON/OFF` toggle to start/stop recording
+  - Sessions saved to `Application.persistentDataPath/Telemetry/Session_YYYYMMDD_HHMMSS.csv`
+  - CSV columns: `Time,DateTime,Lat,Lon,Heading,StartNode,Destination,RouteDistance,IsSimulated`
+  - On Android APK: files retrievable from `Android/data/<bundle-id>/files/Telemetry/`
 
 ## 4) File Review by Module
 
@@ -91,6 +110,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - `Assets/Scripts/Location/SimulationProvider.cs`: WASD movement, yaw/pitch keys, speed/sprint, overlay window.
 - `Assets/Scripts/Location/SimulatedObjectDriver.cs`: applies simulated pose to camera/object transform.
 - `Assets/Scripts/Location/SensorSourceMode.cs`: `Auto`, `Simulation`, `DeviceSensors` enum.
+- `Assets/Scripts/Location/TelemetryRecorder.cs`: records GPS, compass, and route data to CSV for field data collection.
 
 ### 4.2 Graph + Routing
 - `Assets/Scripts/IndoorGraph/Node.cs`: node data model.
@@ -241,6 +261,7 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
 - Indoor elevation realism still depends on graph annotation quality and field tuning.
 - Full AR runtime validation still requires real ARCore/ARKit capable hardware.
 - NUS building inter-links include a synthetic connectivity assumption for MVP routing and should be field-validated.
+- Minimap follow-heading mode: when the user turns, route lines, destination markers, and other overlay elements break or misalign because the rotation transform is not applied consistently to all rendered elements.
 
 ## 9.1 Troubleshooting Matrix
 - Symptom: route does not update while moving
@@ -277,3 +298,22 @@ To view the generated project website:
 3. Tune routing weights in `routing_profiles.json` using field observations.
 4. Lock a stable baseline commit before expanding UI/feature scope.
 5. Add a second production UI profile (compact mode) that hides debug-heavy overlays.
+6. Build Android APK for alpha, share with testers, and collect telemetry CSV data from field walks.
+
+## 11.1) Future Plans
+1. Fix minimap follow-heading mode so route lines, markers, and overlays rotate correctly with the user's heading.
+2. Analyse collected telemetry CSV data to derive actual walking paths and compare against computed routes.
+3. Implement a post-processing pipeline that ingests telemetry CSVs and visualises walked vs. routed paths on a map.
+4. Use field-collected path data to refine graph edge weights and improve routing accuracy.
+5. Add indoor floor-level detection using barometer or AR plane detection for multi-storey buildings.
+6. Implement a lightweight "tester mode" UI that hides debug overlays and only shows essential wayfinding + record button.
+
+## 12) Alpha Testing — Telemetry Data Collection
+1. Build APK: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk`
+2. Install APK on tester's phone.
+3. Tester opens the app, waits for GPS/Compass to show ready.
+4. Tester taps `Rec: OFF` toggle in the Quick Start overlay to start recording.
+5. Tester walks their route.
+6. Tester taps `Rec: ON` to stop recording.
+7. Retrieve CSV files from: `Android/data/<bundle-id>/files/Telemetry/`.
+8. CSV columns: `Time,DateTime,Lat,Lon,Heading,StartNode,Destination,RouteDistance,IsSimulated`.

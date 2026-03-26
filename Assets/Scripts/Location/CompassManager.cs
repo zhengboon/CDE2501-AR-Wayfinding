@@ -83,6 +83,7 @@ namespace CDE2501.Wayfinding.Location
                         RawHeading = simulationProvider.CurrentHeading;
                         IsUsingSimulation = true;
                         IsReady = true;
+                        StatusMessage = "Compass fallback simulation active (sensor unavailable).";
                     }
                     else
                     {
@@ -100,6 +101,7 @@ namespace CDE2501.Wayfinding.Location
                         RawHeading = simulationProvider.CurrentHeading;
                         IsUsingSimulation = true;
                         IsReady = true;
+                        StatusMessage = "Compass fallback simulation active (accuracy unavailable).";
                     }
                     else
                     {

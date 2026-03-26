@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="CDE2501 AR Wayfinding MVP - Elderly-first AR guidance and safety-weighted routing for NUS and Queenstown.">
+    <title>CDE2501 AR Wayfinding</title>
+    
+    <!-- Modern Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <div class="logo">AR<span>Wayfinder</span></div>
+            <ul id="navLinks" class="nav-links">
+                <li><a href="#hero" class="active">Home</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#quickstart">Quick Start</a></li>
+                <li><a href="#docs">Docs</a></li>
+                <li><a href="#roadmap">Future</a></li>
+            </ul>
+            <div id="hamburger" class="hamburger">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header id="hero" class="hero section">
+        <div class="hero-content show-on-scroll">
+            <div class="badge">Unity 2022.3.62f3 AR MVP</div>
+            <h1>Navigate <span class="highlight">Tomorrow</span></h1>
+            <p>An advanced Unity AR Wayfinding project prioritizing elderly-first guidance, real-time safety routing, and seamless campus mapping for Queenstown estate and NUS Engineering.</p>
+            <div class="hero-buttons">
+                <a href="#quickstart" class="btn primary">Start Exploring</a>
+                <a href="#features" class="btn secondary">View Features</a>
+            </div>
+        </div>
+        
+        <!-- Animated Waveform -->
+        <div class="wave-container">
+            <svg viewBox="0 0 960 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- App.js targets these IDs -->
+                <polyline id="wave-b" fill="none" class="wave-b" stroke-width="2"/>
+                <polyline id="wave-a" fill="none" class="wave-a" stroke-width="2.5"/>
+            </svg>
+        </div>
+    </header>
+
+    <!-- Features Section -->
+    <section id="features" class="features section">
+        <div class="container">
+            <div class="section-header show-on-scroll">
+                <h2>Project Features</h2>
+                <p>Designed for robust, accessible, and scalable spatial computing.</p>
+            </div>
+            
+            <div class="grid">
+                <div class="card glass show-on-scroll">
+                    <div class="icon">🌍</div>
+                    <h3>Multi-Area Mapping</h3>
+                    <p>Runtime dynamic switching between Queenstown Estate and NUS Engineering contexts, instantly swapping maps, graphs, and destinations.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
+                    <div class="icon">🛡️</div>
+                    <h3>Safety-Weighted Routing</h3>
+                    <p>Optimized A* routes with ETA display, focused on elderly safety profiles and wheelchair accessibility over intricate local and OSM graphs.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
+                    <div class="icon">💻</div>
+                    <h3>Simulation Reality</h3>
+                    <p>Comprehensive keyboard simulation controls enable efficient laptop-first path testing before full hardware-dependent deployment.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
+                    <div class="icon">⚡</div>
+                    <h3>Extending Automation</h3>
+                    <p>Automated Unity cache-building, testing loops, and KML generation seamlessly handled by tailored backend python tooling.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
+                    <div class="icon">⏱️</div>
+                    <h3>Route ETA Display</h3>
+                    <p>Real-time walk-time estimates based on configurable speeds (1.0 m/s elderly, 0.8 m/s wheelchair) shown in the simulation overlay.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
+                    <div class="icon">🧩</div>
+                    <h3>Shared Utility Layer</h3>
+                    <p>Centralized DataFileUtility class eliminates ~80 lines of duplicated helpers across 4+ scripts for cleaner, more maintainable code.</p>
+                </div>
+                
+                <div class="card glass show-on-scroll">
+                    <div class="icon">📊</div>
+                    <h3>Telemetry Recording</h3>
+                    <p>One-tap CSV data capture of GPS, compass, and route data during field walks. Collect real path data from APK testers to validate and improve routing.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Demo / Maps Section -->
+    <section id="demo" class="demo section">
+        <div class="container show-on-scroll">
+            <div class="demo-wrapper glass">
+                <div class="demo-text">
+                    <h2>Immersive Wayfinding</h2>
+                    <p>The core engine supports data-driven <b>Street View Images</b> to augment the user's route. Real-world location mapping allows easy validation on a minimap before committing to an AR trip.</p>
+                    <ul class="feature-list">
+                        <li>📍 GPS & Compass accurate tracking</li>
+                        <li>🗺️ Data-driven OSM graph rendering</li>
+                        <li>🚀 ARCore / ARKit compatible targets</li>
+                        <li>⏱️ Estimated walk time (~min) in route overlay</li>
+                    </ul>
+                </div>
+                <div class="demo-visual">
+                    <!-- Placeholder visual since we don't have a real screenshot -->
+                    <div class="mock-ui">
+                        <div class="mock-header">
+                            <span class="status pulse">GPS Ready</span>
+                            <span class="status pulse">Compass Ready</span>
+                        </div>
+                        <div class="mock-path">
+                            <div class="path-node start">A</div>
+                            <div class="path-line"></div>
+                            <div class="path-node end">B</div>
+                        </div>
+                        <div class="mock-footer">
+                            <div class="mock-btn">Sim Mode [F2]</div>
+                            <div class="mock-btn secondary">Recalc [F5]</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Quick Start -->
+    <section id="quickstart" class="quickstart section">
+        <div class="container">
+            <div class="section-header show-on-scroll">
+                <h2>Quick Start</h2>
+                <p>Get up and running locally with the Wayfinding ecosystem in minutes.</p>
+            </div>
+            
+            <div class="step-card glass show-on-scroll">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h3>Environment Setup</h3>
+                    <p>Install Unity Hub and Editor <b>2022.3.62f3</b> with Android/iOS modules.</p>
+                </div>
+            </div>
+            
+            <div class="step-card glass show-on-scroll">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h3>Cached Build Launch</h3>
+                    <p>Run the automated script to utilize our fingerprint cache system for rapid iterative testing.</p>
+                    <div class="code-block">
+                        <pre><code id="launch-cmd">python scripts/unity_cached_builder.py --launch-editor</code></pre>
+                        <button class="btn-copy" data-copy-target="launch-cmd">Copy</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step-card glass show-on-scroll">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h3>Generate Maps from KML</h3>
+                    <p>Build the map atlases automatically using our data generation pipeline.</p>
+                    <div class="code-block">
+                        <pre><code id="kml-cmd">build_engineering_nus_map.bat</code></pre>
+                        <button class="btn-copy" data-copy-target="kml-cmd">Copy</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="step-card glass show-on-scroll">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    <h3>Alpha Testing — Record Data</h3>
+                    <p>Build the APK, install on a tester's phone, and use the <b>Rec: ON/OFF</b> toggle in the Quick Start overlay to gather GPS &amp; route telemetry as CSV.</p>
+                    <div class="code-block">
+                        <pre><code id="apk-cmd">python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk</code></pre>
+                        <button class="btn-copy" data-copy-target="apk-cmd">Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Docs / Troubleshooting -->
+    <section id="docs" class="docs section">
+        <div class="container show-on-scroll">
+            <div class="section-header">
+                <h2>Troubleshooting</h2>
+                <p>Common issues and straightforward solutions.</p>
+            </div>
+
+            <div class="acc-wrapper">
+                <div class="doc-card glass">
+                    <h4>Route does not update while moving</h4>
+                    <p><b>Check:</b> <code>Sim Mode</code> is true and <code>Main Camera</code> is present. <br><b>Action:</b> Press <kbd>F5</kbd> for manual recalc, then move with <kbd>WASD</kbd>.</p>
+                </div>
+                
+                <div class="doc-card glass">
+                    <h4>Play mode shows only sky/ground</h4>
+                    <p><b>Check:</b> Active scene might be <code>Untitled</code>. <br><b>Action:</b> Stop Play mode, open <code>Assets/Scenes/Main.unity</code>, and hit Play again.</p>
+                </div>
+                
+                <div class="doc-card glass">
+                    <h4>GPS & Compass show "not ready"</h4>
+                    <p><b>Check:</b> Device sensor state overlays. <br><b>Action:</b> On laptop, toggle simulation mode <kbd>F2</kbd>. On mobile, enable Location Services and calibrate the device compass.</p>
+                </div>
+                
+                <div class="doc-card glass">
+                    <h4>Minimap elements break when turning (follow heading)</h4>
+                    <p><b>Check:</b> Follow-heading mode is active and the user rotates. <br><b>Action:</b> Known issue — route lines, markers and overlays misalign during rotation. A fix is planned for a future update.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Future Plans -->
+    <section id="roadmap" class="docs section">
+        <div class="container show-on-scroll">
+            <div class="section-header">
+                <h2>Future Plans</h2>
+                <p>What's next on the roadmap.</p>
+            </div>
+
+            <div class="acc-wrapper">
+                <div class="doc-card glass">
+                    <h4>🛠️ Fix minimap follow-heading rotation</h4>
+                    <p>Route lines, destination markers, and overlay elements need to rotate consistently with the user's compass heading in follow mode.</p>
+                </div>
+                <div class="doc-card glass">
+                    <h4>📊 Telemetry analysis pipeline</h4>
+                    <p>Build post-processing tools to ingest field-collected CSV data, visualise walked vs. routed paths on a map, and refine graph weights from real observations.</p>
+                </div>
+                <div class="doc-card glass">
+                    <h4>🏢 Indoor floor-level detection</h4>
+                    <p>Use barometer or AR plane detection for automatic multi-storey building level awareness.</p>
+                </div>
+                <div class="doc-card glass">
+                    <h4>📱 Tester mode UI</h4>
+                    <p>A lightweight interface that hides debug overlays and shows only essential wayfinding plus the record button — ideal for alpha field testers.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="brand">
+                    <div class="logo">AR<span>Wayfinder</span></div>
+                    <p>Bridging spatial boundaries with seamless indoor-to-outdoor real-world navigation.</p>
+                </div>
+                <div class="links">
+                    <h4>Target Platforms</h4>
+                    <p>Android (ARCore)</p>
+                    <p>iOS (ARKit)</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>Website generated at: <span id="generatedAt"></span> | Project Repository Dashboard</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="app.js"></script>
+</body>
+</html>
