@@ -135,6 +135,12 @@ namespace CDE2501.Wayfinding.UI
         private string _selectedDestinationNodeId;
         private string _selectedDestinationName;
         private Coroutine _autoRouteRoutine;
+        private readonly List<string> _recentPlaySessionRecordings = new List<string>(5);
+        private float _nextPlaySessionRefreshTime;
+
+        private const string AutoSessionRecordingsFolderRelative = "Recordings/AutoSessions";
+        private const int MaxPlaySessionPreviewCount = 5;
+        private const float PlaySessionRefreshIntervalSeconds = 1f;
 
         private void Awake()
         {
@@ -391,6 +397,32 @@ namespace CDE2501.Wayfinding.UI
                 GUI.EndScrollView();
             }
 
+            float sessionPreviewHeight = 0f;
+            if (Application.isEditor)
+            {
+                RefreshPlaySessionRecordingsIfNeeded();
+
+                float sessionRowY = destinationRowY + 32f + dropdownHeight + 2f;
+                GUI.Label(new Rect(12f, sessionRowY, 190f, 24f), $"Sessions ({_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount}):", _bodyStyle);
+
+                float buttonX = 204f;
+                for (int i = 0; i < _recentPlaySessionRecordings.Count; i++)
+                {
+                    if (GUI.Button(new Rect(buttonX, sessionRowY, 74f, 24f), $"Open {i + 1}"))
+                    {
+                        OpenPlaySessionRecording(_recentPlaySessionRecordings[i]);
+                    }
+
+                    buttonX += 78f;
+                }
+
+                string latestSessionText = _recentPlaySessionRecordings.Count > 0
+                    ? $"Latest: {Path.GetFileName(_recentPlaySessionRecordings[0])}"
+                    : "Latest: none";
+                GUI.Label(new Rect(12f, sessionRowY + 24f, _panelRect.width - 24f, 24f), latestSessionText, _bodyStyle);
+                sessionPreviewHeight = 50f;
+            }
+
             if (shouldRecalculate)
             {
                 RecalculateCurrentRoute(pendingRecalcReason ?? "UI State Changed");
@@ -429,6 +461,7 @@ namespace CDE2501.Wayfinding.UI
                 $"Route line preview: {(_routePathVisualizer != null)}\n" +
                 $"Mini map: {(_miniMapOverlay != null)}\n" +
                 $"Telemetry: {(_telemetryRecorder != null ? (_telemetryRecorder.IsRecording ? $"Rec -> {_telemetryRecorder.CurrentSessionFile}" : "Ready") : "missing")}\n" +
+                $"Play sessions retained: {(_recentPlaySessionRecordings.Count > 0 ? $"{_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount} (latest: {Path.GetFileName(_recentPlaySessionRecordings[0])})" : $"0/{MaxPlaySessionPreviewCount}")}\n" +
                 $"Map area: {(useNusMapArea ? "NUS Engineering" : "Queenstown")}\n" +
                 $"Map files: mini={(_activeMiniMapImageFile ?? "n/a")}, ref={(_activeReferenceMapImageFile ?? "n/a")}\n" +
                 $"Data files: graph={(_activeGraphFile ?? "n/a")}, locations={(_activeLocationsFile ?? "n/a")}\n" +
@@ -436,7 +469,7 @@ namespace CDE2501.Wayfinding.UI
                 $"{routeMessage}\n" +
                 keyHelpText;
 
-            float infoTop = destinationRowY + 32f + dropdownHeight + 4f;
+            float infoTop = destinationRowY + 32f + dropdownHeight + sessionPreviewHeight + 4f;
             Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
             float contentHeight = Mathf.Max(infoViewport.height, _bodyStyle.CalcHeight(new GUIContent(text), infoViewport.width - 24f) + 12f);
             Rect contentRect = new Rect(0f, 0f, infoViewport.width - 20f, contentHeight);
@@ -721,6 +754,64 @@ namespace CDE2501.Wayfinding.UI
             }
 
             return false;
+        }
+
+        private void RefreshPlaySessionRecordingsIfNeeded()
+        {
+            if (Time.unscaledTime < _nextPlaySessionRefreshTime)
+            {
+                return;
+            }
+
+            _nextPlaySessionRefreshTime = Time.unscaledTime + PlaySessionRefreshIntervalSeconds;
+            _recentPlaySessionRecordings.Clear();
+
+            try
+            {
+                string projectRoot = Directory.GetCurrentDirectory();
+                string recordingsFolder = Path.GetFullPath(Path.Combine(projectRoot, AutoSessionRecordingsFolderRelative));
+                if (!Directory.Exists(recordingsFolder))
+                {
+                    return;
+                }
+
+                string[] recordings = Directory.GetFiles(recordingsFolder, "session_*.mp4", SearchOption.TopDirectoryOnly);
+                if (recordings == null || recordings.Length == 0)
+                {
+                    return;
+                }
+
+                System.Array.Sort(recordings, (a, b) =>
+                    File.GetLastWriteTimeUtc(b).CompareTo(File.GetLastWriteTimeUtc(a)));
+
+                int keep = Mathf.Min(MaxPlaySessionPreviewCount, recordings.Length);
+                for (int i = 0; i < keep; i++)
+                {
+                    _recentPlaySessionRecordings.Add(recordings[i]);
+                }
+            }
+            catch (System.Exception)
+            {
+                _recentPlaySessionRecordings.Clear();
+            }
+        }
+
+        private static void OpenPlaySessionRecording(string absolutePath)
+        {
+            if (string.IsNullOrWhiteSpace(absolutePath) || !File.Exists(absolutePath))
+            {
+                return;
+            }
+
+            try
+            {
+                string uri = new System.Uri(absolutePath).AbsoluteUri;
+                Application.OpenURL(uri);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"Unable to open play session recording '{absolutePath}': {ex.Message}");
+            }
         }
 
         private void StartAutoRouteWait()

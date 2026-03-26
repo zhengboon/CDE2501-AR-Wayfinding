@@ -20,6 +20,7 @@ namespace CDE2501.Wayfinding.EditorTools
         private const int OutputWidth = 1920;
         private const int OutputHeight = 1080;
         private const int OutputFrameRate = 30;
+        private const int MaxRetainedSessions = 5;
 
         private static RecorderController _controller;
         private static bool _isRecording;
@@ -102,6 +103,7 @@ namespace CDE2501.Wayfinding.EditorTools
             {
                 string absoluteFolder = GetAbsoluteOutputFolderPath();
                 Directory.CreateDirectory(absoluteFolder);
+                PruneOlderRecordings(absoluteFolder, MaxRetainedSessions - 1);
 
                 string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 _currentOutputStem = $"{OutputFolderRelative}/session_{timestamp}";
@@ -167,6 +169,11 @@ namespace CDE2501.Wayfinding.EditorTools
             {
                 _controller = null;
                 _isRecording = false;
+                string absoluteFolder = GetAbsoluteOutputFolderPath();
+                if (Directory.Exists(absoluteFolder))
+                {
+                    PruneOlderRecordings(absoluteFolder, MaxRetainedSessions);
+                }
             }
         }
 
@@ -174,6 +181,41 @@ namespace CDE2501.Wayfinding.EditorTools
         {
             string projectRoot = Directory.GetCurrentDirectory();
             return Path.GetFullPath(Path.Combine(projectRoot, OutputFolderRelative));
+        }
+
+        private static void PruneOlderRecordings(string absoluteFolder, int keepCount)
+        {
+            if (string.IsNullOrWhiteSpace(absoluteFolder) || !Directory.Exists(absoluteFolder))
+            {
+                return;
+            }
+
+            if (keepCount < 0)
+            {
+                keepCount = 0;
+            }
+
+            string[] recordings = Directory.GetFiles(absoluteFolder, "session_*.mp4", SearchOption.TopDirectoryOnly);
+            if (recordings.Length <= keepCount)
+            {
+                return;
+            }
+
+            Array.Sort(recordings, (a, b) =>
+                File.GetLastWriteTimeUtc(b).CompareTo(File.GetLastWriteTimeUtc(a)));
+
+            for (int i = keepCount; i < recordings.Length; i++)
+            {
+                try
+                {
+                    File.Delete(recordings[i]);
+                    Debug.Log($"[AutoPlaySessionRecorder] Pruned old session: {recordings[i]}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[AutoPlaySessionRecorder] Failed to prune session '{recordings[i]}': {ex.Message}");
+                }
+            }
         }
     }
 }

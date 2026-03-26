@@ -62,6 +62,9 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - `scripts/generate_osm_road_graph.py` now has argparse flags (`--project-root`, path overrides, `--use-cache`, Overpass URL/timeout), and `--help` no longer triggers network fetch
   - `scripts/map_videos_to_kml.py` now uses repo-relative defaults with configurable input/output paths and anchor coordinates
   - `scripts/select_queenstown_videos.py` now supports configurable paths/counts and `--skip-thumbnail-check` for fast/offline runs
+- Improved play session recording workflow:
+  - `AutoPlaySessionRecorder` now auto-prunes old MP4s and keeps only the latest `5` sessions in `Recordings/AutoSessions`
+  - Quick Start overlay now shows recent play-session recordings in Play Mode with `Open 1..5` buttons for in-editor preview access
 - Optimized A* pathfinder:
   - Replaced O(N) gScore initialization with lazy init — only visited nodes are tracked
   - Significant improvement for large graphs (1295+ nodes)
@@ -297,6 +300,9 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
 - Symptom: cached launcher keeps rebuilding even with no edits
   - Check: files changing under watched roots (`Assets`, `Packages`, `ProjectSettings`, `scripts`).
   - Action: narrow watch roots or include/exclude patterns in `scripts/unity_cached_builder_config.json`.
+- Symptom: no play-session previews shown in Quick Start overlay
+  - Check: editor menu `CDE2501 > Session Recorder > Enabled` is on, and at least one Play session has completed.
+  - Action: enter/exit Play Mode once to generate an MP4 in `Recordings/AutoSessions`; overlay lists latest five sessions with open buttons.
 
 ## 10) Website Usage
 To view the generated project website:
