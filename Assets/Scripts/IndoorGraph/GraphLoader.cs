@@ -94,6 +94,7 @@ namespace CDE2501.Wayfinding.IndoorGraph
 
             if (!File.Exists(persistentPath))
             {
+                ResetLoadedGraphState();
                 OnGraphLoaded?.Invoke(false, $"Missing graph file at {persistentPath}");
                 _loadRoutine = null;
                 yield break;
@@ -104,6 +105,7 @@ namespace CDE2501.Wayfinding.IndoorGraph
 
             if (GraphData == null)
             {
+                ResetLoadedGraphState();
                 OnGraphLoaded?.Invoke(false, "Failed to parse graph JSON.");
                 _loadRoutine = null;
                 yield break;
@@ -118,6 +120,13 @@ namespace CDE2501.Wayfinding.IndoorGraph
         {
             NodesById.TryGetValue(nodeId, out Node node);
             return node;
+        }
+
+        private void ResetLoadedGraphState()
+        {
+            GraphData = null;
+            NodesById.Clear();
+            Edges.Clear();
         }
 
         private void BuildCaches()

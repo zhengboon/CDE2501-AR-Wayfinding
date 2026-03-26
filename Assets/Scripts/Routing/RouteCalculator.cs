@@ -375,6 +375,7 @@ namespace CDE2501.Wayfinding.Routing
             if (!File.Exists(persistentPath))
             {
                 Debug.LogError($"Missing routing profiles file at {persistentPath}");
+                _isInitializing = false;
                 yield break;
             }
 
@@ -385,6 +386,7 @@ namespace CDE2501.Wayfinding.Routing
             if (_profilesConfig == null)
             {
                 Debug.LogError("Unable to parse routing profiles JSON.");
+                _isInitializing = false;
                 yield break;
             }
 

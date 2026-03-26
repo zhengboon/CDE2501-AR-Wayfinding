@@ -47,6 +47,9 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - GPS/Compass overlays now include detailed runtime status messages to speed up debugging.
 
 ## 3.1 Recent Improvements (This Update)
+- Added route ETA display:
+  - `RouteResult.estimatedWalkTimeSeconds` computed from configurable walk speeds (1.0 m/s elderly, 0.8 m/s wheelchair)
+  - Overlay now shows `dist: 245.2 m, ~3.4 min` alongside node count
 - Fixed route ETA persistence on reused routes:
   - `RouteCalculator.CloneRouteResult(...)` now copies `estimatedWalkTimeSeconds`, so cached/throttled/hysteresis reuse keeps correct ETA in overlay
 - Fixed minimap follow-heading interaction mapping:
@@ -59,6 +62,16 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - `scripts/generate_osm_road_graph.py` now has argparse flags (`--project-root`, path overrides, `--use-cache`, Overpass URL/timeout), and `--help` no longer triggers network fetch
   - `scripts/map_videos_to_kml.py` now uses repo-relative defaults with configurable input/output paths and anchor coordinates
   - `scripts/select_queenstown_videos.py` now supports configurable paths/counts and `--skip-thumbnail-check` for fast/offline runs
+- Optimized A* pathfinder:
+  - Replaced O(N) gScore initialization with lazy init — only visited nodes are tracked
+  - Significant improvement for large graphs (1295+ nodes)
+- Created shared `DataFileUtility.cs`:
+  - Consolidated `ToUnityWebRequestPath`, `WrapTopLevelArrayIfNeeded`, `MakeSolidTexture` from 4+ files
+  - Reduces code duplication by ~80 lines
+- Fixed `CompassManager` fallback status:
+  - `StatusMessage` now correctly reports simulation fallback reasons on both sensor-unavailable paths
+- Fixed `RoutingProfile.GetByMode`:
+  - Profile name matching is now case-insensitive to prevent silent failures from JSON casing
 - Added sensor diagnostics:
   - `GPSManager.StatusMessage`
   - `CompassManager.StatusMessage`
@@ -93,6 +106,12 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - `UnityBuildCache/latest_build_summary.json`
   - `UnityBuildCache/latest_build_report.md`
   - `UnityBuildCache/logs/*.log`
+- Added telemetry data recording for alpha field testing:
+  - `Assets/Scripts/Location/TelemetryRecorder.cs`: records GPS, compass, route, and simulation state to CSV
+  - Quick Start overlay now has a `Rec: ON/OFF` toggle to start/stop recording
+  - Sessions saved to `Application.persistentDataPath/Telemetry/Session_YYYYMMDD_HHMMSS.csv`
+  - CSV columns: `Time,DateTime,Lat,Lon,Heading,StartNode,Destination,RouteDistance,IsSimulated`
+  - On Android APK: files retrievable from `Android/data/<bundle-id>/files/Telemetry/`
 
 ## 4) File Review by Module
 
@@ -103,6 +122,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - `Assets/Scripts/Location/SimulationProvider.cs`: WASD movement, yaw/pitch keys, speed/sprint, overlay window.
 - `Assets/Scripts/Location/SimulatedObjectDriver.cs`: applies simulated pose to camera/object transform.
 - `Assets/Scripts/Location/SensorSourceMode.cs`: `Auto`, `Simulation`, `DeviceSensors` enum.
+- `Assets/Scripts/Location/TelemetryRecorder.cs`: records GPS, compass, and route data to CSV for field data collection.
 
 ### 4.2 Graph + Routing
 - `Assets/Scripts/IndoorGraph/Node.cs`: node data model.
@@ -290,3 +310,22 @@ To view the generated project website:
 3. Tune routing weights in `routing_profiles.json` using field observations.
 4. Lock a stable baseline commit before expanding UI/feature scope.
 5. Add a second production UI profile (compact mode) that hides debug-heavy overlays.
+6. Build Android APK for alpha, share with testers, and collect telemetry CSV data from field walks.
+
+## 11.1) Future Plans
+1. Complete minimap follow-heading visual polish so all route/marker overlays remain visually consistent under heading rotation.
+2. Analyse collected telemetry CSV data to derive actual walking paths and compare against computed routes.
+3. Implement a post-processing pipeline that ingests telemetry CSVs and visualises walked vs. routed paths on a map.
+4. Use field-collected path data to refine graph edge weights and improve routing accuracy.
+5. Add indoor floor-level detection using barometer or AR plane detection for multi-storey buildings.
+6. Implement a lightweight "tester mode" UI that hides debug overlays and only shows essential wayfinding + record button.
+
+## 12) Alpha Testing — Telemetry Data Collection
+1. Build APK: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk`
+2. Install APK on tester's phone.
+3. Tester opens the app, waits for GPS/Compass to show ready.
+4. Tester taps `Rec: OFF` toggle in the Quick Start overlay to start recording.
+5. Tester walks their route.
+6. Tester taps `Rec: ON` to stop recording.
+7. Retrieve CSV files from: `Android/data/<bundle-id>/files/Telemetry/`.
+8. CSV columns: `Time,DateTime,Lat,Lon,Heading,StartNode,Destination,RouteDistance,IsSimulated`.

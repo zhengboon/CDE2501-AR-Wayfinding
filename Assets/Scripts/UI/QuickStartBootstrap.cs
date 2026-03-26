@@ -1217,7 +1217,7 @@ namespace CDE2501.Wayfinding.UI
                 yield return null;
             }
 
-            _status = "Startup timeout. Use R to retry route calculation.";
+            _status = $"Startup timeout. Use {BuildManualRecalcKeyHint()} to retry route calculation.";
             _autoRouteRoutine = null;
         }
 

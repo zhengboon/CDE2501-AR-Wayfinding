@@ -172,6 +172,8 @@ namespace CDE2501.Wayfinding.Data
 
             if (!File.Exists(persistentPath))
             {
+                _locations.Clear();
+                OnLocationsChanged?.Invoke();
                 Debug.LogError($"Unable to find locations file: {persistentPath}");
                 _loadRoutine = null;
                 yield break;
