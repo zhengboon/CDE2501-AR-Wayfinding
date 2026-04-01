@@ -1,5 +1,5 @@
 # CDE2501 AR Wayfinding - Project README
-Last updated: 2026-03-26
+Last updated: 2026-03-31
 
 ## 1) Project Summary
 This repository is a Unity `2022.3.62f3` AR wayfinding MVP for two test areas:
@@ -12,8 +12,8 @@ It is designed around elderly-first guidance and safety-weighted routing, with:
 - Keyboard simulation for laptop-first testing
 - Minimap route visualization and destination selection
 - Runtime map-area switching that swaps map texture + graph + locations together
-- Optional Street View image mode (data-driven)
-- Live website Street View preview via Google Street View Tiles API (Queenstown default location)
+- Optional Street View image mode (archived dataset, disabled by default)
+- Website demo now uses generated map-atlas preview (no live Street View API panel)
 - Cached auto-build launcher (`Python + Unity batchmode`) with no-change skip logic and build reports
 
 A project website is included in the repo root:
@@ -43,7 +43,8 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - Queenstown: `1295` nodes, `2795` edges
   - NUS: `424` nodes, `1080` edges
 - Routing profiles loaded from `Assets/StreamingAssets/Data/routing_profiles.json`
-- Street View manifest currently has `0` usable nodes (no active imagery path)
+- Real-image Street View and video frame systems are disabled by default in `QuickStartBootstrap` for stable navigation behavior.
+- Archived Street View files are kept in `Assets/StreamingAssets/Data/street_view` with `street_view_manifest.json`.
 - Manual recalc key handling is improved to avoid input conflict with pitch controls in simulation mode.
 - GPS/Compass overlays now include detailed runtime status messages to speed up debugging.
 
@@ -101,7 +102,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
   - troubleshooting section
   - copyable command snippets
   - updated controls and runtime notes
-  - live Google Street View Tiles panel in Demo section (API key, lat/lng, heading, pitch)
+  - reverted Demo section to generated Queenstown atlas preview and removed live Street View API UI
 - Added map-area toggle:
   - Quick Start button switches between `Queenstown` and `NUS Engineering`
   - Applies to minimap + map-reference tile + graph file + locations file at runtime
@@ -166,7 +167,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - `Assets/Scripts/UI/DestinationMarkerVisualizer.cs`: destination markers in world/minimap context.
 - `Assets/Scripts/UI/ReassuranceManager.cs`: reassurance text states.
 - `Assets/Scripts/UI/MapReferenceTileVisualizer.cs`: map reference texture renderer.
-- `Assets/Scripts/UI/StreetViewExplorer.cs`: optional route-filtered street-view image explorer.
+- `Assets/Scripts/UI/StreetViewExplorer.cs`: optional route-filtered street-view image explorer (disabled by default).
 - `Assets/Scripts/UI/VideoFrameMapVisualizer.cs`: mapped video frame markers.
 - `Assets/Scripts/UI/VideoMappingCsvOverlay.cs`: CSV mapping overlay/debug tooling.
 
@@ -210,7 +211,7 @@ Ignored in functional review: Unity-generated build/cache folders like `Library/
 - `1`: Normal Elderly
 - `2`: Wheelchair
 - `T`: rain toggle
-- `Y`: Street View toggle
+- `Y`: Street View toggle (available only if image systems are manually re-enabled)
 - `F2`: simulation mode on/off
 - `F1`: simulation panel on/off
 - `W A S D`: movement
@@ -288,8 +289,9 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
   - `NSMotionUsageDescription`
 
 ## 9) Known Gaps
-- Unity Street View manifest currently has no usable node imagery; new dataset generation is required for in-app `StreetViewExplorer`.
-- Website Street View panel in `index.html` uses live Google Street View Tiles and does not depend on `street_view_manifest.json`.
+- Real-image Street View/video-frame environment is intentionally disabled by default because current capture spacing is not dense enough for smooth movement.
+- Archived Street View assets are retained in `Assets/StreamingAssets/Data/street_view` and `Assets/StreamingAssets/Data/street_view_manifest.json` for future reactivation.
+- Website demo no longer includes live Street View API loading; it now previews the generated Queenstown atlas used by the stable environment.
 - Indoor elevation realism still depends on graph annotation quality and field tuning.
 - Full AR runtime validation still requires real ARCore/ARKit capable hardware.
 - NUS building inter-links include a synthetic connectivity assumption for MVP routing and should be field-validated.
@@ -308,12 +310,9 @@ Generate NUS and Queenstown map assets in the same atlas format, then generate N
 - Symptom: Compass shows not ready
   - Check: overlay compass status text for heading accuracy unavailable.
   - Action: on laptop, use simulation heading; on phone, calibrate compass and retry.
-- Symptom: Street View toggle shows empty view
-  - Check: `Assets/StreamingAssets/Data/street_view_manifest.json` node count.
-  - Action: regenerate imagery dataset using `scripts/build_street_view_map.py`.
-- Symptom: website Street View panel shows `Load failed`
-  - Check: Google key has Billing enabled and Map Tiles API enabled.
-  - Action: run site from `http://localhost` (not `file://`) and ensure key restrictions allow `localhost` referrer.
+- Symptom: Street View controls are missing/disabled in Quick Start
+  - Check: `QuickStartBootstrap` has `disableYoutubeImageSystems = true` (default).
+  - Action: this is expected for the stable profile; only re-enable after collecting denser imagery coverage.
 - Symptom: cached launcher says Unity executable not found
   - Check: `scripts/unity_cached_builder_config.json` -> `unityExecutable`.
   - Action: set full path, e.g. `C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.62f3\\Editor\\Unity.exe`.
@@ -345,20 +344,13 @@ To view the generated project website:
 3. Website assets use local `styles.css` and `app.js`.
 4. Content is aligned with this README and current project state.
 
-### 10.1 Live Google Street View Panel (Demo Section)
-1. Scroll to the Demo section and paste your Google API key into the Street View field.
-2. Keep default Queenstown coordinates (`1.294500, 103.786300`) or provide your own lat/lng.
-3. Click `Load Queenstown View`.
-4. Use `Heading` and `Pitch` sliders to inspect the panorama.
-5. Required Google setup:
-   - Billing enabled
-   - Map Tiles API enabled
-6. Browser behavior:
-   - API key is stored locally in browser `localStorage` under `gsv_api_key`.
-   - Do not commit API keys into source files.
+### 10.1 Demo Section Behavior
+1. Demo section now shows the generated Queenstown atlas preview used by runtime map overlays.
+2. Live Street View API controls were removed from the website for this stable profile.
+3. Archived imagery still remains in the repo for future evaluation.
 
 ## 11) Recommended Next Work
-1. Regenerate Street View nodes/images for actual route coverage.
+1. If Street View is reintroduced later, regenerate nodes/images only after denser capture coverage is available.
 2. Do one end-to-end device field walk in both routing modes.
 3. Tune routing weights in `routing_profiles.json` using field observations.
 4. Lock a stable baseline commit before expanding UI/feature scope.

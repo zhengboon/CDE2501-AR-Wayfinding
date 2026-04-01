@@ -1,0 +1,110 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>CDE2501 AR Wayfinding</title>
+
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reset.min.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/theme/black.min.css">
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+                <!-- Slide 1 -->
+				<section>
+                    <h1>CDE2501 AR Wayfinding</h1>
+                    <h3>How the Program Works</h3>
+                    <p>An AR navigation MVP prioritizing elderly and wheelchair-accessible routing.</p>
+                </section>
+
+                <!-- Slide 2 -->
+				<section>
+                    <h2>1. Project Overview</h2>
+                    <ul>
+                        <li><strong>What it is:</strong> An Augmented Reality wayfinding app built in Unity.</li>
+                        <li><strong>Target Areas:</strong> Queenstown estate and NUS Engineering campus.</li>
+                        <li><strong>Goal:</strong> Provide safe, elderly-first, and barrier-free routing.</li>
+                        <li><strong>Cross-Platform:</strong> Targets Android (ARCore) and iOS (ARKit).</li>
+                    </ul>
+                </section>
+
+                <!-- Slide 3 -->
+                <section>
+                    <h2>2. Core Features</h2>
+                    <ul>
+                        <li><strong>AR Guidance:</strong> 3D arrows overlaid on the camera feed.</li>
+                        <li><strong>Minimap Overlay:</strong> Top-down view highlighting the path.</li>
+                        <li><strong>Multi-Area Support:</strong> Dynamic switching between local map graphs.</li>
+                        <li><strong>Safety-Weighted Routing:</strong> Profiles for Elderly (1.0m/s) and Wheelchair (0.8m/s).</li>
+                        <li><strong>Telemetry Recording:</strong> Live GPS/Compass logging to CSV.</li>
+                    </ul>
+                </section>
+
+                <!-- Slide 4 -->
+                <section>
+                    <h2>3. How Routing Works</h2>
+                    <ul>
+                        <li><strong>Algorithm:</strong> Weighted A* (A-Star) pathfinding on a node-edge graph.</li>
+                        <li><strong>Data:</strong> The graph (`estate_graph.json`) holds walkable paths.</li>
+                        <li><strong>Profiles:</strong> Edges are evaluated based on user Safety Profiles.</li>
+                        <li><strong>Execution:</strong> System anchors the user to the closest start node and computes the path to the destination.</li>
+                    </ul>
+                </section>
+
+                <!-- Slide 5 -->
+                <section>
+                    <h2>4. Data Generation (Offline)</h2>
+                    <ul>
+                        <li><strong>Map Tiles:</strong> Fetched via OneMap API, Google Maps, or OSM.</li>
+                        <li><strong>Graph Gen:</strong> Python scripts (`generate_osm_graph_from_kml.py`) parse KML boundaries into interconnected nodes/edges.</li>
+                        <li><strong>Street View:</strong> Can download Street View panoramas corresponding to walking routes.</li>
+                    </ul>
+                </section>
+
+                <!-- Slide 6 -->
+                <section>
+                    <h2>5. Sensors & Locomotion</h2>
+                    <ul>
+                        <li><strong>Device Sensors:</strong> Native GPS (`GPSManager.cs`) and Compass heavily smoothed for AR stability.</li>
+                        <li><strong>Simulation Mode:</strong> WASD walking and camera rotation overrides sensors for laptop testing.</li>
+                        <li><strong>Auto-Refresh:</strong> If the user strays > 2.0m off-path, the route calculates a new path automatically.</li>
+                    </ul>
+                </section>
+
+                <!-- Slide 7 -->
+                <section>
+                    <h2>6. Telemetry & Field Testing</h2>
+                    <ul>
+                        <li><strong>Built-in Recorder:</strong> Toggle `Rec: ON/OFF` in the UI.</li>
+                        <li><strong>Data Logged:</strong> `Time, Lat, Lon, Heading, StartNode, Destination, RouteDistance` into local device CSV files.</li>
+                        <li><strong>Post-analysis:</strong> Used to validate safety of routes and refine pathfinding edge weights based on real-world walking data.</li>
+                    </ul>
+                </section>
+
+                <!-- Slide 8 -->
+                <section>
+                    <h2>7. Summary of the Journey</h2>
+                    <ol>
+                        <li><strong>Launch:</strong> Load map graph into memory.</li>
+                        <li><strong>Context:</strong> Lock onto GPS/Compass; determine start node.</li>
+                        <li><strong>Selection:</strong> User picks destination.</li>
+                        <li><strong>Computation:</strong> A* determines safest path.</li>
+                        <li><strong>Guidance:</strong> Render AR arrows and Minimap progress.</li>
+                        <li><strong>Arrival:</strong> Complete at destination map node.</li>
+                    </ol>
+                </section>
+			</div>
+		</div>
+
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/reveal.js/4.3.1/reveal.min.js"></script>
+		<script>
+			Reveal.initialize({
+				hash: true,
+                slideNumber: true
+			});
+		</script>
+	</body>
+</html>

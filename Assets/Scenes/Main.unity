@@ -165,6 +165,9 @@ MonoBehaviour:
   autoCreateDestinationMarkers: 1
   autoCreateRoutePathPreview: 1
   autoCreateMiniMap: 1
+  autoCreateVideoFrameMap: 0
+  autoCreateStreetViewExplorer: 0
+  disableYoutubeImageSystems: 1
   resetPersistentDataOnStart: 1
   autoRecalcWhenStartNodeChanges: 1
   alwaysRouteFromCurrentPosition: 1

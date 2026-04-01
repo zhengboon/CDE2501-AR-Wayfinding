@@ -16,8 +16,11 @@
 </head>
 <body>
 
+    <!-- Skip to main content for accessibility -->
+    <a href="#features" class="skip-link">Skip to main content</a>
+
     <!-- Navigation -->
-    <nav>
+    <nav aria-label="Main navigation">
         <div class="nav-container">
             <div class="logo">AR<span>Wayfinder</span></div>
             <ul id="navLinks" class="nav-links">
@@ -29,11 +32,11 @@
                 <li><a href="#docs">Docs</a></li>
                 <li><a href="#roadmap">Future</a></li>
             </ul>
-            <div id="hamburger" class="hamburger">
+            <button id="hamburger" class="hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
                 <span></span>
                 <span></span>
                 <span></span>
-            </div>
+            </button>
         </div>
     </nav>
 
@@ -173,47 +176,24 @@
             <div class="demo-wrapper glass">
                 <div class="demo-text">
                     <h2>Immersive Wayfinding</h2>
-                    <p>The core engine now supports data-driven <b>Google Street View Tiles</b> to augment the user's route. Use the live panel to load Queenstown views directly from the API.</p>
+                    <p>The runtime is back on the stable generated-map environment for continuous navigation. Real-world image layers are archived but disabled by default because current capture spacing is too sparse for smooth movement.</p>
                     <ul class="feature-list">
                         <li>📍 GPS & Compass accurate tracking</li>
                         <li>🗺️ Data-driven OSM graph rendering</li>
                         <li>🚀 ARCore / ARKit compatible targets</li>
                         <li>⏱️ Estimated walk time (~min) in route overlay</li>
+                        <li>🧭 Street-view image assets preserved for future dense recapture</li>
                     </ul>
                 </div>
                 <div class="demo-visual">
-                    <div class="streetview-card">
-                        <div class="streetview-toolbar">
-                            <input id="gsvApiKey" type="password" autocomplete="off" placeholder="Google Maps API key">
-                            <button id="gsvLoadBtn" class="btn primary" type="button">Load Queenstown View</button>
-                        </div>
-
-                        <div class="streetview-location">
-                            <label for="gsvLat">Lat</label>
-                            <input id="gsvLat" type="number" step="0.000001" value="1.294500">
-                            <label for="gsvLng">Lng</label>
-                            <input id="gsvLng" type="number" step="0.000001" value="103.786300">
-                        </div>
-
-                        <canvas id="gsvCanvas" width="960" height="480" aria-label="Google Street View preview"></canvas>
-
-                        <div class="streetview-controls">
-                            <div class="streetview-slider">
-                                <label for="gsvHeading">Heading</label>
-                                <input id="gsvHeading" type="range" min="0" max="359" step="1" value="0">
-                                <span id="gsvHeadingValue">0°</span>
-                            </div>
-                            <div class="streetview-slider">
-                                <label for="gsvPitch">Pitch</label>
-                                <input id="gsvPitch" type="range" min="-45" max="45" step="1" value="0">
-                                <span id="gsvPitchValue">0°</span>
-                            </div>
-                        </div>
-
-                        <div class="streetview-footer">
-                            <p id="gsvStatus">Paste API key and click "Load Queenstown View".</p>
-                            <p id="gsvMeta"></p>
-                        </div>
+                    <div class="map-preview-card">
+                        <h3>Queenstown Atlas Preview</h3>
+                        <img
+                            src="Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130127-130133.png"
+                            alt="Queenstown generated map atlas preview"
+                            loading="lazy"
+                        >
+                        <p>Unity uses generated atlas + graph routing for the environment. Archived Street View files remain in <code>Assets/StreamingAssets/Data/street_view</code> and are not loaded at runtime.</p>
                     </div>
                 </div>
             </div>

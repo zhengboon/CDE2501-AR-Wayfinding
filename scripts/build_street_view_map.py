@@ -337,6 +337,24 @@ def download_image(url: str, path: Path, timeout: int = 20) -> bool:
         return False
 
 
+def collect_existing_heading_images(data_dir: Path, street_view_dir: str, node_id: str) -> List[dict]:
+    node_dir = data_dir / Path(street_view_dir) / node_id
+    if not node_dir.exists():
+        return []
+
+    out: List[dict] = []
+    for image_path in sorted(node_dir.glob("h*.jpg")):
+        match = re.match(r"h(\d{3})\.jpg$", image_path.name, re.IGNORECASE)
+        if match is None:
+            continue
+        heading = int(match.group(1)) % 360
+        rel_path = f"{street_view_dir}/{node_id}/{image_path.name}".replace("\\", "/")
+        out.append({"heading": heading, "image": rel_path})
+
+    out.sort(key=lambda item: item["heading"])
+    return out
+
+
 def build_streetview_urls(
     lat: float,
     lon: float,
@@ -496,6 +514,8 @@ def main() -> int:
             seen_neighbors.add(neighbor)
             neighbor_ids.append(neighbor)
 
+        existing_heading_images = collect_existing_heading_images(data_dir, args.street_view_dir, nid)
+        heading_image_map: Dict[int, str] = {int(item["heading"]) % 360: item["image"] for item in existing_heading_images}
         heading_images: List[dict] = []
         view_type = "none"
 
@@ -527,7 +547,7 @@ def main() -> int:
                         abs_path = data_dir / rel_path
                         ok = download_image(static_url, abs_path, timeout=args.timeout_seconds)
                         if ok:
-                            heading_images.append({"heading": heading, "image": rel_path})
+                            heading_image_map[int(heading) % 360] = rel_path
                 else:
                     futures = {}
                     with ThreadPoolExecutor(max_workers=workers) as executor:
@@ -552,14 +572,24 @@ def main() -> int:
                             except Exception:
                                 ok = False
                             if ok:
-                                heading_images.append({"heading": heading, "image": rel_path})
+                                heading_image_map[int(heading) % 360] = rel_path
 
-                    heading_images.sort(key=lambda item: item["heading"])
+                heading_images = [{"heading": h, "image": heading_image_map[h]} for h in sorted(heading_image_map)]
                 if heading_images:
                     view_type = f"google_{len(heading_images)}dir"
                     google_success += 1
             else:
-                warnings.append(f"{nid}: Street View metadata status={metadata_status}")
+                if heading_image_map:
+                    heading_images = [{"heading": h, "image": heading_image_map[h]} for h in sorted(heading_image_map)]
+                    view_type = f"google_{len(heading_images)}dir_cached"
+                    google_success += 1
+                    warnings.append(f"{nid}: Street View metadata status={metadata_status}; reused cached images")
+                else:
+                    warnings.append(f"{nid}: Street View metadata status={metadata_status}")
+        elif heading_image_map:
+            heading_images = [{"heading": h, "image": heading_image_map[h]} for h in sorted(heading_image_map)]
+            view_type = f"google_{len(heading_images)}dir_cached"
+            google_success += 1
 
         fallback = frames_by_node.get(nid)
         if fallback is None:

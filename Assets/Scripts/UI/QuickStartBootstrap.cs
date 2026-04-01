@@ -29,8 +29,8 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool autoCreateRoutePathPreview = true;
         [SerializeField] private bool autoCreateMiniMap = true;
         [SerializeField] private bool autoCreateVideoFrameMap = false;
-        [SerializeField] private bool autoCreateStreetViewExplorer = true;
-        [SerializeField] private bool disableYoutubeImageSystems = false;
+        [SerializeField] private bool autoCreateStreetViewExplorer = false;
+        [SerializeField] private bool disableYoutubeImageSystems = true;
         [SerializeField] private bool resetPersistentDataOnStart = false;
         [SerializeField] private bool autoRecalcWhenStartNodeChanges = true;
         [SerializeField] private bool alwaysRouteFromCurrentPosition = true;

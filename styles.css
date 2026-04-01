@@ -23,6 +23,25 @@
     box-sizing: border-box;
 }
 
+/* Skip-to-content link for keyboard/screen-reader users */
+.skip-link {
+    position: absolute;
+    top: -100%;
+    left: 1rem;
+    z-index: 2000;
+    padding: 0.75rem 1.5rem;
+    background: var(--accent-primary);
+    color: white;
+    border-radius: 0 0 8px 8px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: top 0.2s ease;
+}
+
+.skip-link:focus {
+    top: 0;
+}
+
 html {
     scroll-behavior: smooth;
 }
@@ -63,6 +82,8 @@ h1, h2, h3, h4, .logo {
     background: var(--accent-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
 }
 
 .section-header p {
@@ -76,6 +97,14 @@ h1, h2, h3, h4, .logo {
     background: var(--accent-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Focus-visible for keyboard users (does not affect mouse clicks) */
+:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
 }
 
 /* ========================================================================= 
@@ -364,7 +393,7 @@ nav {
     justify-content: center;
 }
 
-.streetview-card {
+.map-preview-card {
     width: min(960px, 100%);
     background: #020617;
     border-radius: 18px;
@@ -373,105 +402,36 @@ nav {
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
 }
 
-.streetview-toolbar {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
+.map-preview-card h3 {
+    color: white;
     margin-bottom: 0.75rem;
+    font-size: 1.15rem;
 }
 
-.streetview-toolbar input[type="password"] {
-    flex: 1;
-    min-width: 0;
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid var(--border-glass);
-    color: var(--text-main);
-    border-radius: 8px;
-    padding: 0.7rem 0.8rem;
-}
-
-.streetview-location {
-    display: grid;
-    grid-template-columns: auto 1fr auto 1fr;
-    gap: 0.5rem;
-    align-items: center;
-    margin-bottom: 0.8rem;
-}
-
-.streetview-location label {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-}
-
-.streetview-location input[type="number"] {
-    background: rgba(15, 23, 42, 0.9);
-    border: 1px solid var(--border-glass);
-    color: var(--text-main);
-    border-radius: 8px;
-    padding: 0.55rem 0.65rem;
-    min-width: 0;
-}
-
-#gsvCanvas {
+.map-preview-card img {
     width: 100%;
-    aspect-ratio: 2 / 1;
+    display: block;
     border-radius: 12px;
     border: 1px solid rgba(56, 189, 248, 0.25);
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
     background:
         radial-gradient(circle at 50% 50%, rgba(14, 165, 233, 0.16), rgba(2, 6, 23, 0.95) 60%),
         linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(139, 92, 246, 0.08));
-    display: block;
 }
 
-.streetview-controls {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.8rem;
+.map-preview-card p {
     margin-top: 0.8rem;
-}
-
-.streetview-slider {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    gap: 0.5rem;
-    align-items: center;
-    border: 1px solid var(--border-glass);
-    border-radius: 8px;
-    padding: 0.6rem 0.7rem;
-    background: rgba(15, 23, 42, 0.7);
-}
-
-.streetview-slider label {
-    font-size: 0.8rem;
     color: var(--text-muted);
-}
-
-.streetview-slider input[type="range"] {
-    width: 100%;
-}
-
-.streetview-slider span {
-    font-size: 0.85rem;
-    color: #bae6fd;
-    min-width: 2.8rem;
-    text-align: right;
-}
-
-.streetview-footer {
-    margin-top: 0.75rem;
-}
-
-#gsvStatus {
-    color: #7dd3fc;
     font-size: 0.9rem;
 }
 
-#gsvMeta {
-    color: var(--text-muted);
-    font-size: 0.82rem;
-    margin-top: 0.35rem;
-    min-height: 1.2em;
-    overflow-wrap: anywhere;
+.map-preview-card code {
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
 }
 
 /* ========================================================================= 
@@ -493,10 +453,11 @@ nav {
     font-family: var(--font-heading);
     font-size: 4rem;
     font-weight: 800;
-    color: rgba(255,255,255,0.05);
+    color: transparent;
     background: var(--accent-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
     opacity: 0.5;
     line-height: 1;
 }
@@ -659,7 +620,7 @@ footer {
         flex-direction: column;
     }
 
-    .streetview-card {
+    .map-preview-card {
         width: 100%;
     }
 }
@@ -705,19 +666,6 @@ footer {
         font-size: 3rem;
     }
 
-    .streetview-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .streetview-location {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .streetview-controls {
-        grid-template-columns: 1fr;
-    }
-    
     .step-card {
         flex-direction: column;
         padding: 1.5rem;
@@ -731,5 +679,32 @@ footer {
     
     .code-block pre {
         max-width: 100%;
+    }
+}
+
+/* =========================================================================
+   Reduced Motion
+   ========================================================================= */
+@media (prefers-reduced-motion: reduce) {
+    .show-on-scroll {
+        opacity: 1;
+        transform: none;
+        transition: none;
+    }
+
+    .glass {
+        transition: none;
+    }
+
+    .glass:hover {
+        transform: none;
+    }
+
+    .wave-container {
+        display: none;
+    }
+
+    html {
+        scroll-behavior: auto;
     }
 }
