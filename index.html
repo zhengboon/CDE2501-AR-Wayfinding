@@ -3,14 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="CDE2501 AR Wayfinding MVP - Elderly-first AR guidance and safety-weighted routing for NUS and Queenstown.">
+    <meta name="description" content="CDE2501 AR Wayfinding MVP - Elderly-first AR guidance and safety-weighted routing for NUS Engineering and Queenstown Estate.">
+    <meta name="theme-color" content="#070b14">
     <title>CDE2501 AR Wayfinding</title>
-    
-    <!-- Modern Fonts -->
+
+    <!-- Modern Fonts (system-ui fallback in CSS) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
-    
+
     <!-- CSS -->
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -45,13 +46,13 @@
         <div class="hero-content show-on-scroll">
             <div class="badge">Unity 2022.3.62f3 AR MVP</div>
             <h1>Navigate <span class="highlight">Tomorrow</span></h1>
-            <p>An advanced Unity AR Wayfinding project prioritizing elderly-first guidance, real-time safety routing, and seamless campus mapping for Queenstown estate and NUS Engineering.</p>
+            <p>An advanced Unity AR Wayfinding project prioritizing elderly-first guidance, real-time safety routing, and seamless campus mapping for Queenstown Estate and NUS Engineering.</p>
             <div class="hero-buttons">
                 <a href="#quickstart" class="btn primary">Start Exploring</a>
                 <a href="#features" class="btn secondary">View Features</a>
             </div>
         </div>
-        
+
         <!-- Animated Waveform -->
         <div class="wave-container">
             <svg viewBox="0 0 960 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
@@ -69,60 +70,60 @@
                 <h2>Project Features</h2>
                 <p>Designed for robust, accessible, and scalable spatial computing.</p>
             </div>
-            
+
             <div class="grid">
                 <div class="card glass show-on-scroll">
                     <div class="icon">🌍</div>
                     <h3>Multi-Area Mapping</h3>
                     <p>Runtime dynamic switching between Queenstown Estate and NUS Engineering contexts, instantly swapping maps, graphs, and destinations.</p>
                 </div>
-                
+
                 <div class="card glass show-on-scroll">
                     <div class="icon">🛡️</div>
                     <h3>Safety-Weighted Routing</h3>
                     <p>Optimized A* routes with ETA display, focused on elderly safety profiles and wheelchair accessibility over intricate local and OSM graphs, with stable auto-route behavior after map-area switches.</p>
                 </div>
-                
+
                 <div class="card glass show-on-scroll">
                     <div class="icon">♿</div>
                     <h3>Inclusive Wayfinding</h3>
                     <p>Future-ready architecture for continuous map integrations, targeting OneMap's Barrier-Free Access (BFA) API to provide safe, realistic routing profiles for wheelchair and elderly users.</p>
                 </div>
-                
+
                 <div class="card glass show-on-scroll">
                     <div class="icon">📈</div>
-                    <h3>Geo-Spatial Insights & Conversions</h3>
-                    <p>Designed to scale with OneMap's demographic and spatial APIs, including Reverse Geocoding, SVY21/WGS84 Coordinate Converters, Population Queries, and Planning Area boundaries to enrich the AR experience.</p>
+                    <h3>Geo-Spatial Insights</h3>
+                    <p>Designed to scale with OneMap's demographic and spatial APIs, including Reverse Geocoding, SVY21/WGS84 Coordinate Converters, Population Queries, and Planning Area boundaries.</p>
                 </div>
-                
+
                 <div class="card glass show-on-scroll">
                     <div class="icon">💻</div>
                     <h3>Simulation Reality</h3>
                     <p>Comprehensive keyboard simulation controls enable efficient laptop-first path testing before full hardware-dependent deployment.</p>
                 </div>
-                
+
                 <div class="card glass show-on-scroll">
                     <div class="icon">⚡</div>
-                    <h3>Extending Automation</h3>
-                    <p>Automated Unity cache-building, testing loops, and KML generation via portable Python CLIs with repo-relative defaults, cache toggles, and configurable input/output paths. Play-session recording now auto-keeps the latest 5 MP4 sessions with quick latest/open-folder utilities.</p>
+                    <h3>Build Automation</h3>
+                    <p>Automated Unity cache-building, testing loops, and KML generation via portable Python CLIs with repo-relative defaults. Play-session recording auto-keeps the latest 5 MP4 sessions.</p>
                 </div>
-                
+
                 <div class="card glass show-on-scroll">
                     <div class="icon">⏱️</div>
                     <h3>Route ETA Display</h3>
                     <p>Real-time walk-time estimates based on configurable speeds (1.0 m/s elderly, 0.8 m/s wheelchair) shown in the simulation overlay, including cached/hysteresis route reuse states.</p>
                 </div>
-                
-                <div class="card glass show-on-scroll">
-                    <div class="icon">🧩</div>
-                    <h3>Shared Utility Layer</h3>
-                    <p>Centralized DataFileUtility class eliminates ~80 lines of duplicated helpers across 4+ scripts for cleaner, more maintainable code.</p>
-                </div>
-                
+
                 <div class="card glass show-on-scroll">
                     <div class="icon">📊</div>
                     <h3>Telemetry Recording</h3>
                     <p>One-tap CSV data capture of GPS, compass, and route data during field walks. Collect real path data from APK testers to validate and improve routing.</p>
+                </div>
+
+                <div class="card glass show-on-scroll">
+                    <div class="icon">🧩</div>
+                    <h3>Shared Utility Layer</h3>
+                    <p>Centralized DataFileUtility class eliminates duplicate helpers across scripts for cleaner, more maintainable code.</p>
                 </div>
             </div>
         </div>
@@ -135,35 +136,35 @@
                 <h2>OneMap API Ecosystem</h2>
                 <p>Comprehensive integrations planned with Singapore's authoritative national map data.</p>
             </div>
-            
+
             <div class="acc-wrapper show-on-scroll">
                 <div class="doc-card glass">
-                    <h4>🗺️ Map Tiles & Static Maps</h4>
-                    <p><b>Endpoints:</b> <code>/maps/tiles/{Style}/{z}/{x}/{y}.png</code> & <code>/api/staticmap/getStaticImage</code></p>
+                    <h4>🗺️ Map Tiles &amp; Static Maps</h4>
+                    <p><b>Endpoints:</b> <code>/maps/tiles/{Style}/{z}/{x}/{y}.png</code> &amp; <code>/api/staticmap/getStaticImage</code></p>
                     <p>Native SG maps with highly accurate building footprints in Default, Night, Grey, and Original styles up to zoom level 19. Useful for caching local atlases and building standalone AR reference minimaps.</p>
                 </div>
-                
+
                 <div class="doc-card glass">
-                    <h4>♿ Barrier-Free Access (BFA) & Routing</h4>
-                    <p><b>Endpoints:</b> <code>/api/public/bfa/route</code> & <code>/api/public/routingsvc/route</code></p>
+                    <h4>♿ Barrier-Free Access (BFA) &amp; Routing</h4>
+                    <p><b>Endpoints:</b> <code>/api/public/bfa/route</code> &amp; <code>/api/public/routingsvc/route</code></p>
                     <p>Provides specialized wheelchair routing by avoiding stairs, curbs, and steep inclines. General routing supports standard walk, drive, transit, and cycle pathing.</p>
                 </div>
-                
+
                 <div class="doc-card glass">
-                    <h4>📍 Search & Reverse Geocoding</h4>
-                    <p><b>Endpoints:</b> <code>/api/common/elastic/search</code> & <code>/api/public/revgeocode</code></p>
+                    <h4>📍 Search &amp; Reverse Geocoding</h4>
+                    <p><b>Endpoints:</b> <code>/api/common/elastic/search</code> &amp; <code>/api/public/revgeocode</code></p>
                     <p>Translates Singapore postal codes, localized building names, and blocks into precise geometrical bounds or coordinates for dynamic AR destination placement.</p>
                 </div>
-                
+
                 <div class="doc-card glass">
-                    <h4>🏛️ Themes (POIs) & Planning Areas</h4>
-                    <p><b>Endpoints:</b> <code>/api/public/themes/retrieveTheme</code> & <code>/api/public/popapi/getPlanningarea</code></p>
+                    <h4>🏛️ Themes (POIs) &amp; Planning Areas</h4>
+                    <p><b>Endpoints:</b> <code>/api/public/themes/retrieveTheme</code> &amp; <code>/api/public/popapi/getPlanningarea</code></p>
                     <p>Direct token access to over 100+ public amenity datasets (e.g., polyclinics, public parks, hawker centres) allowing the ecosystem to populate contextual POIs dynamically along a user's route.</p>
                 </div>
-                
+
                 <div class="doc-card glass">
-                    <h4>🔐 Authentication & Coordinate Converters</h4>
-                    <p><b>Endpoints:</b> <code>/api/auth/post/getToken</code> & <code>/api/public/revgeocode</code></p>
+                    <h4>🔐 Authentication &amp; Coordinate Converters</h4>
+                    <p><b>Endpoints:</b> <code>/api/auth/post/getToken</code> &amp; <code>/api/public/revgeocode</code></p>
                     <p>Secure JWT-based access supporting conversions between local SVY21 coordinate formats and standard WGS84 Lat/Lng values returned by device sensors.</p>
                 </div>
             </div>
@@ -176,9 +177,9 @@
             <div class="demo-wrapper glass">
                 <div class="demo-text">
                     <h2>Immersive Wayfinding</h2>
-                    <p>The runtime is back on the stable generated-map environment for continuous navigation. Real-world image layers are archived but disabled by default because current capture spacing is too sparse for smooth movement.</p>
+                    <p>The runtime uses a stable generated-map environment for continuous navigation. Real-world image layers are archived but disabled by default because current capture spacing is too sparse for smooth movement.</p>
                     <ul class="feature-list">
-                        <li>📍 GPS & Compass accurate tracking</li>
+                        <li>📍 GPS &amp; Compass accurate tracking</li>
                         <li>🗺️ Data-driven OSM graph rendering</li>
                         <li>🚀 ARCore / ARKit compatible targets</li>
                         <li>⏱️ Estimated walk time (~min) in route overlay</li>
@@ -189,11 +190,20 @@
                     <div class="map-preview-card">
                         <h3>Queenstown Atlas Preview</h3>
                         <img
-                            src="Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130127-130133.png"
-                            alt="Queenstown generated map atlas preview"
+                            src="./Assets/StreamingAssets/Data/queenstown_map_z18_x206656-206662_y130127-130133.png"
+                            alt="Queenstown generated map atlas preview showing the estate road network and building footprints"
                             loading="lazy"
                         >
-                        <p>Unity uses generated atlas + graph routing for the environment. Archived Street View files remain in <code>Assets/StreamingAssets/Data/street_view</code> and are not loaded at runtime.</p>
+                        <p>Generated atlas + graph routing used by the AR runtime environment.</p>
+                    </div>
+                    <div class="map-preview-card" style="margin-top: 1.5rem;">
+                        <h3>NUS Engineering Atlas Preview</h3>
+                        <img
+                            src="./Assets/StreamingAssets/Data/nus_map_z18_x206633-206638_y130123-130128.png"
+                            alt="NUS Engineering campus generated map atlas preview showing buildings and walkways"
+                            loading="lazy"
+                        >
+                        <p>NUS Engineering campus graph with 424 nodes and 1,080 edges.</p>
                     </div>
                 </div>
             </div>
@@ -207,15 +217,19 @@
                 <h2>Quick Start</h2>
                 <p>Get up and running locally with the Wayfinding ecosystem in minutes.</p>
             </div>
-            
+
             <div class="step-card glass show-on-scroll">
                 <div class="step-number">1</div>
                 <div class="step-content">
                     <h3>Environment Setup</h3>
-                    <p>Install Unity Hub and Editor <b>2022.3.62f3</b> with Android/iOS modules.</p>
+                    <p>Install Unity Hub and Editor <b>2022.3.62f3</b> with Android/iOS modules. Install <b>Python 3.9+</b> for data generation scripts.</p>
+                    <div class="code-block">
+                        <pre><code id="pip-cmd">pip install -r requirements.txt</code></pre>
+                        <button class="btn-copy" data-copy-target="pip-cmd">Copy</button>
+                    </div>
                 </div>
             </div>
-            
+
             <div class="step-card glass show-on-scroll">
                 <div class="step-number">2</div>
                 <div class="step-content">
@@ -227,7 +241,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="step-card glass show-on-scroll">
                 <div class="step-number">3</div>
                 <div class="step-content">
@@ -239,11 +253,11 @@
                     </div>
                 </div>
             </div>
-            
+
             <div class="step-card glass show-on-scroll">
                 <div class="step-number">4</div>
                 <div class="step-content">
-                    <h3>Alpha Testing — Record Data</h3>
+                    <h3>Alpha Testing &mdash; Record Data</h3>
                     <p>Build the APK, install on a tester's phone, and use the <b>Rec: ON/OFF</b> toggle in the Quick Start overlay to gather GPS &amp; route telemetry as CSV.</p>
                     <div class="code-block">
                         <pre><code id="apk-cmd">python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk</code></pre>
@@ -267,17 +281,17 @@
                     <h4>Route does not update while moving</h4>
                     <p><b>Check:</b> <code>Sim Mode</code> is true and <code>Main Camera</code> is present. <br><b>Action:</b> Press <kbd>F5</kbd> for manual recalc, then move with <kbd>WASD</kbd>.</p>
                 </div>
-                
+
                 <div class="doc-card glass">
                     <h4>Play mode shows only sky/ground</h4>
                     <p><b>Check:</b> Active scene might be <code>Untitled</code>. <br><b>Action:</b> Stop Play mode, open <code>Assets/Scenes/Main.unity</code>, and hit Play again.</p>
                 </div>
-                
+
                 <div class="doc-card glass">
-                    <h4>GPS & Compass show "not ready"</h4>
+                    <h4>GPS &amp; Compass show "not ready"</h4>
                     <p><b>Check:</b> Device sensor state overlays. <br><b>Action:</b> On laptop, toggle simulation mode <kbd>F2</kbd>. On mobile, enable Location Services and calibrate the device compass.</p>
                 </div>
-                
+
                 <div class="doc-card glass">
                     <h4>Minimap elements break when turning (follow heading)</h4>
                     <p><b>Check:</b> Follow-heading mode is active and the user rotates. <br><b>Action:</b> Interaction mapping fix is applied (click/hover/zoom/pan now align with heading). If any visual overlay drift remains, toggle follow-heading off as a temporary fallback.</p>
@@ -285,27 +299,27 @@
 
                 <div class="doc-card glass">
                     <h4>Route not auto-refreshing after map-area switch</h4>
-                    <p><b>Check:</b> Quick Start map area changed recently. <br><b>Action:</b> Area switch now resets location-readiness and restarts a single startup wait; if needed, press <kbd>F5</kbd> once to force a manual recalc.</p>
+                    <p><b>Check:</b> Quick Start map area changed recently. <br><b>Action:</b> Area switch resets location-readiness and restarts a single startup wait; press <kbd>F5</kbd> to force a manual recalc if needed.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>NUS area looks empty after map switch</h4>
-                    <p><b>Check:</b> Quick Start shows <code>Map Area: NUS Engineering</code>; in Editor, toggle simulation with <kbd>F2</kbd> if needed. <br><b>Action:</b> Area switch now re-anchors simulation world mapping and force-snaps to the selected graph after reload; toggle area once and wait for auto-route refresh.</p>
+                    <p><b>Check:</b> Quick Start shows <code>Map Area: NUS Engineering</code>; in Editor, toggle simulation with <kbd>F2</kbd> if needed. <br><b>Action:</b> Area switch re-anchors simulation world mapping and force-snaps to the selected graph after reload; toggle area once and wait for auto-route refresh.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>NUS route keeps failing after map switch</h4>
-                    <p><b>Check:</b> Quick Start status line <code>Start node: ME -&gt; ...</code> should show a <code>NUS_...</code> node while in NUS area (not <code>QTMRT</code>). <br><b>Action:</b> Start-node context is now reset on area switch with area-specific defaults; switch area again and let auto-route run once.</p>
+                    <p><b>Check:</b> Quick Start status line <code>Start node: ME &rarr; ...</code> should show a <code>NUS_...</code> node while in NUS area (not <code>QTMRT</code>). <br><b>Action:</b> Start-node context resets on area switch with area-specific defaults; switch area again and let auto-route run once.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>NUS starts with zero-length route</h4>
-                    <p><b>Check:</b> Initial NUS route has matching start and destination (for example <code>NUS_E1 -&gt; E1</code>). <br><b>Action:</b> Initial auto-route now auto-selects a nearby destination to avoid trivial guidance.</p>
+                    <p><b>Check:</b> Initial NUS route has matching start and destination (for example <code>NUS_E1 &rarr; E1</code>). <br><b>Action:</b> Initial auto-route now auto-selects a nearby destination to avoid trivial guidance.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>NUS route refreshes too frequently while walking</h4>
-                    <p><b>Check:</b> Frequent recalculation due to small GPS jitter on device sensors. <br><b>Action:</b> Continuous refresh now uses a higher movement threshold for device sensor mode to keep guidance stable.</p>
+                    <p><b>Check:</b> Frequent recalculation due to small GPS jitter on device sensors. <br><b>Action:</b> Continuous refresh uses a higher movement threshold for device sensor mode to keep guidance stable.</p>
                 </div>
 
                 <div class="doc-card glass">
@@ -339,7 +353,7 @@
                 </div>
                 <div class="doc-card glass">
                     <h4>📱 Tester mode UI</h4>
-                    <p>A lightweight interface that hides debug overlays and shows only essential wayfinding plus the record button — ideal for alpha field testers.</p>
+                    <p>A lightweight interface that hides debug overlays and shows only essential wayfinding plus the record button &mdash; ideal for alpha field testers.</p>
                 </div>
             </div>
         </div>
@@ -358,9 +372,15 @@
                     <p>Android (ARCore)</p>
                     <p>iOS (ARKit)</p>
                 </div>
+                <div class="links">
+                    <h4>Tech Stack</h4>
+                    <p>Unity 2022.3 LTS</p>
+                    <p>Python Data Pipeline</p>
+                    <p>OneMap / OSM Integration</p>
+                </div>
             </div>
             <div class="footer-bottom">
-                <p>Website generated at: <span id="generatedAt"></span> | Project Repository Dashboard</p>
+                <p>Generated: <span id="generatedAt"></span> | CDE2501 AR Wayfinding Project</p>
             </div>
         </div>
     </footer>

@@ -83,6 +83,11 @@ namespace CDE2501.Wayfinding.Location
             catch (Exception e)
             {
                 Debug.LogError($"Failed to start telemetry recording: {e.Message}");
+                if (_writer != null)
+                {
+                    try { _writer.Dispose(); } catch { /* best effort */ }
+                    _writer = null;
+                }
                 CurrentSessionFile = null;
             }
         }

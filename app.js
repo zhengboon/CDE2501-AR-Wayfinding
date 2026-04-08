@@ -1,11 +1,15 @@
+// Navigation offset matches CSS --nav-height (80px) minus some visual padding
+const NAV_SCROLL_OFFSET = 72;
+const COPY_FEEDBACK_MS = 1000;
+
 // Smooth scrolling
 const anchors = document.querySelectorAll('a[href^="#"]');
 anchors.forEach(anchor => {
-    anchor.addEventListener('click', function onClick(event) {
+    anchor.addEventListener('click', function handleAnchorClick(event) {
         event.preventDefault();
         const target = document.querySelector(this.getAttribute('href'));
         if (target) {
-            window.scrollTo({ top: target.offsetTop - 72, behavior: 'smooth' });
+            window.scrollTo({ top: target.offsetTop - NAV_SCROLL_OFFSET, behavior: 'smooth' });
         }
     });
 });
@@ -85,13 +89,13 @@ document.querySelectorAll('.btn-copy').forEach(button => {
             button.textContent = 'Copied';
             setTimeout(() => {
                 button.textContent = previous;
-            }, 1000);
+            }, COPY_FEEDBACK_MS);
         } catch (_) {
             // Clipboard API may be unavailable on file:// contexts.
             button.textContent = 'Copy failed';
             setTimeout(() => {
                 button.textContent = 'Copy';
-            }, 1200);
+            }, COPY_FEEDBACK_MS);
         }
     });
 });
@@ -103,6 +107,11 @@ if (generatedAt) {
 }
 
 // Hero waveform animation — pauses when off-screen for performance
+//
+// Wave A: multi-frequency sine — 6 full cycles across the viewport width,
+//         amplitude-modulated by a slow cosine to create a breathing effect.
+// Wave B: exponential-rise sawtooth (repeats every normalised unit) scaled
+//         by a slow cosine, producing a rhythmic pulse-train look.
 (function runWaveAnimation() {
     const waveA = document.getElementById('wave-a');
     const waveB = document.getElementById('wave-b');
@@ -117,6 +126,8 @@ if (generatedAt) {
 
     const width = 960;
     const midpoint = 60;
+    const amplitudeA = 28;
+    const amplitudeB = 22;
     let time = 0;
     let animationId = null;
 
@@ -128,8 +139,8 @@ if (generatedAt) {
         return points.join(' ');
     };
 
-    const waveOne = x => midpoint - 28 * Math.sin((x / width) * Math.PI * 6 + time) * Math.cos(time * 0.35 + x * 0.003);
-    const waveTwo = x => midpoint - 22 * (1 - Math.exp(-((x / width + time * 0.05) % 1) * 5)) * Math.cos(time * 0.48);
+    const waveOne = x => midpoint - amplitudeA * Math.sin((x / width) * Math.PI * 6 + time) * Math.cos(time * 0.35 + x * 0.003);
+    const waveTwo = x => midpoint - amplitudeB * (1 - Math.exp(-((x / width + time * 0.05) % 1) * 5)) * Math.cos(time * 0.48);
 
     const tick = () => {
         time += 0.018;
