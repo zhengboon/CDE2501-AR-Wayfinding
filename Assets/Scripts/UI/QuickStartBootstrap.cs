@@ -105,6 +105,7 @@ namespace CDE2501.Wayfinding.UI
         private TelemetryRecorder _telemetryRecorder;
         private PathScreenshotRecorder _pathScreenshotRecorder;
         private UserPathRecorder _userPathRecorder;
+        private CDE2501.Wayfinding.AR.FlightTrackerARView _flightTrackerARView;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
@@ -312,6 +313,21 @@ namespace CDE2501.Wayfinding.UI
                     _pathScreenshotRecorder.CaptureManual();
                 }
                 essentialX += 56f;
+            }
+
+            if (_flightTrackerARView != null)
+            {
+                bool arActive = _flightTrackerARView.IsActive;
+                if (GUI.Button(new Rect(essentialX, 34f, 62f, 24f), arActive ? "AR: ON" : "AR: OFF"))
+                {
+                    _flightTrackerARView.Toggle();
+                    if (_flightTrackerARView.IsActive)
+                    {
+                        string destName = GetCurrentDestinationName();
+                        _flightTrackerARView.SetSelectedDestination(destName);
+                    }
+                }
+                essentialX += 68f;
             }
 
             bool newDebug = GUI.Toggle(new Rect(essentialX, 34f, 80f, 24f), _showDebugInfo, "Debug");
@@ -1157,6 +1173,12 @@ namespace CDE2501.Wayfinding.UI
                 _userPathRecorder = gameObject.AddComponent<UserPathRecorder>();
             }
 
+            _flightTrackerARView = FindObjectOfType<CDE2501.Wayfinding.AR.FlightTrackerARView>();
+            if (_flightTrackerARView == null)
+            {
+                _flightTrackerARView = gameObject.AddComponent<CDE2501.Wayfinding.AR.FlightTrackerARView>();
+            }
+
             if (_boundaryConstraintManager == null)
             {
                 _boundaryConstraintManager = gameObject.AddComponent<BoundaryConstraintManager>();
@@ -1910,6 +1932,10 @@ namespace CDE2501.Wayfinding.UI
             _selectedDestinationNodeId = selected != null ? selected.indoor_node_id : null;
             _selectedDestinationName = selected != null ? selected.name : null;
             UpdateSelectedDestinationMarker();
+            if (_flightTrackerARView != null && _flightTrackerARView.IsActive)
+            {
+                _flightTrackerARView.SetSelectedDestination(_selectedDestinationName);
+            }
             if (recalculate)
             {
                 RecalculateCurrentRoute("Destination changed via UI");

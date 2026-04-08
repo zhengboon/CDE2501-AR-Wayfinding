@@ -20,8 +20,10 @@ Last updated: 2026-04-09
 - GPS + Compass sensor fusion with simulation mode for laptop-first testing
 - Weighted A* route computation with ETA display
 - Minimap with follow-heading, pan/zoom, destination selection
+- Flight-tracker AR view — point phone at destinations to see labels, distance, ETA overlaid on camera
 - Runtime map-area switching (Queenstown <-> NUS) swapping texture + graph + locations
-- Telemetry CSV recording for alpha field testing
+- User path recording — testers walk labeled paths that feed back into the graph
+- Enhanced telemetry with altitude, floor estimation, GPS loss detection, auto-screenshots
 - Cached auto-build launcher with no-change skip logic
 - KML-based data generation pipeline (graphs, maps, boundaries)
 
@@ -142,6 +144,7 @@ Docs/                       Architecture docs & raw data caches
 | **Routing** | AStarPathfinder, RouteCalculator, RoutePathVisualizer | Weighted A* with lazy gScore init, route cache + cooldown, path rendering |
 | **UI** | QuickStartBootstrap, MiniMapOverlay, DestinationSelectorUI | Orchestration, minimap with follow-heading, destination CRUD |
 | **Data** | LocationManager, BoundaryConstraintManager | Destination persistence, geojson boundary filtering |
+| **AR** | ArrowRenderer, FlightTrackerARView | Direction arrow, camera-based destination overlay (flight-tracker style) |
 | **Editor** | AutoPlaySessionRecorder, CDE2501BuildRunner | Play-session MP4 recording with auto-prune, batch build entrypoint |
 
 ### Data Generation Scripts
@@ -226,8 +229,18 @@ Recorded paths are stored in `Android/data/<bundle-id>/files/RecordedPaths/`:
 - `path_index.json` — metadata index of all recorded paths
 - `path_YYYYMMDD_HHMMSS.json` — full GPS trail for each path
 
+### Flight-tracker AR view
+Tap **AR: OFF** to activate the camera-based destination overlay:
+- Phone camera becomes the background (no ARKit/ARCore needed)
+- Destinations appear as floating labels based on GPS bearing + compass heading
+- Labels show name, distance, and ETA — closer destinations appear larger
+- Selected destination is highlighted in orange
+- Route bearing indicator at bottom shows turn direction (left/right arrows)
+- Uses gyroscope for pitch detection, accelerometer as fallback
+- Works on any phone with camera, GPS, and compass
+
 ### Alpha tester UI
-By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, Path Record, Destination, Map Area. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
+By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, AR, Path Record, Destination, Map Area. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
 
 ---
 
