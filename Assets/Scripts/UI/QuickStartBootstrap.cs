@@ -140,6 +140,7 @@ namespace CDE2501.Wayfinding.UI
         private readonly List<string> _recentPlaySessionRecordings = new List<string>(5);
         private float _nextPlaySessionRefreshTime;
         private bool _pendingForceSnapAfterAreaSwitch;
+        private bool _showDebugInfo;
 
         private const string AutoSessionRecordingsFolderRelative = "Recordings/AutoSessions";
         private const int MaxPlaySessionPreviewCount = 5;
@@ -274,57 +275,79 @@ namespace CDE2501.Wayfinding.UI
             bool shouldRecalculate = false;
             string pendingRecalcReason = null;
 
+            // --- Essential controls (always visible) ---
+            float essentialX = 12f;
+
             if (_routeCalculator != null)
             {
-                bool rain = _routeCalculator.RainMode;
-                bool newRain = GUI.Toggle(new Rect(12f, 34f, 140f, 24f), rain, $"Rain: {(rain ? "True" : "False")}");
-                if (newRain != rain)
-                {
-                    _routeCalculator.RainMode = newRain;
-                    shouldRecalculate = true;
-                    pendingRecalcReason = "Rain mode UI toggle";
-                }
-
                 bool wheelchair = _routeCalculator.CurrentMode == RoutingMode.Wheelchair;
-                bool newWheelchair = GUI.Toggle(new Rect(162f, 34f, 180f, 24f), wheelchair, $"Wheelchair: {(wheelchair ? "True" : "False")}");
+                bool newWheelchair = GUI.Toggle(new Rect(essentialX, 34f, 180f, 24f), wheelchair, $"Wheelchair: {(wheelchair ? "True" : "False")}");
                 if (newWheelchair != wheelchair)
                 {
                     _routeCalculator.CurrentMode = newWheelchair ? RoutingMode.Wheelchair : RoutingMode.NormalElderly;
                     shouldRecalculate = true;
                     pendingRecalcReason = "Mobility mode UI toggle";
                 }
-            }
-
-            if (_simulationProvider != null)
-            {
-                bool sim = _simulationProvider.ForceSimulationMode;
-                bool newSim = GUI.Toggle(new Rect(352f, 34f, 150f, 24f), sim, $"Sim Mode: {(sim ? "True" : "False")}");
-                if (newSim != sim)
-                {
-                    _simulationProvider.ForceSimulationMode = newSim;
-                }
-            }
-
-            bool newNearestStart = GUI.Toggle(new Rect(512f, 34f, 140f, 24f), useNearestNodeAsStart, $"Nearest Start: {(useNearestNodeAsStart ? "True" : "False")}");
-            if (newNearestStart != useNearestNodeAsStart)
-            {
-                useNearestNodeAsStart = newNearestStart;
-                shouldRecalculate = true;
-                pendingRecalcReason = "Nearest Start UI toggle";
+                essentialX += 186f;
             }
 
             if (_telemetryRecorder != null)
             {
                 bool isRecording = _telemetryRecorder.IsRecording;
-                bool newRecording = GUI.Toggle(new Rect(658f, 34f, 80f, 24f), isRecording, isRecording ? "Rec: ON" : "Rec: OFF");
+                bool newRecording = GUI.Toggle(new Rect(essentialX, 34f, 80f, 24f), isRecording, isRecording ? "Rec: ON" : "Rec: OFF");
                 if (newRecording != isRecording)
                 {
                     if (newRecording) _telemetryRecorder.StartRecording();
                     else _telemetryRecorder.StopRecording();
                 }
+                essentialX += 86f;
             }
 
-            if (!disableYoutubeImageSystems && _streetViewExplorer != null)
+            bool newDebug = GUI.Toggle(new Rect(essentialX, 34f, 80f, 24f), _showDebugInfo, "Debug");
+            if (newDebug != _showDebugInfo)
+            {
+                _showDebugInfo = newDebug;
+            }
+
+            // --- Debug controls (hidden unless Debug is on) ---
+            if (_showDebugInfo)
+            {
+                float debugX = essentialX + 86f;
+
+                if (_routeCalculator != null)
+                {
+                    bool rain = _routeCalculator.RainMode;
+                    bool newRain = GUI.Toggle(new Rect(debugX, 34f, 140f, 24f), rain, $"Rain: {(rain ? "True" : "False")}");
+                    if (newRain != rain)
+                    {
+                        _routeCalculator.RainMode = newRain;
+                        shouldRecalculate = true;
+                        pendingRecalcReason = "Rain mode UI toggle";
+                    }
+                    debugX += 146f;
+                }
+
+                if (_simulationProvider != null)
+                {
+                    bool sim = _simulationProvider.ForceSimulationMode;
+                    bool newSim = GUI.Toggle(new Rect(debugX, 34f, 150f, 24f), sim, $"Sim Mode: {(sim ? "True" : "False")}");
+                    if (newSim != sim)
+                    {
+                        _simulationProvider.ForceSimulationMode = newSim;
+                    }
+                    debugX += 156f;
+                }
+
+                bool newNearestStart = GUI.Toggle(new Rect(debugX, 34f, 140f, 24f), useNearestNodeAsStart, $"Nearest Start: {(useNearestNodeAsStart ? "True" : "False")}");
+                if (newNearestStart != useNearestNodeAsStart)
+                {
+                    useNearestNodeAsStart = newNearestStart;
+                    shouldRecalculate = true;
+                    pendingRecalcReason = "Nearest Start UI toggle";
+                }
+            }
+
+            if (!disableYoutubeImageSystems && _showDebugInfo && _streetViewExplorer != null)
             {
                 bool streetViewActive = _streetViewExplorer.IsStreetViewActive;
                 bool newStreetViewActive = GUI.Toggle(new Rect(742f, 34f, 188f, 24f), streetViewActive, $"StreetView: {(streetViewActive ? "True" : "False")}");
@@ -401,7 +424,7 @@ namespace CDE2501.Wayfinding.UI
             }
 
             float sessionPreviewHeight = 0f;
-            if (Application.isEditor)
+            if (_showDebugInfo && Application.isEditor)
             {
                 RefreshPlaySessionRecordingsIfNeeded();
 
@@ -458,40 +481,56 @@ namespace CDE2501.Wayfinding.UI
                     ? $"Route: {_lastRouteResult.totalDistance:0.0} m, ~{_lastRouteResult.estimatedWalkTimeSeconds / 60f:0.1} min ({_lastRouteResult.nodePath.Count} nodes)"
                     : $"Route failed: {_lastRouteResult.message}");
 
-            string mediaSystemsText = disableYoutubeImageSystems
-                ? "Video frame map: disabled\nStreet view explorer: disabled\n"
-                : $"Video frame map: {(_videoFrameMapVisualizer != null)} (loaded: {(_videoFrameMapVisualizer != null && _videoFrameMapVisualizer.ManifestReady)}, markers: {(_videoFrameMapVisualizer != null ? _videoFrameMapVisualizer.MarkerCount : 0)})\n" +
-                  $"Street view explorer: {(_streetViewExplorer != null)} (loaded: {(_streetViewExplorer != null && _streetViewExplorer.ManifestReady)}, nodes: {(_streetViewExplorer != null ? _streetViewExplorer.NodeCount : 0)}, google: {(_streetViewExplorer != null ? _streetViewExplorer.GoogleNodeCount : 0)}, fallback: {(_streetViewExplorer != null ? _streetViewExplorer.YoutubeFallbackNodeCount : 0)}, active: {(_streetViewExplorer != null && _streetViewExplorer.IsStreetViewActive)})\n";
+            string text;
+            if (_showDebugInfo)
+            {
+                string mediaSystemsText = disableYoutubeImageSystems
+                    ? "Video frame map: disabled\nStreet view explorer: disabled\n"
+                    : $"Video frame map: {(_videoFrameMapVisualizer != null)} (loaded: {(_videoFrameMapVisualizer != null && _videoFrameMapVisualizer.ManifestReady)}, markers: {(_videoFrameMapVisualizer != null ? _videoFrameMapVisualizer.MarkerCount : 0)})\n" +
+                      $"Street view explorer: {(_streetViewExplorer != null)} (loaded: {(_streetViewExplorer != null && _streetViewExplorer.ManifestReady)}, nodes: {(_streetViewExplorer != null ? _streetViewExplorer.NodeCount : 0)}, google: {(_streetViewExplorer != null ? _streetViewExplorer.GoogleNodeCount : 0)}, fallback: {(_streetViewExplorer != null ? _streetViewExplorer.YoutubeFallbackNodeCount : 0)}, active: {(_streetViewExplorer != null && _streetViewExplorer.IsStreetViewActive)})\n";
 
-            string recalcKeyHint = BuildManualRecalcKeyHint();
-            string keyHelpText = disableYoutubeImageSystems
-                ? $"Keys: N/P next/prev destination, {recalcKeyHint} recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow."
-                : $"Keys: N/P next/prev destination, {recalcKeyHint} recalc, 1 Elderly, 2 Wheelchair, T rain toggle, Y street view. StreetView: non-click movement mode with auto-follow nearest panorama while moving, [ ] node, , . heading, H nearest node. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow.";
+                string recalcKeyHint = BuildManualRecalcKeyHint();
+                string keyHelpText = disableYoutubeImageSystems
+                    ? $"Keys: N/P next/prev destination, {recalcKeyHint} recalc, 1 Elderly, 2 Wheelchair, T rain toggle. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow."
+                    : $"Keys: N/P next/prev destination, {recalcKeyHint} recalc, 1 Elderly, 2 Wheelchair, T rain toggle, Y street view. StreetView: non-click movement mode with auto-follow nearest panorama while moving, [ ] node, , . heading, H nearest node. Move: WASD. Yaw: Q/E or Left/Right arrows. Pitch: R/F or Up/Down arrows. MiniMap: wheel zoom, left-drag pan (click selects destination only), right-drag move window, F follow.";
 
-            string text =
-                $"{_status}\n" +
-                $"Start node: ME -> {_resolvedStartNodeId} | Destination: {destinationName}\n" +
-                $"Recalc Reason: {_lastRecalcReason}\n" +
-                $"Mode: {(_routeCalculator != null ? _routeCalculator.CurrentMode.ToString() : "missing")} | Rain: {(_routeCalculator != null && _routeCalculator.RainMode)}\n" +
-                $"Baritone-style start: {baritoneStyleStartResolution} | Revalidation: {routeRevalidationEnabled}\n" +
-                $"Route engine ready: {(_routeCalculator != null && _routeCalculator.IsInitialized)}\n" +
-                $"GPS ready: {(_gpsManager != null && _gpsManager.IsReady)} (sim: {(_gpsManager != null && _gpsManager.IsUsingSimulation)}) | {(_gpsManager != null ? _gpsManager.StatusMessage : "missing")}\n" +
-                $"Compass ready: {(_compassManager != null && _compassManager.IsReady)} (sim: {(_compassManager != null && _compassManager.IsUsingSimulation)}) | {(_compassManager != null ? _compassManager.StatusMessage : "missing")}\n" +
-                $"Locations loaded: {_locationsLoaded} (raw: {(_locationManager != null ? _locationManager.Locations.Count : 0)}, usable: {_uiDestinations.Count})\n" +
-                $"Boundary active: {(_boundaryConstraintManager != null && _boundaryConstraintManager.HasBoundary)} (rev: {(_boundaryConstraintManager != null ? _boundaryConstraintManager.BoundaryRevision : 0)})\n" +
-                $"Graph preview: {(_graphRuntimeVisualizer != null)}\n" +
-                $"Map reference: {(_mapReferenceTileVisualizer != null)}\n" +
-                $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
-                $"Route line preview: {(_routePathVisualizer != null)}\n" +
-                $"Mini map: {(_miniMapOverlay != null)}\n" +
-                $"Telemetry: {(_telemetryRecorder != null ? (_telemetryRecorder.IsRecording ? $"Rec -> {_telemetryRecorder.CurrentSessionFile}" : "Ready") : "missing")}\n" +
-                $"Play sessions retained: {(_recentPlaySessionRecordings.Count > 0 ? $"{_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount} (latest: {Path.GetFileName(_recentPlaySessionRecordings[0])})" : $"0/{MaxPlaySessionPreviewCount}")}\n" +
-                $"Map area: {(useNusMapArea ? "NUS Engineering" : "Queenstown")}\n" +
-                $"Map files: mini={(_activeMiniMapImageFile ?? "n/a")}, ref={(_activeReferenceMapImageFile ?? "n/a")}\n" +
-                $"Data files: graph={(_activeGraphFile ?? "n/a")}, locations={(_activeLocationsFile ?? "n/a")}\n" +
-                mediaSystemsText +
-                $"{routeMessage}\n" +
-                keyHelpText;
+                text =
+                    $"{_status}\n" +
+                    $"Start node: ME -> {_resolvedStartNodeId} | Destination: {destinationName}\n" +
+                    $"Recalc Reason: {_lastRecalcReason}\n" +
+                    $"Mode: {(_routeCalculator != null ? _routeCalculator.CurrentMode.ToString() : "missing")} | Rain: {(_routeCalculator != null && _routeCalculator.RainMode)}\n" +
+                    $"Baritone-style start: {baritoneStyleStartResolution} | Revalidation: {routeRevalidationEnabled}\n" +
+                    $"Route engine ready: {(_routeCalculator != null && _routeCalculator.IsInitialized)}\n" +
+                    $"GPS ready: {(_gpsManager != null && _gpsManager.IsReady)} (sim: {(_gpsManager != null && _gpsManager.IsUsingSimulation)}) | {(_gpsManager != null ? _gpsManager.StatusMessage : "missing")}\n" +
+                    $"Compass ready: {(_compassManager != null && _compassManager.IsReady)} (sim: {(_compassManager != null && _compassManager.IsUsingSimulation)}) | {(_compassManager != null ? _compassManager.StatusMessage : "missing")}\n" +
+                    $"Locations loaded: {_locationsLoaded} (raw: {(_locationManager != null ? _locationManager.Locations.Count : 0)}, usable: {_uiDestinations.Count})\n" +
+                    $"Boundary active: {(_boundaryConstraintManager != null && _boundaryConstraintManager.HasBoundary)} (rev: {(_boundaryConstraintManager != null ? _boundaryConstraintManager.BoundaryRevision : 0)})\n" +
+                    $"Graph preview: {(_graphRuntimeVisualizer != null)}\n" +
+                    $"Map reference: {(_mapReferenceTileVisualizer != null)}\n" +
+                    $"Destination markers: {(_destinationMarkerVisualizer != null)}\n" +
+                    $"Route line preview: {(_routePathVisualizer != null)}\n" +
+                    $"Mini map: {(_miniMapOverlay != null)}\n" +
+                    $"Telemetry: {(_telemetryRecorder != null ? (_telemetryRecorder.IsRecording ? $"Rec -> {_telemetryRecorder.CurrentSessionFile}" : "Ready") : "missing")}\n" +
+                    $"Play sessions retained: {(_recentPlaySessionRecordings.Count > 0 ? $"{_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount} (latest: {Path.GetFileName(_recentPlaySessionRecordings[0])})" : $"0/{MaxPlaySessionPreviewCount}")}\n" +
+                    $"Map area: {(useNusMapArea ? "NUS Engineering" : "Queenstown")}\n" +
+                    $"Map files: mini={(_activeMiniMapImageFile ?? "n/a")}, ref={(_activeReferenceMapImageFile ?? "n/a")}\n" +
+                    $"Data files: graph={(_activeGraphFile ?? "n/a")}, locations={(_activeLocationsFile ?? "n/a")}\n" +
+                    mediaSystemsText +
+                    $"{routeMessage}\n" +
+                    keyHelpText;
+            }
+            else
+            {
+                // Compact alpha tester view
+                string gpsStatus = (_gpsManager != null && _gpsManager.IsReady) ? "Ready" : "Not ready";
+                string compassStatus = (_compassManager != null && _compassManager.IsReady) ? "Ready" : "Not ready";
+                string recStatus = _telemetryRecorder != null && _telemetryRecorder.IsRecording ? "Recording" : "Idle";
+                text =
+                    $"{routeMessage}\n" +
+                    $"GPS: {gpsStatus} | Compass: {compassStatus}\n" +
+                    $"Telemetry: {recStatus}\n" +
+                    $"Destination: {destinationName}";
+            }
 
             float infoTop = destinationRowY + 32f + dropdownHeight + sessionPreviewHeight + 4f;
             Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));

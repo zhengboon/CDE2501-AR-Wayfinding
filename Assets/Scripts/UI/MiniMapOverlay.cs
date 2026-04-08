@@ -162,6 +162,7 @@ namespace CDE2501.Wayfinding.UI
 
         private VideoFrameManifestData _videoFrameManifest;
         private bool _isVideoFrameManifestLoading;
+        private Vector2 _mapContentOffset;
 
         public event Action<string, string> OnDestinationNodeClicked;
 
@@ -451,13 +452,31 @@ namespace CDE2501.Wayfinding.UI
 
             DrawMapImageBackground(mapRect);
 
-            GUI.BeginGroup(mapRect);
-            DrawGraphEdges(mapRect.size);
-            DrawActiveRoute(mapRect.size);
-            DrawVideoMarkers(mapRect.size);
-            DrawDestinationMarker(mapRect.size);
-            DrawPlayerMarker(mapRect.size);
-            GUI.EndGroup();
+            if (followHeading)
+            {
+                // When the GUI matrix is rotated, GUI.BeginGroup clips to an
+                // axis-aligned screen rect which cuts off rotated corners.
+                // Instead, offset all drawing by mapRect.position so content
+                // stays within the rotated coordinate space.
+                _mapContentOffset = mapRect.position;
+                DrawGraphEdges(mapRect.size);
+                DrawActiveRoute(mapRect.size);
+                DrawVideoMarkers(mapRect.size);
+                DrawDestinationMarker(mapRect.size);
+                DrawPlayerMarker(mapRect.size);
+                _mapContentOffset = Vector2.zero;
+            }
+            else
+            {
+                _mapContentOffset = Vector2.zero;
+                GUI.BeginGroup(mapRect);
+                DrawGraphEdges(mapRect.size);
+                DrawActiveRoute(mapRect.size);
+                DrawVideoMarkers(mapRect.size);
+                DrawDestinationMarker(mapRect.size);
+                DrawPlayerMarker(mapRect.size);
+                GUI.EndGroup();
+            }
 
             GUI.matrix = prevMatrix;
 
@@ -537,10 +556,15 @@ namespace CDE2501.Wayfinding.UI
 
             Color previous = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, Mathf.Clamp01(mapImageAlpha));
-            GUI.BeginGroup(mapRect);
-            Rect drawRect = GetMapContentRect(mapRect.size);
+            // Draw without GUI.BeginGroup to avoid axis-aligned clipping that
+            // breaks under the rotated GUI matrix used by follow-heading mode.
+            Rect contentRect = GetMapContentRect(mapRect.size);
+            Rect drawRect = new Rect(
+                mapRect.x + contentRect.x,
+                mapRect.y + contentRect.y,
+                contentRect.width,
+                contentRect.height);
             GUI.DrawTexture(drawRect, _mapTexture, ScaleMode.StretchToFill, alphaBlend: true);
-            GUI.EndGroup();
             GUI.color = previous;
         }
 
@@ -803,6 +827,9 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            a += _mapContentOffset;
+            b += _mapContentOffset;
+
             float len = Vector2.Distance(a, b);
             if (len < 0.001f)
             {
@@ -823,6 +850,7 @@ namespace CDE2501.Wayfinding.UI
 
         private void DrawCircle(Vector2 center, float radius, Color color)
         {
+            center += _mapContentOffset;
             DrawFilledRect(new Rect(center.x - radius, center.y - radius, radius * 2f, radius * 2f), color);
         }
 
