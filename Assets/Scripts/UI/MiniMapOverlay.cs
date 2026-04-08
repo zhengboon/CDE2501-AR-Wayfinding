@@ -102,6 +102,8 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField, Min(1f)] private float edgeLineThickness = 1.2f;
         [SerializeField, Min(1f)] private float routeLineThickness = 3f;
         [SerializeField, Min(1f)] private float markerRadius = 4f;
+        [SerializeField, Min(4f)] private float headingArrowLength = 18f;
+        [SerializeField, Min(1f)] private float headingArrowWidth = 3f;
 
         private RouteResult _lastRoute;
         private string _selectedDestinationNodeId;
@@ -717,6 +719,26 @@ namespace CDE2501.Wayfinding.UI
 
             Vector2 p = WorldToMiniMap(startReferenceTransform.position, mapSize);
             DrawCircle(p, markerRadius, playerColor);
+
+            // Heading arrow — points in the direction the player is facing.
+            // In follow-heading mode the map rotates, so the arrow always points up.
+            // In normal mode, use the world Y rotation to orient the arrow on the map.
+            float headingDeg = followHeading ? 0f : startReferenceTransform.eulerAngles.y;
+            float headingRad = headingDeg * Mathf.Deg2Rad;
+            // Map coordinates: +Y is down on screen, heading 0 = north = up = -Y
+            Vector2 dir = new Vector2(Mathf.Sin(headingRad), -Mathf.Cos(headingRad));
+            Vector2 tip = p + dir * headingArrowLength;
+            DrawLine(p, tip, playerColor, headingArrowWidth);
+
+            // Draw small arrowhead wings using the direction vector
+            float wingLen = headingArrowLength * 0.35f;
+            Vector2 backDir = -dir;
+            Vector2 perpL = new Vector2(-backDir.y, backDir.x);
+            Vector2 perpR = new Vector2(backDir.y, -backDir.x);
+            Vector2 wingL = tip + (backDir + perpL).normalized * wingLen;
+            Vector2 wingR = tip + (backDir + perpR).normalized * wingLen;
+            DrawLine(tip, wingL, playerColor, headingArrowWidth * 0.7f);
+            DrawLine(tip, wingR, playerColor, headingArrowWidth * 0.7f);
         }
 
         private void DrawVideoMarkers(Vector2 mapSize)
