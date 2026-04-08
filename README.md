@@ -2,7 +2,7 @@
 
 > Unity AR navigation MVP with elderly-first guidance and safety-weighted routing for **Queenstown Estate** and **NUS Engineering Campus**.
 
-Last updated: 2026-04-08
+Last updated: 2026-04-09
 
 ---
 
@@ -170,17 +170,52 @@ Docs/                       Architecture docs & raw data caches
 
 ---
 
-## Alpha Testing — Telemetry
+## Alpha Testing — Telemetry & Path Recording
 
-1. Build APK: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk`
-2. Install on tester's phone
-3. Wait for GPS/Compass ready indicators
-4. Tap `Rec: OFF` toggle to start recording
-5. Walk the route
-6. Tap `Rec: ON` to stop recording
-7. Retrieve CSVs from `Android/data/<bundle-id>/files/Telemetry/`
+### Build & deploy
+```bash
+python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk
+```
+No ARCore/Google Play Services required — works on any Android phone with GPS and compass.
 
-**CSV columns:** `Time, DateTime, Lat, Lon, Heading, StartNode, Destination, RouteDistance, IsSimulated`
+### Tester workflow
+1. Install APK, open app
+2. Wait for GPS/Compass ready indicators
+3. Select destination from dropdown
+4. Tap **Rec: OFF** to start recording (auto-screenshots begin)
+5. Walk the route — tap **Snap** for manual screenshots at notable points
+6. Tap **Rec: ON** to stop recording
+7. Toggle **Debug** to view full system diagnostics if needed
+
+### Retrieving data
+```bash
+adb pull /sdcard/Android/data/<bundle-id>/files/Telemetry/ ./FieldData/
+```
+
+Each session is stored in its own folder:
+```
+Session_YYYYMMDD_HHMMSS/
+├── telemetry.csv
+└── screenshots/
+    ├── 20260409_143045_lat1.2965_lon103.7732_h45_heading.jpg
+    └── ...
+```
+
+### Telemetry CSV columns
+`Time, DateTime, Lat, Lon, Heading, Altitude, Accuracy, EstFloor, GpsLost, StartNode, Destination, RouteDistance, IsSimulated`
+
+### Auto-screenshot triggers
+- Heading change >30 degrees (captures turns)
+- Every 10 seconds while moving (straight segments)
+- Manual tap via **Snap** button (stairs, ramps, obstructions)
+
+### GPS loss handling
+- GPS lost indicator shown when accuracy >50m or no update for 10s
+- Recording continues with `GpsLost=true` flag in CSV
+- Altitude tracked for floor estimation (~3.5m per floor from baseline)
+
+### Alpha tester UI
+By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, Destination, Map Area. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
 
 ---
 
@@ -216,20 +251,19 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 
 ## Known Gaps
 
-- Street View/video-frame environment disabled by default (capture spacing too sparse for smooth movement). Archived assets retained for future reactivation.
-- Indoor elevation depends on graph annotation quality and field tuning.
-- Full AR validation requires real ARCore/ARKit hardware.
-- NUS building inter-links include synthetic connectivity assumptions for MVP.
-- Minimap follow-heading visual consistency still needs field tuning.
+- Street View/video-frame environment disabled by default (capture spacing too sparse). Archived assets retained.
+- NUS building inter-links include synthetic connectivity assumptions — field data will replace them.
+- GPS altitude accuracy is limited (~10-30m error); floor estimation uses relative barometric delta.
+- Full AR camera passthrough not yet active (ARCore/ARKit plugins included but no ARSession in scene).
 
 ---
 
 ## Roadmap
 
-1. Complete minimap follow-heading visual polish
-2. Build telemetry analysis pipeline (walked vs. routed path visualization)
-3. Indoor floor-level detection via barometer / AR plane detection
-4. Lightweight "tester mode" UI (hide debug overlays)
-5. Refine graph weights from field-collected walking data
-6. Integrate OneMap BFA API when approved
+1. **Alpha field testing** — deploy NUS APK, collect walked-path telemetry + screenshots
+2. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges
+3. **Replace synthetic graph** — swap OSM-generated NUS graph with real walked-path graph
+4. Integrate OneMap BFA API when approved
+5. Dead reckoning fallback when GPS is lost (compass + step counting)
+6. Indoor positioning via WiFi fingerprinting or BLE beacons
 7. Second production UI profile (compact mode)

@@ -103,6 +103,7 @@ namespace CDE2501.Wayfinding.UI
         private StreetViewExplorer _streetViewExplorer;
         private BoundaryConstraintManager _boundaryConstraintManager;
         private TelemetryRecorder _telemetryRecorder;
+        private PathScreenshotRecorder _pathScreenshotRecorder;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
@@ -303,10 +304,22 @@ namespace CDE2501.Wayfinding.UI
                 essentialX += 86f;
             }
 
+            if (_pathScreenshotRecorder != null && _telemetryRecorder != null && _telemetryRecorder.IsRecording)
+            {
+                if (GUI.Button(new Rect(essentialX, 34f, 50f, 24f), "Snap"))
+                {
+                    _pathScreenshotRecorder.CaptureManual();
+                }
+                essentialX += 56f;
+            }
+
             bool newDebug = GUI.Toggle(new Rect(essentialX, 34f, 80f, 24f), _showDebugInfo, "Debug");
             if (newDebug != _showDebugInfo)
             {
                 _showDebugInfo = newDebug;
+                // Hide debug-only visualizers (keep minimap + route line)
+                if (_graphRuntimeVisualizer != null) _graphRuntimeVisualizer.enabled = _showDebugInfo;
+                if (_destinationMarkerVisualizer != null) _destinationMarkerVisualizer.enabled = _showDebugInfo;
             }
 
             // --- Debug controls (hidden unless Debug is on) ---
@@ -522,13 +535,19 @@ namespace CDE2501.Wayfinding.UI
             else
             {
                 // Compact alpha tester view
-                string gpsStatus = (_gpsManager != null && _gpsManager.IsReady) ? "Ready" : "Not ready";
-                string compassStatus = (_compassManager != null && _compassManager.IsReady) ? "Ready" : "Not ready";
+                bool gpsLost = _telemetryRecorder != null && _telemetryRecorder.IsGpsLost;
+                string gpsStatus = gpsLost
+                    ? "GPS LOST"
+                    : (_gpsManager != null && _gpsManager.IsReady) ? "Ready" : "Waiting...";
+                string compassStatus = (_compassManager != null && _compassManager.IsReady) ? "Ready" : "Waiting...";
+                int floor = _telemetryRecorder != null ? _telemetryRecorder.EstimatedFloor : 0;
+                string floorText = floor == 0 ? "Ground" : $"Floor {floor}";
                 string recStatus = _telemetryRecorder != null && _telemetryRecorder.IsRecording ? "Recording" : "Idle";
+                int screenshots = _pathScreenshotRecorder != null ? _pathScreenshotRecorder.ScreenshotCount : 0;
                 text =
                     $"{routeMessage}\n" +
-                    $"GPS: {gpsStatus} | Compass: {compassStatus}\n" +
-                    $"Telemetry: {recStatus}\n" +
+                    $"GPS: {gpsStatus} | Compass: {compassStatus} | {floorText}\n" +
+                    $"Telemetry: {recStatus} | Screenshots: {screenshots}\n" +
                     $"Destination: {destinationName}";
             }
 
@@ -1093,6 +1112,12 @@ namespace CDE2501.Wayfinding.UI
             if (_telemetryRecorder == null)
             {
                 _telemetryRecorder = gameObject.AddComponent<TelemetryRecorder>();
+            }
+
+            _pathScreenshotRecorder = FindObjectOfType<PathScreenshotRecorder>();
+            if (_pathScreenshotRecorder == null)
+            {
+                _pathScreenshotRecorder = gameObject.AddComponent<PathScreenshotRecorder>();
             }
 
             if (_boundaryConstraintManager == null)
