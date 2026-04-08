@@ -159,19 +159,19 @@ namespace CDE2501.Wayfinding.IndoorGraph
                 Directory.CreateDirectory(folder);
             }
 
-            UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath));
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
+            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath)))
             {
-                File.WriteAllText(destinationPath, request.downloadHandler.text);
-            }
-            else
-            {
-                Debug.LogError($"Unable to copy graph from StreamingAssets: {request.error}");
-            }
+                yield return request.SendWebRequest();
 
-            request.Dispose();
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    File.WriteAllText(destinationPath, request.downloadHandler.text);
+                }
+                else
+                {
+                    Debug.LogError($"Unable to copy graph from StreamingAssets: {request.error}");
+                }
+            }
         }
 
         private static string ToUnityWebRequestPath(string path)

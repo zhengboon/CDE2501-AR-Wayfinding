@@ -1,3 +1,4 @@
+using System;
 using CDE2501.Wayfinding.IndoorGraph;
 using System.Collections.Generic;
 using UnityEngine;
@@ -42,6 +43,7 @@ namespace CDE2501.Wayfinding.Routing
         private readonly List<Vector3> _currentSegmentPoints = new List<Vector3>(128);
         private readonly List<Vector3> _futureSegmentPoints = new List<Vector3>(256);
         private readonly Vector3[] _connectorBuffer = new Vector3[2];
+        private readonly Dictionary<int, Gradient> _gradientCache = new Dictionary<int, Gradient>();
 
         private void Awake()
         {
@@ -327,25 +329,32 @@ namespace CDE2501.Wayfinding.Routing
                 return;
             }
 
-            Gradient gradient = new Gradient();
-            gradient.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(baseColor, 0f),
-                    new GradientColorKey(baseColor, 1f)
-                },
-                enableFade
-                    ? new[]
+            // Build a cache key from the parameters that affect gradient shape.
+            int cacheKey = HashCode.Combine(baseColor.GetHashCode(), enableFade, pointCount);
+            if (!_gradientCache.TryGetValue(cacheKey, out Gradient gradient))
+            {
+                gradient = new Gradient();
+                gradient.SetKeys(
+                    new[]
                     {
-                        new GradientAlphaKey(baseColor.a, 0f),
-                        new GradientAlphaKey(baseColor.a, ComputeFadeStartT(pointCount)),
-                        new GradientAlphaKey(0f, ComputeFadeEndT(pointCount))
-                    }
-                    : new[]
-                    {
-                        new GradientAlphaKey(baseColor.a, 0f),
-                        new GradientAlphaKey(baseColor.a, 1f)
-                    });
+                        new GradientColorKey(baseColor, 0f),
+                        new GradientColorKey(baseColor, 1f)
+                    },
+                    enableFade
+                        ? new[]
+                        {
+                            new GradientAlphaKey(baseColor.a, 0f),
+                            new GradientAlphaKey(baseColor.a, ComputeFadeStartT(pointCount)),
+                            new GradientAlphaKey(0f, ComputeFadeEndT(pointCount))
+                        }
+                        : new[]
+                        {
+                            new GradientAlphaKey(baseColor.a, 0f),
+                            new GradientAlphaKey(baseColor.a, 1f)
+                        });
+                _gradientCache[cacheKey] = gradient;
+            }
+
             line.colorGradient = gradient;
         }
 

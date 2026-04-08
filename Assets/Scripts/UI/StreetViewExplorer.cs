@@ -1463,29 +1463,29 @@ namespace CDE2501.Wayfinding.UI
         private static IEnumerator CopyTextFromStreamingAssets(string sourcePath, string destinationPath)
         {
             EnsureDataFolder(destinationPath);
-            UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath));
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
+            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath)))
             {
-                File.WriteAllText(destinationPath, request.downloadHandler.text);
-            }
+                yield return request.SendWebRequest();
 
-            request.Dispose();
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    File.WriteAllText(destinationPath, request.downloadHandler.text);
+                }
+            }
         }
 
         private static IEnumerator CopyBinaryFromStreamingAssets(string sourcePath, string destinationPath)
         {
             EnsureDataFolder(destinationPath);
-            UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath));
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
+            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath)))
             {
-                File.WriteAllBytes(destinationPath, request.downloadHandler.data);
-            }
+                yield return request.SendWebRequest();
 
-            request.Dispose();
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    File.WriteAllBytes(destinationPath, request.downloadHandler.data);
+                }
+            }
         }
 
         private static string GetStreamingPath(string fileName)

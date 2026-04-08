@@ -481,7 +481,8 @@ namespace CDE2501.Wayfinding.Routing
 
                     if (string.Equals(lastDest, newDest, StringComparison.Ordinal))
                     {
-                        bool isOnOldPath = _lastComputedResult.nodePath.Contains(request.startNodeId);
+                        var oldPathSet = new HashSet<string>(_lastComputedResult.nodePath, StringComparer.Ordinal);
+                        bool isOnOldPath = oldPathSet.Contains(request.startNodeId);
                         if (isOnOldPath && result.totalCost >= _lastComputedResult.totalCost - switchRouteCostAdvantage)
                         {
                             result = CloneRouteResult(_lastComputedResult);
@@ -695,19 +696,19 @@ namespace CDE2501.Wayfinding.Routing
                 Directory.CreateDirectory(folder);
             }
 
-            UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath));
-            yield return request.SendWebRequest();
-
-            if (request.result == UnityWebRequest.Result.Success)
+            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(sourcePath)))
             {
-                File.WriteAllText(destinationPath, request.downloadHandler.text);
-            }
-            else
-            {
-                Debug.LogError($"Unable to copy routing profiles JSON: {request.error}");
-            }
+                yield return request.SendWebRequest();
 
-            request.Dispose();
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    File.WriteAllText(destinationPath, request.downloadHandler.text);
+                }
+                else
+                {
+                    Debug.LogError($"Unable to copy routing profiles JSON: {request.error}");
+                }
+            }
         }
 
         private static string ToUnityWebRequestPath(string path)

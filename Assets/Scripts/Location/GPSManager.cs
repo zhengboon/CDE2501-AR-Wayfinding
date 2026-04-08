@@ -33,12 +33,14 @@ namespace CDE2501.Wayfinding.Location
         private bool _locationServiceStarted;
         private float _locationInitStartedTime;
         private const float InitTimeoutSeconds = 20f;
+        private bool _searchedForSimulation;
 
         private void Awake()
         {
             if (simulationProvider == null)
             {
                 simulationProvider = FindObjectOfType<SimulationProvider>();
+                _searchedForSimulation = true;
             }
         }
 
@@ -95,9 +97,10 @@ namespace CDE2501.Wayfinding.Location
 
         private bool ResolveUseSimulationMode()
         {
-            if (simulationProvider == null)
+            if (simulationProvider == null && !_searchedForSimulation)
             {
                 simulationProvider = FindObjectOfType<SimulationProvider>();
+                _searchedForSimulation = true;
             }
 
             if (sourceMode == SensorSourceMode.Simulation)

@@ -18,6 +18,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private bool clearExistingBeforeBuild = true;
 
         private readonly List<GameObject> _markers = new List<GameObject>();
+        private readonly List<Material> _materials = new List<Material>();
         private readonly Dictionary<string, Renderer> _markerByLocationName = new Dictionary<string, Renderer>();
         private bool _graphReady;
         private bool _locationsReady;
@@ -179,8 +180,8 @@ namespace CDE2501.Wayfinding.UI
                     if (markerMaterial != null)
                     {
                         renderer.material = markerMaterial;
+                        _materials.Add(markerMaterial);
                     }
-                    renderer.material.color = unselectedColor;
                     _markerByLocationName[location.name] = renderer;
                 }
 
@@ -198,6 +199,15 @@ namespace CDE2501.Wayfinding.UI
 
         private void ClearMarkers()
         {
+            for (int i = _materials.Count - 1; i >= 0; i--)
+            {
+                if (_materials[i] != null)
+                {
+                    Destroy(_materials[i]);
+                }
+            }
+            _materials.Clear();
+
             for (int i = _markers.Count - 1; i >= 0; i--)
             {
                 if (_markers[i] != null)
@@ -205,7 +215,6 @@ namespace CDE2501.Wayfinding.UI
                     Destroy(_markers[i]);
                 }
             }
-
             _markers.Clear();
             _markerByLocationName.Clear();
         }

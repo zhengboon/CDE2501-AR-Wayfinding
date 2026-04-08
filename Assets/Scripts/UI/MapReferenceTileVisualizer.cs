@@ -210,7 +210,11 @@ namespace CDE2501.Wayfinding.UI
                 shader = Shader.Find("Unlit/Texture");
             }
             _material = new Material(shader);
-            _quad.GetComponent<Renderer>().material = _material;
+            Renderer quadRenderer = _quad.GetComponent<Renderer>();
+            if (quadRenderer != null)
+            {
+                quadRenderer.material = _material;
+            }
             ApplyMaterialStyle();
         }
 

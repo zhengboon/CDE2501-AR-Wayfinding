@@ -22,12 +22,14 @@ namespace CDE2501.Wayfinding.Location
         public event Action<float, float> OnHeadingUpdated;
 
         private bool _hasInitial;
+        private bool _searchedForSimulation;
 
         private void Awake()
         {
             if (simulationProvider == null)
             {
                 simulationProvider = FindObjectOfType<SimulationProvider>();
+                _searchedForSimulation = true;
             }
         }
 
@@ -142,9 +144,10 @@ namespace CDE2501.Wayfinding.Location
 
         private bool ResolveUseSimulationMode()
         {
-            if (simulationProvider == null)
+            if (simulationProvider == null && !_searchedForSimulation)
             {
                 simulationProvider = FindObjectOfType<SimulationProvider>();
+                _searchedForSimulation = true;
             }
 
             if (sourceMode == SensorSourceMode.Simulation)

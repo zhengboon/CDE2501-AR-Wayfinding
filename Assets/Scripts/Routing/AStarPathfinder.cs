@@ -48,15 +48,9 @@ namespace CDE2501.Wayfinding.Routing
 
             var openSet = new MinHeap();
             var cameFrom = new Dictionary<string, string>();
-            var gScore = new Dictionary<string, float>();
-
-            // Lazy initialization: only set start node score.
+            // Lazy initialization: only visited nodes get a gScore entry.
             // Unvisited nodes are implicitly float.PositiveInfinity.
-            if (nodeEligibility != null &&
-                (!nodeEligibility(request.startNodeId) || !nodeEligibility(request.endNodeId)))
-            {
-                return RouteResult.Failed("Start or destination is outside the active boundary.");
-            }
+            var gScore = new Dictionary<string, float>();
 
             gScore[request.startNodeId] = 0f;
             openSet.Push(request.startNodeId, Heuristic(request.startNodeId, request.endNodeId));
