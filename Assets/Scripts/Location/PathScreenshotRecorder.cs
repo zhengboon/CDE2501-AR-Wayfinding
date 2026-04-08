@@ -94,6 +94,12 @@ namespace CDE2501.Wayfinding.Location
             _capturing = true;
             yield return new WaitForEndOfFrame();
 
+            if (telemetryRecorder == null)
+            {
+                _capturing = false;
+                yield break;
+            }
+
             string dir = telemetryRecorder.CurrentSessionDir;
             if (string.IsNullOrWhiteSpace(dir))
             {
@@ -123,21 +129,24 @@ namespace CDE2501.Wayfinding.Location
             string filename = $"{timestamp}_lat{lat:F4}_lon{lon:F4}_h{heading:F0}_{reason}.jpg";
             string path = Path.Combine(screenshotsDir, filename);
 
+            Texture2D tex = null;
             try
             {
-                Texture2D tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
+                tex = new Texture2D(Screen.width, Screen.height, TextureFormat.RGB24, false);
                 tex.ReadPixels(new Rect(0, 0, Screen.width, Screen.height), 0, 0);
                 tex.Apply();
 
                 byte[] jpg = tex.EncodeToJPG(75);
-                Destroy(tex);
-
                 File.WriteAllBytes(path, jpg);
                 ScreenshotCount++;
             }
             catch (Exception e)
             {
                 Debug.LogWarning($"[PathScreenshotRecorder] Failed to capture: {e.Message}");
+            }
+            finally
+            {
+                if (tex != null) Destroy(tex);
             }
 
             _capturing = false;

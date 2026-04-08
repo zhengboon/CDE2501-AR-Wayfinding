@@ -137,7 +137,7 @@ Docs/                       Architecture docs & raw data caches
 
 | Module | Key Files | Purpose |
 |---|---|---|
-| **Location** | GPSManager, CompassManager, LocationSmoother, SimulationProvider, TelemetryRecorder | Sensor input, smoothing, simulation fallback, field data recording |
+| **Location** | GPSManager, CompassManager, LocationSmoother, SimulationProvider, TelemetryRecorder, PathScreenshotRecorder, UserPathRecorder | Sensor input, smoothing, simulation fallback, enhanced telemetry, auto-screenshots, user path recording |
 | **Graph** | Node, Edge, GraphLoader, GraphRuntimeVisualizer | Graph data model, JSON loading, debug rendering |
 | **Routing** | AStarPathfinder, RouteCalculator, RoutePathVisualizer | Weighted A* with lazy gScore init, route cache + cooldown, path rendering |
 | **UI** | QuickStartBootstrap, MiniMapOverlay, DestinationSelectorUI | Orchestration, minimap with follow-heading, destination CRUD |
@@ -214,8 +214,20 @@ Session_YYYYMMDD_HHMMSS/
 - Recording continues with `GpsLost=true` flag in CSV
 - Altitude tracked for floor estimation (~3.5m per floor from baseline)
 
+### User path recording
+Testers can record labeled walking paths that feed back into the graph:
+1. Select a destination in the overlay
+2. Tap the **Record path: [start] -> [destination]** button
+3. Walk the real path — GPS breadcrumbs are recorded every 1s (min 1m apart)
+4. Tap **Stop Path** when arrived
+5. Path is saved locally as JSON with full GPS trail, altitude, floor, heading
+
+Recorded paths are stored in `Android/data/<bundle-id>/files/RecordedPaths/`:
+- `path_index.json` — metadata index of all recorded paths
+- `path_YYYYMMDD_HHMMSS.json` — full GPS trail for each path
+
 ### Alpha tester UI
-By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, Destination, Map Area. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
+By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, Path Record, Destination, Map Area. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
 
 ---
 
@@ -263,7 +275,8 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 1. **Alpha field testing** — deploy NUS APK, collect walked-path telemetry + screenshots
 2. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges
 3. **Replace synthetic graph** — swap OSM-generated NUS graph with real walked-path graph
-4. Integrate OneMap BFA API when approved
-5. Dead reckoning fallback when GPS is lost (compass + step counting)
-6. Indoor positioning via WiFi fingerprinting or BLE beacons
-7. Second production UI profile (compact mode)
+4. **Flight-tracker AR view** — point phone toward destination to see description, distance, and direction overlay (like airport flight tracker AR)
+5. Integrate OneMap BFA API when approved
+6. Dead reckoning fallback when GPS is lost (compass + step counting)
+7. Indoor positioning via WiFi fingerprinting or BLE beacons
+8. Share/upload recorded paths from device to repo

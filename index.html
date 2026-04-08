@@ -127,9 +127,15 @@
                 </div>
 
                 <div class="card glass show-on-scroll">
+                    <div class="icon">🚶</div>
+                    <h3>User Path Recording</h3>
+                    <p>Testers walk real paths and record labeled GPS trails from A to B. Recorded paths are stored locally as JSON, ready to be ingested into the graph to replace synthetic routes.</p>
+                </div>
+
+                <div class="card glass show-on-scroll">
                     <div class="icon">🧩</div>
                     <h3>Alpha Tester UI</h3>
-                    <p>Clean compact overlay showing only essentials: destination, recording, route info. Full debug diagnostics hidden behind a toggle for developers.</p>
+                    <p>Clean compact overlay showing only essentials: destination, path recording, route info. Full debug diagnostics hidden behind a toggle for developers.</p>
                 </div>
             </div>
         </div>
@@ -346,20 +352,20 @@
 
             <div class="acc-wrapper">
                 <div class="doc-card glass">
-                    <h4>🛠️ Complete minimap follow-heading polish</h4>
-                    <p>Interaction mapping is fixed; remaining work is final visual consistency tuning for all overlay layers under heading rotation.</p>
+                    <h4>📊 Path ingestion pipeline</h4>
+                    <p>Douglas-Peucker simplification of walked GPS trails into graph nodes and edges. Replace synthetic OSM-generated graph with real walked-path data from field testers.</p>
                 </div>
                 <div class="doc-card glass">
-                    <h4>📊 Telemetry analysis pipeline</h4>
-                    <p>Build post-processing tools to ingest field-collected CSV data, visualise walked vs. routed paths on a map, and refine graph weights from real observations.</p>
+                    <h4>✈️ Flight-tracker AR view</h4>
+                    <p>Point your phone toward a destination to see its name, distance, and direction overlaid on the camera feed &mdash; like airport flight tracker AR, but for campus wayfinding.</p>
                 </div>
                 <div class="doc-card glass">
                     <h4>🏢 Indoor floor-level detection</h4>
-                    <p>Use barometer or AR plane detection for automatic multi-storey building level awareness.</p>
+                    <p>Barometric altitude tracking with floor estimation (~3.5m per floor). Future: WiFi fingerprinting and BLE beacon positioning for indoor navigation.</p>
                 </div>
                 <div class="doc-card glass">
-                    <h4>📱 Tester mode UI</h4>
-                    <p>A lightweight interface that hides debug overlays and shows only essential wayfinding plus the record button &mdash; ideal for alpha field testers.</p>
+                    <h4>📤 Path upload &amp; sharing</h4>
+                    <p>Share recorded paths from device to repository. Testers walk real routes, paths get uploaded, and the graph improves automatically with each field session.</p>
                 </div>
             </div>
         </div>

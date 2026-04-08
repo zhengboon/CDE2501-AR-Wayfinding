@@ -33,6 +33,7 @@ namespace CDE2501.Wayfinding.Location
         private string _lastStartNode = "";
         private string _lastDestination = "";
         private float _lastRouteDistance;
+        private int _writesSinceFlush;
 
         private void Awake()
         {
@@ -221,6 +222,12 @@ namespace CDE2501.Wayfinding.Location
             try
             {
                 _writer.WriteLine(line);
+                _writesSinceFlush++;
+                if (_writesSinceFlush >= 10)
+                {
+                    _writer.Flush();
+                    _writesSinceFlush = 0;
+                }
             }
             catch (Exception e)
             {

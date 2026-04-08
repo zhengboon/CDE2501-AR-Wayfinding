@@ -104,6 +104,7 @@ namespace CDE2501.Wayfinding.UI
         private BoundaryConstraintManager _boundaryConstraintManager;
         private TelemetryRecorder _telemetryRecorder;
         private PathScreenshotRecorder _pathScreenshotRecorder;
+        private UserPathRecorder _userPathRecorder;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
@@ -436,12 +437,42 @@ namespace CDE2501.Wayfinding.UI
                 GUI.EndScrollView();
             }
 
+            // --- Path recording UI (always visible) ---
+            float pathRowY = destinationRowY + 32f + dropdownHeight + 2f;
+            float pathRecordHeight = 0f;
+            if (_userPathRecorder != null)
+            {
+                if (_userPathRecorder.IsRecordingPath)
+                {
+                    string pathLabel = $"Recording: {_userPathRecorder.CurrentFromLabel} -> {_userPathRecorder.CurrentToLabel} ({_userPathRecorder.CurrentPointCount} pts)";
+                    GUI.Label(new Rect(12f, pathRowY, _panelRect.width - 120f, 24f), pathLabel, _bodyStyle);
+                    if (GUI.Button(new Rect(_panelRect.width - 108f, pathRowY, 96f, 24f), "Stop Path"))
+                    {
+                        _userPathRecorder.StopPathRecording();
+                    }
+                    pathRecordHeight = 28f;
+                }
+                else
+                {
+                    GUI.Label(new Rect(12f, pathRowY, 100f, 24f), "Record path:", _bodyStyle);
+                    string fromLabel = _resolvedStartNodeId ?? "here";
+                    if (GUI.Button(new Rect(116f, pathRowY, 260f, 24f), $"{fromLabel} -> {destinationName}"))
+                    {
+                        _userPathRecorder.StartPathRecording(fromLabel, destinationName);
+                    }
+
+                    int savedPaths = _userPathRecorder.PathIndex != null ? _userPathRecorder.PathIndex.paths.Count : 0;
+                    GUI.Label(new Rect(386f, pathRowY, 200f, 24f), $"Saved paths: {savedPaths}", _bodyStyle);
+                    pathRecordHeight = 28f;
+                }
+            }
+
             float sessionPreviewHeight = 0f;
             if (_showDebugInfo && Application.isEditor)
             {
                 RefreshPlaySessionRecordingsIfNeeded();
 
-                float sessionRowY = destinationRowY + 32f + dropdownHeight + 2f;
+                float sessionRowY = pathRowY + pathRecordHeight + 2f;
                 GUI.Label(new Rect(12f, sessionRowY, 190f, 24f), $"Sessions ({_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount}):", _bodyStyle);
 
                 float refreshButtonX = Mathf.Max(12f, _panelRect.width - 178f);
@@ -551,7 +582,7 @@ namespace CDE2501.Wayfinding.UI
                     $"Destination: {destinationName}";
             }
 
-            float infoTop = destinationRowY + 32f + dropdownHeight + sessionPreviewHeight + 4f;
+            float infoTop = pathRowY + pathRecordHeight + sessionPreviewHeight + 4f;
             Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
             float contentHeight = Mathf.Max(infoViewport.height, _bodyStyle.CalcHeight(new GUIContent(text), infoViewport.width - 24f) + 12f);
             Rect contentRect = new Rect(0f, 0f, infoViewport.width - 20f, contentHeight);
@@ -1118,6 +1149,12 @@ namespace CDE2501.Wayfinding.UI
             if (_pathScreenshotRecorder == null)
             {
                 _pathScreenshotRecorder = gameObject.AddComponent<PathScreenshotRecorder>();
+            }
+
+            _userPathRecorder = FindObjectOfType<UserPathRecorder>();
+            if (_userPathRecorder == null)
+            {
+                _userPathRecorder = gameObject.AddComponent<UserPathRecorder>();
             }
 
             if (_boundaryConstraintManager == null)
