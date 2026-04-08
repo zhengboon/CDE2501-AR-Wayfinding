@@ -1,3 +1,6 @@
+# Build staging
+.build-excluded/
+
 # Unity generated folders
 [Ll]ibrary/
 [Tt]emp/
