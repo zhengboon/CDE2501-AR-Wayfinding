@@ -14,16 +14,12 @@ namespace CDE2501.Wayfinding.Data
         public string driveFileId;
     }
 
-    [Serializable]
-    public class DriveManifest
-    {
-        public List<DriveFileEntry> files = new List<DriveFileEntry>();
-    }
-
     public class DataSyncManager : MonoBehaviour
     {
-        [Header("Status")]
+        [Header("Settings")]
         [SerializeField] private bool showSyncUI = true;
+        [SerializeField] private bool checkForUpdatesOnLaunch = true;
+        [SerializeField] private float updateCheckIntervalHours = 1f;
 
         public bool IsSyncing { get; private set; }
         public bool SyncComplete { get; private set; }
@@ -46,10 +42,11 @@ namespace CDE2501.Wayfinding.Data
             new DriveFileEntry { fileName = "nus_boundary.geojson", driveFileId = "1KmZ-_T51WME37eQOjZlx7o7tDbLVl5OF" },
         };
 
+        private const string LastUpdateCheckKey = "DataSync_LastUpdateCheck";
+
         private GUIStyle _bgStyle;
         private GUIStyle _labelStyle;
         private GUIStyle _statusStyle;
-        private GUIStyle _buttonStyle;
         private Texture2D _bgTex;
         private Texture2D _barBgTex;
         private Texture2D _barFillTex;
@@ -68,6 +65,11 @@ namespace CDE2501.Wayfinding.Data
                 StatusMessage = "Data files found locally.";
                 SyncComplete = true;
                 OnSyncComplete?.Invoke();
+
+                if (checkForUpdatesOnLaunch && ShouldCheckForUpdates())
+                {
+                    StartCoroutine(CheckForUpdatesRoutine());
+                }
             }
             else
             {
@@ -78,7 +80,7 @@ namespace CDE2501.Wayfinding.Data
         public void StartSync()
         {
             if (IsSyncing) return;
-            StartCoroutine(SyncRoutine());
+            StartCoroutine(SyncRoutine(forceRedownload: false));
         }
 
         public void ForceReSync()
@@ -86,7 +88,8 @@ namespace CDE2501.Wayfinding.Data
             SyncComplete = false;
             SyncFailed = false;
             ErrorMessage = null;
-            StartSync();
+            if (IsSyncing) return;
+            StartCoroutine(SyncRoutine(forceRedownload: true));
         }
 
         private bool AllFilesExistLocally()
@@ -102,7 +105,59 @@ namespace CDE2501.Wayfinding.Data
             return true;
         }
 
-        private IEnumerator SyncRoutine()
+        private bool ShouldCheckForUpdates()
+        {
+            string lastCheck = PlayerPrefs.GetString(LastUpdateCheckKey, "");
+            if (string.IsNullOrWhiteSpace(lastCheck)) return true;
+
+            if (DateTime.TryParse(lastCheck, out DateTime last))
+            {
+                return (DateTime.UtcNow - last).TotalHours >= updateCheckIntervalHours;
+            }
+            return true;
+        }
+
+        private IEnumerator CheckForUpdatesRoutine()
+        {
+            // Download each file and compare size with local version
+            // If different, re-download
+            int updated = 0;
+            for (int i = 0; i < RequiredFiles.Length; i++)
+            {
+                DriveFileEntry entry = RequiredFiles[i];
+                string localPath = Path.Combine(DataDir, entry.fileName);
+                if (!File.Exists(localPath)) continue;
+
+                long localSize = new FileInfo(localPath).Length;
+                string url = BuildDownloadUrl(entry.driveFileId);
+
+                using (UnityWebRequest request = UnityWebRequest.Head(url))
+                {
+                    request.timeout = 10;
+                    yield return request.SendWebRequest();
+
+                    if (request.result != UnityWebRequest.Result.Success) continue;
+
+                    string contentLength = request.GetResponseHeader("Content-Length");
+                    if (long.TryParse(contentLength, out long remoteSize) && remoteSize != localSize)
+                    {
+                        // File changed on Drive — re-download
+                        yield return DownloadFile(entry, i, RequiredFiles.Length);
+                        updated++;
+                    }
+                }
+            }
+
+            PlayerPrefs.SetString(LastUpdateCheckKey, DateTime.UtcNow.ToString("o"));
+            PlayerPrefs.Save();
+
+            if (updated > 0)
+            {
+                Debug.Log($"[DataSyncManager] Updated {updated} files from Drive.");
+            }
+        }
+
+        private IEnumerator SyncRoutine(bool forceRedownload)
         {
             IsSyncing = true;
             SyncFailed = false;
@@ -123,8 +178,7 @@ namespace CDE2501.Wayfinding.Data
                 DriveFileEntry entry = RequiredFiles[i];
                 string localPath = Path.Combine(DataDir, entry.fileName);
 
-                // Skip if file already exists and has content
-                if (File.Exists(localPath) && new FileInfo(localPath).Length > 0)
+                if (!forceRedownload && File.Exists(localPath) && new FileInfo(localPath).Length > 0)
                 {
                     completed++;
                     Progress = (float)completed / totalFiles;
@@ -133,53 +187,28 @@ namespace CDE2501.Wayfinding.Data
                 }
 
                 StatusMessage = $"Downloading: {entry.fileName} ({completed + 1}/{totalFiles})";
-                string url = BuildDownloadUrl(entry.driveFileId);
 
-                using (UnityWebRequest request = UnityWebRequest.Get(url))
+                bool success = false;
+                yield return DownloadFileWithResult(entry, (s) => success = s);
+
+                if (!success)
                 {
-                    request.timeout = 30;
-                    UnityWebRequestAsyncOperation op = request.SendWebRequest();
-
-                    while (!op.isDone)
-                    {
-                        float fileProgress = op.progress;
-                        Progress = (completed + fileProgress) / totalFiles;
-                        yield return null;
-                    }
-
-                    if (request.result != UnityWebRequest.Result.Success)
-                    {
-                        string error = $"Failed to download {entry.fileName}: {request.error}";
-                        Debug.LogError($"[DataSyncManager] {error}");
-                        ErrorMessage = error;
-                        StatusMessage = error;
-                        SyncFailed = true;
-                        IsSyncing = false;
-                        OnSyncFailed?.Invoke(error);
-                        yield break;
-                    }
-
-                    try
-                    {
-                        File.WriteAllBytes(localPath, request.downloadHandler.data);
-                    }
-                    catch (Exception e)
-                    {
-                        string error = $"Failed to save {entry.fileName}: {e.Message}";
-                        Debug.LogError($"[DataSyncManager] {error}");
-                        ErrorMessage = error;
-                        StatusMessage = error;
-                        SyncFailed = true;
-                        IsSyncing = false;
-                        OnSyncFailed?.Invoke(error);
-                        yield break;
-                    }
+                    string error = $"Failed to download {entry.fileName}";
+                    ErrorMessage = error;
+                    StatusMessage = error;
+                    SyncFailed = true;
+                    IsSyncing = false;
+                    OnSyncFailed?.Invoke(error);
+                    yield break;
                 }
 
                 completed++;
                 Progress = (float)completed / totalFiles;
                 StatusMessage = $"Downloaded: {entry.fileName} ({completed}/{totalFiles})";
             }
+
+            PlayerPrefs.SetString(LastUpdateCheckKey, DateTime.UtcNow.ToString("o"));
+            PlayerPrefs.Save();
 
             IsSyncing = false;
             SyncComplete = true;
@@ -188,6 +217,152 @@ namespace CDE2501.Wayfinding.Data
             Debug.Log($"[DataSyncManager] Sync complete. {totalFiles} files in {DataDir}");
             OnSyncComplete?.Invoke();
         }
+
+        private IEnumerator DownloadFile(DriveFileEntry entry, int index, int total)
+        {
+            string localPath = Path.Combine(DataDir, entry.fileName);
+            string url = BuildDownloadUrl(entry.driveFileId);
+
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 30;
+                yield return request.SendWebRequest();
+
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    try
+                    {
+                        File.WriteAllBytes(localPath, request.downloadHandler.data);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.LogError($"[DataSyncManager] Failed to save {entry.fileName}: {e.Message}");
+                    }
+                }
+            }
+        }
+
+        private IEnumerator DownloadFileWithResult(DriveFileEntry entry, Action<bool> result)
+        {
+            string localPath = Path.Combine(DataDir, entry.fileName);
+            string url = BuildDownloadUrl(entry.driveFileId);
+
+            using (UnityWebRequest request = UnityWebRequest.Get(url))
+            {
+                request.timeout = 30;
+                UnityWebRequestAsyncOperation op = request.SendWebRequest();
+
+                while (!op.isDone)
+                {
+                    yield return null;
+                }
+
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    Debug.LogError($"[DataSyncManager] Download failed {entry.fileName}: {request.error}");
+                    result?.Invoke(false);
+                    yield break;
+                }
+
+                try
+                {
+                    File.WriteAllBytes(localPath, request.downloadHandler.data);
+                    result?.Invoke(true);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"[DataSyncManager] Save failed {entry.fileName}: {e.Message}");
+                    result?.Invoke(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Share the telemetry/recordings folder via Android share intent.
+        /// Call this from UI to let testers send data via Drive/Telegram/email.
+        /// </summary>
+        public void ShareTelemetryData()
+        {
+            string telemetryDir = Path.Combine(Application.persistentDataPath, "Telemetry");
+            string pathsDir = Path.Combine(Application.persistentDataPath, "RecordedPaths");
+            string crashDir = Path.Combine(Application.persistentDataPath, "Crashes");
+
+            // Collect all shareable files
+            var files = new List<string>();
+            if (Directory.Exists(telemetryDir))
+            {
+                files.AddRange(Directory.GetFiles(telemetryDir, "*.csv", SearchOption.AllDirectories));
+            }
+            if (Directory.Exists(pathsDir))
+            {
+                files.AddRange(Directory.GetFiles(pathsDir, "*.json", SearchOption.AllDirectories));
+            }
+            if (Directory.Exists(crashDir))
+            {
+                files.AddRange(Directory.GetFiles(crashDir, "*.txt", SearchOption.AllDirectories));
+            }
+
+            if (files.Count == 0)
+            {
+                StatusMessage = "No data to share yet.";
+                return;
+            }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+            ShareOnAndroid(files);
+#else
+            Debug.Log($"[DataSyncManager] Share: {files.Count} files ready at {Application.persistentDataPath}");
+            StatusMessage = $"{files.Count} files ready to share. Check persistent data path.";
+#endif
+        }
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        private static void ShareOnAndroid(List<string> filePaths)
+        {
+            try
+            {
+                using (AndroidJavaClass intentClass = new AndroidJavaClass("android.content.Intent"))
+                using (AndroidJavaObject intent = new AndroidJavaObject("android.content.Intent"))
+                {
+                    intent.Call<AndroidJavaObject>("setAction", "android.intent.action.SEND_MULTIPLE");
+                    intent.Call<AndroidJavaObject>("setType", "*/*");
+
+                    using (AndroidJavaClass uriClass = new AndroidJavaClass("android.net.Uri"))
+                    using (AndroidJavaObject arrayList = new AndroidJavaObject("java.util.ArrayList"))
+                    {
+                        using (AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                        using (AndroidJavaObject activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
+                        using (AndroidJavaObject context = activity.Call<AndroidJavaObject>("getApplicationContext"))
+                        {
+                            string authority = context.Call<AndroidJavaObject>("getPackageName").Call<string>("toString") + ".fileprovider";
+
+                            using (AndroidJavaClass fileProviderClass = new AndroidJavaClass("androidx.core.content.FileProvider"))
+                            {
+                                foreach (string path in filePaths)
+                                {
+                                    using (AndroidJavaObject file = new AndroidJavaObject("java.io.File", path))
+                                    {
+                                        AndroidJavaObject uri = fileProviderClass.CallStatic<AndroidJavaObject>("getUriForFile", context, authority, file);
+                                        arrayList.Call<bool>("add", uri);
+                                    }
+                                }
+                            }
+
+                            intent.Call<AndroidJavaObject>("putParcelableArrayListExtra", "android.intent.extra.STREAM", arrayList);
+                            intent.Call<AndroidJavaObject>("addFlags", 1); // FLAG_GRANT_READ_URI_PERMISSION
+
+                            AndroidJavaObject chooser = intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share telemetry data");
+                            activity.Call("startActivity", chooser);
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[DataSyncManager] Android share failed: {e.Message}");
+            }
+        }
+#endif
 
         private void OnGUI()
         {
@@ -203,11 +378,9 @@ namespace CDE2501.Wayfinding.Data
             Rect panel = new Rect(x, y, w, h);
 
             GUI.Box(panel, GUIContent.none, _bgStyle);
-
             GUI.Label(new Rect(x + 20f, y + 16f, w - 40f, 30f), "CDE2501 AR Wayfinding", _labelStyle);
             GUI.Label(new Rect(x + 20f, y + 50f, w - 40f, 24f), StatusMessage, _statusStyle);
 
-            // Progress bar
             Rect barBg = new Rect(x + 20f, y + 80f, w - 40f, 18f);
             GUI.DrawTexture(barBg, _barBgTex);
             if (Progress > 0f)
@@ -255,11 +428,6 @@ namespace CDE2501.Wayfinding.Data
                 fontSize = 16,
                 alignment = TextAnchor.MiddleCenter,
                 normal = { textColor = new Color(0.7f, 0.8f, 0.9f, 1f) }
-            };
-
-            _buttonStyle = new GUIStyle(GUI.skin.button)
-            {
-                fontSize = 16
             };
         }
 

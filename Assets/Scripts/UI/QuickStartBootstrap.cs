@@ -364,11 +364,19 @@ namespace CDE2501.Wayfinding.UI
                 essentialX += 68f;
             }
 
+            if (_dataSyncManager != null)
+            {
+                if (GUI.Button(new Rect(essentialX, 34f, 56f, 24f), "Share"))
+                {
+                    _dataSyncManager.ShareTelemetryData();
+                }
+                essentialX += 62f;
+            }
+
             bool newDebug = GUI.Toggle(new Rect(essentialX, 34f, 80f, 24f), _showDebugInfo, "Debug");
             if (newDebug != _showDebugInfo)
             {
                 _showDebugInfo = newDebug;
-                // Hide debug-only visualizers (keep minimap + route line)
                 if (_graphRuntimeVisualizer != null) _graphRuntimeVisualizer.enabled = _showDebugInfo;
                 if (_destinationMarkerVisualizer != null) _destinationMarkerVisualizer.enabled = _showDebugInfo;
             }
