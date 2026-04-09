@@ -46,7 +46,7 @@
         <div class="hero-content show-on-scroll">
             <div class="badge">Unity 2022.3.62f3 AR MVP</div>
             <h1>Navigate <span class="highlight">Tomorrow</span></h1>
-            <p>An advanced Unity AR Wayfinding project prioritizing elderly-first guidance, real-time safety routing, and seamless campus mapping for Queenstown Estate and NUS Engineering.</p>
+            <p>A Unity wayfinding app with flight-tracker AR camera view, elderly-first safety routing, GPS telemetry recording, and real-time path data collection for Queenstown Estate and NUS Engineering campus.</p>
             <div class="hero-buttons">
                 <a href="#quickstart" class="btn primary">Start Exploring</a>
                 <a href="#features" class="btn secondary">View Features</a>
@@ -194,14 +194,17 @@
         <div class="container show-on-scroll">
             <div class="demo-wrapper glass">
                 <div class="demo-text">
-                    <h2>Immersive Wayfinding</h2>
-                    <p>The runtime uses a stable generated-map environment for continuous navigation. Real-world image layers are archived but disabled by default because current capture spacing is too sparse for smooth movement.</p>
+                    <h2>What The App Does</h2>
+                    <p>A complete wayfinding companion that downloads data from Google Drive on first launch, calculates safe routes, and lets testers record real walking paths to improve the graph.</p>
                     <ul class="feature-list">
-                        <li>📍 GPS &amp; Compass accurate tracking</li>
-                        <li>🗺️ Data-driven OSM graph rendering</li>
-                        <li>🚀 ARCore / ARKit compatible targets</li>
-                        <li>⏱️ Estimated walk time (~min) in route overlay</li>
-                        <li>🧭 Street-view image assets preserved for future dense recapture</li>
+                        <li>📍 GPS &amp; Compass tracking with smoothing and simulation fallback</li>
+                        <li>✈️ Flight-tracker AR view &mdash; point phone at destinations to see labels, distance, ETA</li>
+                        <li>🗺️ Minimap with heading arrow, route overlay, and pan/zoom</li>
+                        <li>⏱️ Route ETA display (1.0 m/s elderly, 0.8 m/s wheelchair)</li>
+                        <li>🚶 Record labeled walking paths from A to B with GPS breadcrumbs</li>
+                        <li>📸 Auto-screenshots on heading changes + manual Snap button</li>
+                        <li>☁️ Google Drive sync &mdash; data downloads on launch, share telemetry from device</li>
+                        <li>🔧 Debug toggle hides all diagnostics for clean tester experience</li>
                     </ul>
                 </div>
                 <div class="demo-visual">
@@ -362,16 +365,16 @@
                     <p>Douglas-Peucker simplification of walked GPS trails into graph nodes and edges. Replace synthetic OSM-generated graph with real walked-path data from field testers.</p>
                 </div>
                 <div class="doc-card glass">
-                    <h4>✈️ Flight-tracker AR view</h4>
-                    <p>Point your phone toward a destination to see its name, distance, and direction overlaid on the camera feed &mdash; like airport flight tracker AR, but for campus wayfinding.</p>
+                    <h4>🏢 Indoor positioning</h4>
+                    <p>WiFi fingerprinting and BLE beacon positioning for indoor navigation. Dead reckoning via compass + step counting when GPS is lost between buildings.</p>
                 </div>
                 <div class="doc-card glass">
-                    <h4>🏢 Indoor floor-level detection</h4>
-                    <p>Barometric altitude tracking with floor estimation (~3.5m per floor). Future: WiFi fingerprinting and BLE beacon positioning for indoor navigation.</p>
+                    <h4>🔐 Google Sign-In for direct upload</h4>
+                    <p>OAuth-based authentication so the app uploads telemetry, screenshots, and recorded paths directly to Google Drive without manual sharing.</p>
                 </div>
                 <div class="doc-card glass">
-                    <h4>📤 Path upload &amp; sharing</h4>
-                    <p>Share recorded paths from device to repository. Testers walk real routes, paths get uploaded, and the graph improves automatically with each field session.</p>
+                    <h4>🗺️ OneMap BFA integration</h4>
+                    <p>Integrate OneMap's Barrier-Free Access API for authoritative wheelchair-accessible routes, replacing synthetic edge weights with real accessibility data.</p>
                 </div>
             </div>
         </div>

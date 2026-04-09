@@ -279,7 +279,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 - Street View/video-frame environment disabled by default (capture spacing too sparse). Archived assets retained.
 - NUS building inter-links include synthetic connectivity assumptions — field data will replace them.
 - GPS altitude accuracy is limited (~10-30m error); floor estimation uses relative barometric delta.
-- Full AR camera passthrough not yet active (ARCore/ARKit plugins included but no ARSession in scene).
+- Flight-tracker AR view uses WebCamTexture + compass (no ARCore/ARKit dependency). AR plugins remain in project for future plane-detection features.
 
 ---
 
@@ -288,8 +288,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 1. **Alpha field testing** — deploy NUS APK, collect walked-path telemetry + screenshots
 2. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges
 3. **Replace synthetic graph** — swap OSM-generated NUS graph with real walked-path graph
-4. **Flight-tracker AR view** — point phone toward destination to see description, distance, and direction overlay (like airport flight tracker AR)
+4. **Google Sign-In** — direct upload of telemetry/paths to Drive without manual sharing
 5. Integrate OneMap BFA API when approved
 6. Dead reckoning fallback when GPS is lost (compass + step counting)
 7. Indoor positioning via WiFi fingerprinting or BLE beacons
-8. Share/upload recorded paths from device to repo
