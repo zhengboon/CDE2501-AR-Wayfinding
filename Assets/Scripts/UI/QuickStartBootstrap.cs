@@ -106,6 +106,7 @@ namespace CDE2501.Wayfinding.UI
         private PathScreenshotRecorder _pathScreenshotRecorder;
         private UserPathRecorder _userPathRecorder;
         private CDE2501.Wayfinding.AR.FlightTrackerARView _flightTrackerARView;
+        private DataSyncManager _dataSyncManager;
 
         private string _status = "Initializing...";
         private string _resolvedStartNodeId = "QTMRT";
@@ -192,10 +193,43 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            // Wait for data sync before loading
+            _dataSyncManager = FindObjectOfType<DataSyncManager>();
+            if (_dataSyncManager == null)
+            {
+                _dataSyncManager = gameObject.AddComponent<DataSyncManager>();
+            }
+
+            if (_dataSyncManager.SyncComplete)
+            {
+                StartAfterSync();
+            }
+            else
+            {
+                _status = "Downloading data files...";
+                _dataSyncManager.OnSyncComplete += StartAfterSync;
+                _dataSyncManager.OnSyncFailed += HandleSyncFailed;
+            }
+        }
+
+        private void StartAfterSync()
+        {
+            if (_dataSyncManager != null)
+            {
+                _dataSyncManager.OnSyncComplete -= StartAfterSync;
+                _dataSyncManager.OnSyncFailed -= HandleSyncFailed;
+            }
+
+            _status = "Data ready. Loading...";
             ApplyMapAreaSelection();
             Subscribe();
             _locationManager.LoadLocations();
             StartAutoRouteWait();
+        }
+
+        private void HandleSyncFailed(string error)
+        {
+            _status = $"Data sync failed: {error}. Tap Retry in the download panel.";
         }
 
         private void OnDestroy()
