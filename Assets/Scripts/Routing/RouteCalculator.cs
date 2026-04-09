@@ -400,7 +400,6 @@ namespace CDE2501.Wayfinding.Routing
             if (!success)
             {
                 Debug.LogError($"Graph load failed: {message}");
-                _isInitializing = false;
                 return;
             }
 
@@ -408,9 +407,16 @@ namespace CDE2501.Wayfinding.Routing
             RebuildEdgeDistanceLookup();
             ClearRouteCache();
 
-            if (_isInitializing)
+            // Always reload profiles when graph loads successfully,
+            // even if a previous attempt failed (e.g. files weren't downloaded yet).
+            if (_profilesConfig == null)
             {
+                _isInitializing = true;
                 InitializeFromJson();
+            }
+            else
+            {
+                _isInitializing = false;
             }
         }
 
