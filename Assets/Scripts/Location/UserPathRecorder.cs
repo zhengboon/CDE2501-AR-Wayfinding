@@ -44,6 +44,8 @@ namespace CDE2501.Wayfinding.Location
         [Header("Settings")]
         [SerializeField] private float recordIntervalSeconds = 1f;
         [SerializeField] private float minPointDistanceMeters = 1f;
+        [SerializeField] private float minPathDistanceMeters = 10f;
+        [SerializeField] private int minPathPoints = 5;
 
         [Header("Dependencies")]
         [SerializeField] private GPSManager gpsManager;
@@ -54,6 +56,7 @@ namespace CDE2501.Wayfinding.Location
         public string CurrentFromLabel { get; private set; }
         public string CurrentToLabel { get; private set; }
         public int CurrentPointCount => _currentPoints.Count;
+        public string LastStopMessage { get; private set; }
         public RecordedPathIndex PathIndex { get; private set; }
 
         private readonly List<RecordedPathPoint> _currentPoints = new List<RecordedPathPoint>();
@@ -96,15 +99,25 @@ namespace CDE2501.Wayfinding.Location
             if (!IsRecordingPath) return;
             IsRecordingPath = false;
 
-            if (_currentPoints.Count < 2)
+            float distance = ComputePathDistance(_currentPoints);
+
+            if (_currentPoints.Count < minPathPoints)
             {
-                Debug.LogWarning("[UserPathRecorder] Path too short (< 2 points), discarding.");
+                LastStopMessage = $"Path too short ({_currentPoints.Count} pts, need {minPathPoints}). Discarded.";
+                Debug.LogWarning($"[UserPathRecorder] {LastStopMessage}");
+                _currentPoints.Clear();
+                return;
+            }
+
+            if (distance < minPathDistanceMeters)
+            {
+                LastStopMessage = $"Path too short ({distance:F0}m, need {minPathDistanceMeters:F0}m). Discarded.";
+                Debug.LogWarning($"[UserPathRecorder] {LastStopMessage}");
                 _currentPoints.Clear();
                 return;
             }
 
             float duration = Time.time - _pathStartTime;
-            float distance = ComputePathDistance(_currentPoints);
             int screenshots = telemetryRecorder != null && telemetryRecorder.IsRecording
                 ? FindObjectOfType<PathScreenshotRecorder>()?.ScreenshotCount ?? 0
                 : 0;
@@ -125,7 +138,8 @@ namespace CDE2501.Wayfinding.Location
 
             SavePath(path);
             _currentPoints.Clear();
-            Debug.Log($"[UserPathRecorder] Saved: {path.fromLabel} -> {path.toLabel} ({path.pointCount} pts, {distance:F0}m)");
+            LastStopMessage = $"Saved: {path.fromLabel} -> {path.toLabel} ({path.pointCount} pts, {distance:F0}m)";
+            Debug.Log($"[UserPathRecorder] {LastStopMessage}");
         }
 
         private void Update()

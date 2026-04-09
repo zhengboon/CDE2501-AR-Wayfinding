@@ -141,9 +141,9 @@ namespace CDE2501.Wayfinding.Data
                     string contentLength = request.GetResponseHeader("Content-Length");
                     if (long.TryParse(contentLength, out long remoteSize) && remoteSize != localSize)
                     {
-                        // File changed on Drive — re-download
-                        yield return DownloadFile(entry, i, RequiredFiles.Length);
-                        updated++;
+                        bool success = false;
+                        yield return DownloadFileWithResult(entry, (s) => success = s);
+                        if (success) updated++;
                     }
                 }
             }
@@ -216,30 +216,6 @@ namespace CDE2501.Wayfinding.Data
             StatusMessage = $"All {totalFiles} files ready.";
             Debug.Log($"[DataSyncManager] Sync complete. {totalFiles} files in {DataDir}");
             OnSyncComplete?.Invoke();
-        }
-
-        private IEnumerator DownloadFile(DriveFileEntry entry, int index, int total)
-        {
-            string localPath = Path.Combine(DataDir, entry.fileName);
-            string url = BuildDownloadUrl(entry.driveFileId);
-
-            using (UnityWebRequest request = UnityWebRequest.Get(url))
-            {
-                request.timeout = 30;
-                yield return request.SendWebRequest();
-
-                if (request.result == UnityWebRequest.Result.Success)
-                {
-                    try
-                    {
-                        File.WriteAllBytes(localPath, request.downloadHandler.data);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogError($"[DataSyncManager] Failed to save {entry.fileName}: {e.Message}");
-                    }
-                }
-            }
         }
 
         private IEnumerator DownloadFileWithResult(DriveFileEntry entry, Action<bool> result)

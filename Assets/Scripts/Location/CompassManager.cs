@@ -76,23 +76,9 @@ namespace CDE2501.Wayfinding.Location
                 if (!Input.compass.enabled)
                 {
                     Input.compass.enabled = true;
-                }
-
-                if (!Input.compass.enabled)
-                {
-                    if (fallbackToSimulationIfUnavailable && simulationProvider != null)
-                    {
-                        RawHeading = simulationProvider.CurrentHeading;
-                        IsUsingSimulation = true;
-                        IsReady = true;
-                        StatusMessage = "Compass fallback simulation active (sensor unavailable).";
-                    }
-                    else
-                    {
-                        IsReady = false;
-                        StatusMessage = "Compass sensor unavailable on this device.";
-                    }
-
+                    // Return and wait for next frame — OS needs time to initialize.
+                    IsReady = false;
+                    StatusMessage = "Compass enabling...";
                     return;
                 }
 
@@ -133,6 +119,9 @@ namespace CDE2501.Wayfinding.Location
             {
                 SmoothedHeading = LocationSmoother.SmoothAngle(RawHeading, SmoothedHeading, headingSmoothingAlpha);
             }
+
+            // Normalize to 0-360 range (LerpAngle can produce values outside this)
+            SmoothedHeading = ((SmoothedHeading % 360f) + 360f) % 360f;
 
             OnHeadingUpdated?.Invoke(RawHeading, SmoothedHeading);
         }

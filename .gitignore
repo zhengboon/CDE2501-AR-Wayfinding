@@ -1,6 +1,9 @@
 # Build staging
 .build-excluded/
 
+# Google Drive upload temp
+.tmp.driveupload/
+
 # Unity generated folders
 [Ll]ibrary/
 [Tt]emp/

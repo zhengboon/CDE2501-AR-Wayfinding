@@ -143,7 +143,7 @@ Docs/                       Architecture docs & raw data caches
 | **Graph** | Node, Edge, GraphLoader, GraphRuntimeVisualizer | Graph data model, JSON loading, debug rendering |
 | **Routing** | AStarPathfinder, RouteCalculator, RoutePathVisualizer | Weighted A* with lazy gScore init, route cache + cooldown, path rendering |
 | **UI** | QuickStartBootstrap, MiniMapOverlay, DestinationSelectorUI | Orchestration, minimap with follow-heading, destination CRUD |
-| **Data** | LocationManager, BoundaryConstraintManager | Destination persistence, geojson boundary filtering |
+| **Data** | LocationManager, BoundaryConstraintManager, DataSyncManager, CrashReporter | Destination persistence, boundary filtering, Google Drive data sync, crash log collection |
 | **AR** | ArrowRenderer, FlightTrackerARView | Direction arrow, camera-based destination overlay (flight-tracker style) |
 | **Editor** | AutoPlaySessionRecorder, CDE2501BuildRunner | Play-session MP4 recording with auto-prune, batch build entrypoint |
 
