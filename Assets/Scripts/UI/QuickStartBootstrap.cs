@@ -145,6 +145,9 @@ namespace CDE2501.Wayfinding.UI
         private float _nextPlaySessionRefreshTime;
         private bool _pendingForceSnapAfterAreaSwitch;
         private bool _showDebugInfo;
+        private int _pathFromIndex;
+        private bool _pathFromDropdownExpanded;
+        private Vector2 _pathFromDropdownScroll;
 
         private const string AutoSessionRecordingsFolderRelative = "Recordings/AutoSessions";
         private const int MaxPlaySessionPreviewCount = 5;
@@ -498,6 +501,7 @@ namespace CDE2501.Wayfinding.UI
             // --- Path recording UI (always visible) ---
             float pathRowY = destinationRowY + 32f + dropdownHeight + 2f;
             float pathRecordHeight = 0f;
+            float pathFromDropdownHeight = 0f;
             if (_userPathRecorder != null)
             {
                 if (_userPathRecorder.IsRecordingPath)
@@ -510,18 +514,64 @@ namespace CDE2501.Wayfinding.UI
                     }
                     pathRecordHeight = 28f;
                 }
-                else
+                else if (hasDestinations)
                 {
-                    GUI.Label(new Rect(12f, pathRowY, 100f, 24f), "Record path:", _bodyStyle);
-                    string fromLabel = _resolvedStartNodeId ?? "here";
-                    if (GUI.Button(new Rect(116f, pathRowY, 260f, 24f), $"{fromLabel} -> {destinationName}"))
+                    // Clamp path from index
+                    _pathFromIndex = Mathf.Clamp(_pathFromIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
+                    string fromName = _uiDestinations.Count > 0 ? _uiDestinations[_pathFromIndex].name : "none";
+
+                    GUI.Label(new Rect(12f, pathRowY, 42f, 24f), "From:", _bodyStyle);
+                    Rect fromButtonRect = new Rect(56f, pathRowY, 180f, 24f);
+                    if (GUI.Button(fromButtonRect, fromName))
                     {
-                        _userPathRecorder.StartPathRecording(fromLabel, destinationName);
+                        _pathFromDropdownExpanded = !_pathFromDropdownExpanded;
+                    }
+
+                    GUI.Label(new Rect(242f, pathRowY, 28f, 24f), "->", _bodyStyle);
+                    GUI.Label(new Rect(272f, pathRowY, 180f, 24f), destinationName, _bodyStyle);
+
+                    if (GUI.Button(new Rect(460f, pathRowY, 80f, 24f), "Record"))
+                    {
+                        _userPathRecorder.StartPathRecording(fromName, destinationName);
+                        _pathFromDropdownExpanded = false;
                     }
 
                     int savedPaths = _userPathRecorder.PathIndex != null ? _userPathRecorder.PathIndex.paths.Count : 0;
-                    GUI.Label(new Rect(386f, pathRowY, 200f, 24f), $"Saved paths: {savedPaths}", _bodyStyle);
-                    pathRecordHeight = 28f;
+                    GUI.Label(new Rect(548f, pathRowY, 160f, 24f), $"Saved: {savedPaths}", _bodyStyle);
+
+                    // From dropdown
+                    if (_pathFromDropdownExpanded && _uiDestinations.Count > 0)
+                    {
+                        float rowHeight = Mathf.Max(30f, bodyFontSize + 8f);
+                        float maxDropHeight = Mathf.Min(160f, _panelRect.height * 0.35f);
+                        pathFromDropdownHeight = Mathf.Min(maxDropHeight, (_uiDestinations.Count * rowHeight) + 8f);
+
+                        Rect fromDropRect = new Rect(56f, pathRowY + 28f, 180f, pathFromDropdownHeight);
+                        if (Event.current.type == EventType.MouseDown &&
+                            !fromButtonRect.Contains(Event.current.mousePosition) &&
+                            !fromDropRect.Contains(Event.current.mousePosition))
+                        {
+                            _pathFromDropdownExpanded = false;
+                        }
+
+                        GUI.Box(fromDropRect, GUIContent.none);
+                        Rect fromViewport = new Rect(fromDropRect.x + 4f, fromDropRect.y + 4f, fromDropRect.width - 8f, fromDropRect.height - 8f);
+                        Rect fromContent = new Rect(0f, 0f, fromViewport.width - 16f, _uiDestinations.Count * rowHeight);
+                        _pathFromDropdownScroll = GUI.BeginScrollView(fromViewport, _pathFromDropdownScroll, fromContent);
+                        for (int i = 0; i < _uiDestinations.Count; i++)
+                        {
+                            string itemName = _uiDestinations[i].name;
+                            string itemLabel = i == _pathFromIndex ? $"[x] {itemName}" : itemName;
+                            if (GUI.Button(new Rect(0f, i * rowHeight, fromContent.width, rowHeight - 2f), itemLabel))
+                            {
+                                _pathFromIndex = i;
+                                _pathFromDropdownExpanded = false;
+                            }
+                        }
+                        GUI.EndScrollView();
+                    }
+
+                    pathRecordHeight = 28f + pathFromDropdownHeight;
                 }
             }
 
