@@ -31,15 +31,17 @@ namespace CDE2501.Wayfinding.Data
         public event Action OnSyncComplete;
         public event Action<string> OnSyncFailed;
 
+        // Files served from synced project: CDE2501-AR-Wayfinding/Assets/StreamingAssets/Data/archived/
+        // When you regenerate these locally, Drive auto-syncs and the app picks up updates on next launch.
         private static readonly DriveFileEntry[] RequiredFiles = new[]
         {
-            new DriveFileEntry { fileName = "estate_graph.json", driveFileId = "13SCDOzZm8Lb4WNxeOuVVuBDMf0S3rHnS" },
-            new DriveFileEntry { fileName = "nus_estate_graph.json", driveFileId = "1D2YZA-3sz9EkVCvbL0hC88ekKP0zGmfg" },
-            new DriveFileEntry { fileName = "locations.json", driveFileId = "190AVpJtfGjr4JKy7a7iOE3QZi3M1_gWz" },
-            new DriveFileEntry { fileName = "nus_locations.json", driveFileId = "15ZVPFQWAlEZNyknzfeSnbqqugyAP7gSm" },
-            new DriveFileEntry { fileName = "routing_profiles.json", driveFileId = "1JyClQDAfaQM15bJnkTuv_lEcDhscKI8b" },
-            new DriveFileEntry { fileName = "queenstown_boundary.geojson", driveFileId = "15AeynkQO8KImJ1MUpl48ErY991m1CRHe" },
-            new DriveFileEntry { fileName = "nus_boundary.geojson", driveFileId = "1KmZ-_T51WME37eQOjZlx7o7tDbLVl5OF" },
+            new DriveFileEntry { fileName = "estate_graph.json", driveFileId = "1rdVh89zKpehzd1_pjbiO15xQluxg-S3B" },
+            new DriveFileEntry { fileName = "nus_estate_graph.json", driveFileId = "19mJFjc_52qA30apecosIkI4bEit6Jff5" },
+            new DriveFileEntry { fileName = "locations.json", driveFileId = "1iudrdcjUA4axr7OlbVNtlX3sHB0351Ru" },
+            new DriveFileEntry { fileName = "nus_locations.json", driveFileId = "1qAwOHLs0zzBNby82dH4ha98JitLL9m2g" },
+            new DriveFileEntry { fileName = "routing_profiles.json", driveFileId = "1BgyDOE4ts3V-o5Na4NzfSJic7BZX5HiZ" },
+            new DriveFileEntry { fileName = "queenstown_boundary.geojson", driveFileId = "1C2j_1QC9jyjbto7bCPQYkSEX6WjzHYze" },
+            new DriveFileEntry { fileName = "nus_boundary.geojson", driveFileId = "1LZWYApt484SDCGqcK8Q4xXj2cD0AOFMx" },
         };
 
         private const string LastUpdateCheckKey = "DataSync_LastUpdateCheck";
