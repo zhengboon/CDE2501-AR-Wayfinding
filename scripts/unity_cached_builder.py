@@ -58,6 +58,8 @@ DEFAULT_CONFIG = {
             "UnityBuildCache",
             ".tmp-yt",
             "baritone-example",
+            "street_view",
+            "video_frames",
         ],
         "excludeFileGlobs": [
             "*.csproj",
@@ -409,7 +411,6 @@ def build_if_needed(
     dev_build = dev_override if dev_override is not None else bool(build_cfg.get("developmentBuild", False))
     use_nographics = bool(build_cfg.get("nographics", True))
 
-    scan = scan_watch_files(config)
     state = load_state()
 
     previous_fingerprint = state.get("fingerprint")
@@ -417,15 +418,22 @@ def build_if_needed(
     output_exists = output_path.exists()
 
     if force:
-        decision = BuildDecision(True, "Forced rebuild requested", cache_hit=False)
-    elif previous_fingerprint != scan.digest:
-        decision = BuildDecision(True, "Input fingerprint changed", cache_hit=False)
-    elif previous_target != target:
-        decision = BuildDecision(True, "Build target changed", cache_hit=False)
-    elif not output_exists:
-        decision = BuildDecision(True, "Build output missing", cache_hit=False)
+        # Skip expensive full-tree hashing for forced builds.
+        scan = ScanResult(
+            digest=str(previous_fingerprint or "<skipped-force-scan>"),
+            file_count=int(state.get("watchedFiles", 0) or 0),
+        )
+        decision = BuildDecision(True, "Forced rebuild requested (fingerprint scan skipped)", cache_hit=False)
     else:
-        decision = BuildDecision(False, "No changes detected; using cache", cache_hit=True)
+        scan = scan_watch_files(config)
+        if previous_fingerprint != scan.digest:
+            decision = BuildDecision(True, "Input fingerprint changed", cache_hit=False)
+        elif previous_target != target:
+            decision = BuildDecision(True, "Build target changed", cache_hit=False)
+        elif not output_exists:
+            decision = BuildDecision(True, "Build output missing", cache_hit=False)
+        else:
+            decision = BuildDecision(False, "No changes detected; using cache", cache_hit=True)
 
     timestamp = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_file = LOGS_DIR / f"unity_build_{dt.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
@@ -515,13 +523,20 @@ def build_if_needed(
             summary["failureHint"] = "Close any Unity Editor instance using this project, then rerun cached build."
 
     if succeeded:
+        fingerprint_for_state = scan.digest
+        watched_files_for_state = scan.file_count
+        if force and previous_fingerprint:
+            # Preserve last known fingerprint metadata when force skips scan.
+            fingerprint_for_state = str(previous_fingerprint)
+            watched_files_for_state = int(state.get("watchedFiles", watched_files_for_state) or watched_files_for_state)
+
         new_state = {
-            "fingerprint": scan.digest,
+            "fingerprint": fingerprint_for_state,
             "buildTarget": target,
             "outputPath": str(output_path),
             "lastBuildTime": timestamp,
             "lastLogFile": str(log_file),
-            "watchedFiles": scan.file_count,
+            "watchedFiles": watched_files_for_state,
         }
         save_state(new_state)
 

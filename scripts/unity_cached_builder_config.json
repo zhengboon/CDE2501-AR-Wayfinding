@@ -20,7 +20,9 @@
       ".git",
       "UnityBuildCache",
       ".tmp-yt",
-      "baritone-example"
+      "baritone-example",
+      "street_view",
+      "video_frames"
     ],
     "excludeFileGlobs": [
       "*.csproj",

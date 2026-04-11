@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-11
+> Living document. Updated: 2026-04-11 (review pass)
 
 ---
 
@@ -23,7 +23,7 @@
 | Map atlas `.json` manifests | StreamingAssets/Data/ (bundled) | Tiny (< 2 KB each), tile index only |
 | Graph `.json`, locations, boundaries, routing profiles | StreamingAssets/Data/archived/ → Drive | Large, regeneratable, updated between builds |
 | Map tile `.png` atlases | StreamingAssets/Data/archived/ | 1–4 MB each, graceful degradation without them |
-| `street_view_manifest.json` | StreamingAssets/Data/ (bundled) | ⚠️ 2.8 MB — investigate moving to Drive |
+| Street View dataset (`street_view/`, `street_view_manifest.json`) | `.tmp-streetview/manual_move/` (outside Unity assets) | Excluded from APK/build scan while keeping local backup |
 | APK architecture | ARM64 only | ARMv7 dropped to reduce size |
 | Min SDK | 24 | ARCore compatibility |
 
@@ -83,6 +83,17 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 
 ---
 
+## Code Review Fixes (2026-04-11)
+
+1. `DataSyncManager` now validates downloaded payloads and rejects HTML/auth pages from Google Drive instead of saving invalid files as JSON.
+2. `DataSyncManager` now writes via `*.tmp` and then atomically moves the file into place to avoid partial/corrupted writes.
+3. `unity_cached_builder.py --force` now skips expensive full fingerprint scans (critical when very large optional datasets exist).
+4. `unity_cached_builder.py` and `unity_cached_builder_config.json` exclude `street_view` and `video_frames` directories from fingerprint scanning.
+5. `CDE2501BuildRunner.RunDirectBuild` now mirrors batchmode reliability guards: explicit active-target switch and Android IL2CPP + ARM64 enforcement.
+6. Current 7 required Drive IDs were re-verified as direct-download accessible.
+
+---
+
 ## Build State
 
 ### APK Build Command
@@ -94,7 +105,7 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 
 **Bundled in APK (StreamingAssets/Data/):**
 - Map atlas JSON manifests (6 × ~1 KB)
-- `street_view_manifest.json` (2.8 MB — ⚠️ candidate for Drive offload)
+- No Street View dataset (moved outside Unity assets)
 
 **Downloaded on first launch from Drive:**
 - `estate_graph.json` (~1.1 MB)
@@ -140,7 +151,7 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 
 ## Known Issues / TODOs
 
-- [ ] `street_view_manifest.json` (2.8 MB) still bundled — consider moving to Drive
+- [ ] Optional Street View dataset is externalized at `.tmp-streetview/manual_move/` and currently excluded from APK
 - [ ] Drive file IDs must be **"Anyone with link → Viewer"** — verify after any Drive restructure
 - [ ] No Google Sign-In yet — tester must manually share data via Share button
 - [ ] NUS graph is OSM-synthetic — replace with walked-path data after alpha testing
@@ -206,3 +217,13 @@ While attempting to generate the thin APK via headless batchmode (`unity_cached_
    - **Error**: `ArgumentException: You're trying to copy to ... bin/Data/desktop.ini more than once`
    - **Cause**: Windows automatically generates hidden `desktop.ini` files inside standard folders. Because the project includes raw `street_view` frames imported from Google Drive, multiple `desktop.ini` files were caught in the `StreamingAssets` bundle scope, causing Unity's Android build backend (Bee) to try to pack them all to the same build root path.
    - **Fix**: Recursively force-deleted all `desktop.ini` files in the project. Terminated hanging Bee build daemons and completely renamed/deleted `Library/Bee` to bypass the corrupted IL2CPP compilation cache.
+
+6. **`--force` Build Still Spent Minutes Scanning Inputs**
+   - **Error**: `unity_cached_builder.py --force` appeared hung before Unity launched.
+   - **Cause**: Fingerprint scanning ran even on forced builds.
+   - **Fix**: Updated script to skip full fingerprint scan when `--force` is used.
+
+7. **Drive Permission Page Saved as Data File**
+   - **Error**: Data sync could save an HTML auth/share page if Drive links were not publicly shared.
+   - **Cause**: Download path accepted any successful HTTP payload without content validation.
+   - **Fix**: Added HTML payload detection and fail-fast logs with explicit share-permission guidance.

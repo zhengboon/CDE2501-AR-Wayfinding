@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -58,6 +59,15 @@ namespace CDE2501.Wayfinding.Data
         private static string BuildDownloadUrl(string fileId)
         {
             return $"https://drive.usercontent.google.com/download?id={fileId}&export=download";
+        }
+
+        private static bool IsLikelyHtmlPayload(byte[] data)
+        {
+            if (data == null || data.Length == 0) return false;
+
+            int probeLength = Mathf.Min(data.Length, 256);
+            string prefix = Encoding.UTF8.GetString(data, 0, probeLength).TrimStart().ToLowerInvariant();
+            return prefix.StartsWith("<!doctype") || prefix.StartsWith("<html");
         }
 
         private void Start()
@@ -229,6 +239,7 @@ namespace CDE2501.Wayfinding.Data
             {
                 request.timeout = 30;
                 UnityWebRequestAsyncOperation op = request.SendWebRequest();
+                string tempPath = localPath + ".tmp";
 
                 while (!op.isDone)
                 {
@@ -244,11 +255,44 @@ namespace CDE2501.Wayfinding.Data
 
                 try
                 {
-                    File.WriteAllBytes(localPath, request.downloadHandler.data);
+                    byte[] bytes = request.downloadHandler.data;
+                    if (bytes == null || bytes.Length == 0)
+                    {
+                        Debug.LogError($"[DataSyncManager] Download returned empty payload for {entry.fileName}");
+                        result?.Invoke(false);
+                        yield break;
+                    }
+
+                    // Guard against Drive auth/permission pages being saved as JSON.
+                    if (IsLikelyHtmlPayload(bytes))
+                    {
+                        Debug.LogError($"[DataSyncManager] Download for {entry.fileName} returned HTML. Verify file sharing is 'Anyone with link -> Viewer' for Drive file ID {entry.driveFileId}.");
+                        result?.Invoke(false);
+                        yield break;
+                    }
+
+                    File.WriteAllBytes(tempPath, bytes);
+                    if (File.Exists(localPath))
+                    {
+                        File.Delete(localPath);
+                    }
+                    File.Move(tempPath, localPath);
                     result?.Invoke(true);
                 }
                 catch (Exception e)
                 {
+                    try
+                    {
+                        if (File.Exists(tempPath))
+                        {
+                            File.Delete(tempPath);
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore cleanup errors after a failed save.
+                    }
+
                     Debug.LogError($"[DataSyncManager] Save failed {entry.fileName}: {e.Message}");
                     result?.Invoke(false);
                 }

@@ -130,10 +130,29 @@ namespace CDE2501.Wayfinding.EditorTools
 
             BuildOptions options = developmentBuild ? BuildOptions.Development : BuildOptions.None;
             EnsureOutputDirectory(outputPath);
+            BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(target);
+
+            if (EditorUserBuildSettings.activeBuildTarget != target)
+            {
+                Debug.Log($"[CDE2501BuildRunner] Switching active build target to {target} (was {EditorUserBuildSettings.activeBuildTarget})");
+                bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(targetGroup, target);
+                if (!switched)
+                {
+                    Fail($"Failed to switch active build target to {target}. Ensure the platform module is installed in Unity Hub.");
+                    return;
+                }
+            }
+
+            if (targetGroup == BuildTargetGroup.Android)
+            {
+                PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
+                PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            }
 
             BuildReport report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
             {
                 target = target,
+                targetGroup = targetGroup,
                 locationPathName = outputPath,
                 scenes = scenes,
                 options = options

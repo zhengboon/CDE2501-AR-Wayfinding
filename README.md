@@ -63,6 +63,8 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 ```
 Or double-click `launch_unity_cached_build.bat`.
 
+`--force` now skips fingerprint scanning and jumps straight to Unity build invocation.
+
 ### Generate Maps from KML
 
 ```bash
@@ -182,7 +184,7 @@ The APK ships only the minimum required files. Large data files are downloaded f
 | File type | Location | Bundled? |
 |---|---|---|
 | Map atlas `.json` manifests | StreamingAssets/Data/ | ✅ Yes (~1 KB each) |
-| `street_view_manifest.json` | StreamingAssets/Data/ | ⚠️ Yes (2.8 MB — candidate for Drive offload) |
+| Street View dataset (`street_view/`, `street_view_manifest.json`) | `.tmp-streetview/manual_move/` (outside Unity assets) | ❌ Not bundled |
 | Graph + locations + boundaries + profiles | archived/ → Drive | ❌ Downloaded on launch |
 | Map tile `.png` atlases | archived/ | ❌ Not bundled (graceful degradation) |
 
@@ -207,6 +209,7 @@ When you regenerate data locally, Google Drive desktop auto-syncs. The app picks
 
 - **First launch (no cached files):** progress bar UI downloads all 7 files sequentially. Retry button on failure.
 - **Subsequent launches:** files already cached → app starts immediately. Background hourly check compares `Content-Length` headers; re-downloads only changed files.
+- **Safety check:** if Drive returns an HTML page (auth/permission page), sync fails fast and logs a clear sharing-permission error instead of saving invalid JSON.
 - **Force re-sync:** call `DataSyncManager.ForceReSync()` (or clear `persistentDataPath/Data/` manually).
 
 ### Share / upload telemetry
@@ -321,7 +324,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 
 ## Known Gaps
 
-- `street_view_manifest.json` (2.8 MB) is still bundled in the APK — candidate for Drive offload to further reduce APK size.
+- Street View assets are intentionally externalized from Unity `StreamingAssets` and kept in local backup (`.tmp-streetview/manual_move/`) to keep APKs thin.
 - Street View/video-frame environment disabled by default (capture spacing too sparse). Archived assets retained.
 - NUS building inter-links include synthetic connectivity assumptions — field data will replace them after alpha testing.
 - GPS altitude accuracy is limited (~10–30 m error); floor estimation uses relative barometric delta.
