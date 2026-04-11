@@ -56,6 +56,20 @@ namespace CDE2501.Wayfinding.EditorTools
                 options = options
             };
 
+            // Switch active build target before building — required in batchmode when
+            // the Editor was last set to a different platform (e.g. Windows → Android).
+            BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(target);
+            if (EditorUserBuildSettings.activeBuildTarget != target)
+            {
+                Debug.Log($"[CDE2501BuildRunner] Switching active build target to {target} (was {EditorUserBuildSettings.activeBuildTarget})");
+                bool switched = EditorUserBuildSettings.SwitchActiveBuildTarget(targetGroup, target);
+                if (!switched)
+                {
+                    Fail($"Failed to switch active build target to {target}. Ensure the platform module is installed in Unity Hub.");
+                    return;
+                }
+            }
+
             BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
             BuildSummary summary = report.summary;
 
