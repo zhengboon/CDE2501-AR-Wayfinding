@@ -176,3 +176,33 @@ python scripts/generate_osm_graph_from_kml.py \
 ```
 
 After regenerating → Drive auto-syncs → app downloads on next hourly check (or `ForceReSync()`).
+
+---
+
+## Build Troubleshooting Log (2026-04-11)
+
+While attempting to generate the thin APK via headless batchmode (`unity_cached_builder.py`), we encountered a series of cascading build errors:
+
+1. **Missing Android Build Support Module**
+   - **Error**: `Error building player because build target was unsupported`
+   - **Cause**: The default Unity executable mapped to `2022.3.62f3` which lacked Android modules, while the GUI used `2022.3.62f3-x86_64` where modules were installed.
+   - **Fix**: Passed explicit `--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"` to the script.
+
+2. **Active Build Target Lock**
+   - **Error**: UnityException during batchmode because the Editor was last open on `StandaloneWindows64`, causing cross-compilation conflicts.
+   - **Fix**: Modified `CDE2501BuildRunner.cs` to explicitly call `EditorUserBuildSettings.SwitchActiveBuildTarget` before initiating the build.
+
+3. **Android Scripting Backend / Architecture Mismatch**
+   - **Error**: `UnityException: Target architecture not specified`
+   - **Cause**: The runner attempted to set `PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;`, but because the scripting backend wasn't explicitly flipped to `IL2CPP` in batchmode, ARM64 was deemed invalid (Mono doesn't support ARM64).
+   - **Fix**: Added `PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);` into the build runner.
+
+4. **"Zombie" Unity Processes**
+   - **Error**: `Fatal Error! It looks like another Unity instance is running with this project open.`
+   - **Cause**: Previous failed batchmode runs left hanging `-batchmode` Unity or `bee_backend.exe` background processes.
+   - **Fix**: Terminated rogue Unity and Bee processes; deleted the `Temp/UnityLockfile`.
+
+5. **The `desktop.ini` Cloning Conflict**
+   - **Error**: `ArgumentException: You're trying to copy to ... bin/Data/desktop.ini more than once`
+   - **Cause**: Windows automatically generates hidden `desktop.ini` files inside standard folders. Because the project includes raw `street_view` frames imported from Google Drive, multiple `desktop.ini` files were caught in the `StreamingAssets` bundle scope, causing Unity's Android build backend (Bee) to try to pack them all to the same build root path.
+   - **Fix**: Recursively force-deleted all `desktop.ini` files in the project. Terminated hanging Bee build daemons and completely renamed/deleted `Library/Bee` to bypass the corrupted IL2CPP compilation cache.

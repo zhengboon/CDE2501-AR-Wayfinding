@@ -48,14 +48,6 @@ namespace CDE2501.Wayfinding.EditorTools
             Debug.Log("[CDE2501BuildRunner] Scene count: " + scenes.Length);
             Debug.Log("[CDE2501BuildRunner] Development: " + developmentBuild);
 
-            var buildPlayerOptions = new BuildPlayerOptions
-            {
-                target = target,
-                locationPathName = outputPath,
-                scenes = scenes,
-                options = options
-            };
-
             // Switch active build target before building — required in batchmode when
             // the Editor was last set to a different platform (e.g. Windows → Android).
             BuildTargetGroup targetGroup = BuildPipeline.GetBuildTargetGroup(target);
@@ -69,6 +61,21 @@ namespace CDE2501.Wayfinding.EditorTools
                     return;
                 }
             }
+            
+            if (targetGroup == BuildTargetGroup.Android)
+            {
+                PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
+                PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            }
+
+            var buildPlayerOptions = new BuildPlayerOptions
+            {
+                target = target,
+                targetGroup = targetGroup,
+                locationPathName = outputPath,
+                scenes = scenes,
+                options = options
+            };
 
             BuildReport report = BuildPipeline.BuildPlayer(buildPlayerOptions);
             BuildSummary summary = report.summary;
