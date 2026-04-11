@@ -143,6 +143,18 @@
                     <h3>Alpha Tester UI</h3>
                     <p>Clean compact overlay showing only essentials: destination, path recording, route info. Full debug diagnostics hidden behind a toggle for developers.</p>
                 </div>
+
+                <div class="card glass show-on-scroll">
+                    <div class="icon">☁️</div>
+                    <h3>Thin APK + Drive Sync</h3>
+                    <p>APK ships only the minimum required files. All graphs, locations, boundaries, and routing profiles download from Google Drive on first launch and update automatically every hour.</p>
+                </div>
+
+                <div class="card glass show-on-scroll">
+                    <div class="icon">📤</div>
+                    <h3>One-Tap Data Share</h3>
+                    <p>The Share button invokes the Android share intent to send telemetry CSVs, GPS trail JSONs, and crash logs via Google Drive, Telegram, or email &mdash; no USB cable required.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -347,6 +359,16 @@
                     <h4>No session preview entries in Play Mode</h4>
                     <p><b>Check:</b> At least one Play session has completed (recording auto-starts by default on Play entry). <br><b>Action:</b> Complete one Play session; Quick Start then shows latest 5 recordings with <b>Open 1..5</b>, plus <b>Refresh</b> and <b>Folder</b> controls. If manually disabled earlier, turn on <code>CDE2501 &gt; Session Recorder &gt; Enabled</code>.</p>
                 </div>
+
+                <div class="doc-card glass">
+                    <h4>App stuck on "Downloading data files..." at launch</h4>
+                    <p><b>Check:</b> Device has internet access and the Drive files are shared as "Anyone with link &rarr; Viewer". <br><b>Action:</b> Tap the <b>Retry</b> button shown in the download progress panel. If persistent, verify the Drive file IDs in <code>DataSyncManager.cs</code> and re-share all 7 files publicly on Google Drive.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>App works offline after first launch</h4>
+                    <p><b>Info:</b> All 7 data files are cached in <code>persistentDataPath/Data/</code> after the first successful download. The app starts immediately on subsequent launches and only contacts Drive for optional hourly update checks.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -360,6 +382,14 @@
             </div>
 
             <div class="acc-wrapper">
+                <div class="doc-card glass">
+                    <h4>✅ Thin APK + Drive sync</h4>
+                    <p>APK ships without large data files. Graphs, locations, boundaries, and profiles download from Google Drive on first launch and update hourly when files change. Already shipped.</p>
+                </div>
+                <div class="doc-card glass">
+                    <h4>✅ One-tap telemetry share</h4>
+                    <p>Share button sends all CSVs, GPS trail JSONs, and crash logs via Android share intent. No USB cable or Google account required from testers. Already shipped.</p>
+                </div>
                 <div class="doc-card glass">
                     <h4>📊 Path ingestion pipeline</h4>
                     <p>Douglas-Peucker simplification of walked GPS trails into graph nodes and edges. Replace synthetic OSM-generated graph with real walked-path data from field testers.</p>

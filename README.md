@@ -2,7 +2,7 @@
 
 > Unity AR navigation MVP with elderly-first guidance and safety-weighted routing for **Queenstown Estate** and **NUS Engineering Campus**.
 
-Last updated: 2026-04-09
+Last updated: 2026-04-11
 
 ---
 
@@ -165,11 +165,56 @@ Docs/                       Architecture docs & raw data caches
 
 ## Build Targets
 
-- **Android:** ARCore plugin enabled in XR Plug-in Management
+- **Android:** ARCore plugin enabled in XR Plug-in Management. Min SDK 24, ARM64-only (ARMv7 dropped).
 - **iOS:** ARKit plugin enabled; requires `Info.plist` strings:
   - `NSCameraUsageDescription`
   - `NSLocationWhenInUseUsageDescription`
   - `NSMotionUsageDescription`
+
+---
+
+## Thin APK Deployment
+
+The APK ships only the minimum required files. Large data files are downloaded from Google Drive on first launch and cached in `Application.persistentDataPath/Data/`.
+
+### What's bundled vs downloaded
+
+| File type | Location | Bundled? |
+|---|---|---|
+| Map atlas `.json` manifests | StreamingAssets/Data/ | ✅ Yes (~1 KB each) |
+| `street_view_manifest.json` | StreamingAssets/Data/ | ⚠️ Yes (2.8 MB — candidate for Drive offload) |
+| Graph + locations + boundaries + profiles | archived/ → Drive | ❌ Downloaded on launch |
+| Map tile `.png` atlases | archived/ | ❌ Not bundled (graceful degradation) |
+
+### Drive File IDs
+
+Files are sourced from the synced project folder: `CDE2501-AR-Wayfinding/Assets/StreamingAssets/Data/archived/`.  
+When you regenerate data locally, Google Drive desktop auto-syncs. The app picks up updates on its next hourly check.
+
+> **All Drive files must be shared as "Anyone with link → Viewer".**
+
+| File | Drive File ID |
+|---|---|
+| estate_graph.json | `1rdVh89zKpehzd1_pjbiO15xQluxg-S3B` |
+| nus_estate_graph.json | `19mJFjc_52qA30apecosIkI4bEit6Jff5` |
+| locations.json | `1iudrdcjUA4axr7OlbVNtlX3sHB0351Ru` |
+| nus_locations.json | `1qAwOHLs0zzBNby82dH4ha98JitLL9m2g` |
+| routing_profiles.json | `1BgyDOE4ts3V-o5Na4NzfSJic7BZX5HiZ` |
+| queenstown_boundary.geojson | `1C2j_1QC9jyjbto7bCPQYkSEX6WjzHYze` |
+| nus_boundary.geojson | `1LZWYApt484SDCGqcK8Q4xXj2cD0AOFMx` |
+
+### Sync behaviour
+
+- **First launch (no cached files):** progress bar UI downloads all 7 files sequentially. Retry button on failure.
+- **Subsequent launches:** files already cached → app starts immediately. Background hourly check compares `Content-Length` headers; re-downloads only changed files.
+- **Force re-sync:** call `DataSyncManager.ForceReSync()` (or clear `persistentDataPath/Data/` manually).
+
+### Share / upload telemetry
+
+The **Share** button in the overlay invokes the Android share intent with all files from:
+- `persistentDataPath/Telemetry/` — CSV + screenshots
+- `persistentDataPath/RecordedPaths/` — GPS trail JSONs
+- `persistentDataPath/Crashes/` — crash logs
 
 ---
 
@@ -276,19 +321,24 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 
 ## Known Gaps
 
+- `street_view_manifest.json` (2.8 MB) is still bundled in the APK — candidate for Drive offload to further reduce APK size.
 - Street View/video-frame environment disabled by default (capture spacing too sparse). Archived assets retained.
-- NUS building inter-links include synthetic connectivity assumptions — field data will replace them.
-- GPS altitude accuracy is limited (~10-30m error); floor estimation uses relative barometric delta.
+- NUS building inter-links include synthetic connectivity assumptions — field data will replace them after alpha testing.
+- GPS altitude accuracy is limited (~10–30 m error); floor estimation uses relative barometric delta.
 - Flight-tracker AR view uses WebCamTexture + compass (no ARCore/ARKit dependency). AR plugins remain in project for future plane-detection features.
+- No Google Sign-In yet — testers share data manually via the Share button (Android intent).
+- Drive file IDs must remain **"Anyone with link → Viewer"**; verify after any Drive folder restructuring.
 
 ---
 
 ## Roadmap
 
-1. **Alpha field testing** — deploy NUS APK, collect walked-path telemetry + screenshots
-2. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges
-3. **Replace synthetic graph** — swap OSM-generated NUS graph with real walked-path graph
-4. **Google Sign-In** — direct upload of telemetry/paths to Drive without manual sharing
-5. Integrate OneMap BFA API when approved
-6. Dead reckoning fallback when GPS is lost (compass + step counting)
-7. Indoor positioning via WiFi fingerprinting or BLE beacons
+1. ✅ **Thin APK + Drive sync** — data files downloaded on first launch, hourly update checks
+2. ✅ **Share button** — Android intent to send telemetry CSVs, recorded paths, crash logs
+3. **Alpha field testing** — deploy APK, collect walked-path telemetry + screenshots at NUS/Queenstown
+4. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges
+5. **Replace synthetic graph** — swap OSM-generated NUS graph with real walked-path data
+6. **Google Sign-In** — direct upload of telemetry/paths to Drive without manual sharing
+7. Integrate OneMap BFA API when approved
+8. Dead reckoning fallback when GPS is lost (compass + step counting)
+9. Indoor positioning via WiFi fingerprinting or BLE beacons
