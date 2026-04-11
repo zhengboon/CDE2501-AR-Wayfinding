@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-11 (review pass)
+> Living document. Updated: 2026-04-11 (post Android build verification)
 
 ---
 
@@ -11,6 +11,22 @@
 2. Downloads all large/regeneratable data files from Google Drive on first launch
 3. Caches downloaded files in `Application.persistentDataPath/Data/`
 4. Updates automatically (hourly) when Drive files change
+
+---
+
+## Latest Verified Android Build (2026-04-11)
+
+- Command used:
+  `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
+- Result: **Build Succeeded**
+- Output: `Builds/Android/CDE2501-Wayfinding.apk`
+- File size: **33,497,528 bytes** (~32 MB)
+- Build duration: **653.576 s**
+- Report: `UnityBuildCache/latest_build_report.md`
+- Notes:
+  - Log scanner still catches licensing client errors early in startup, but Unity resolves entitlement and the final build succeeds.
+  - `ProjectSettings.asset` currently keeps `preloadedAssets: []` for build stability and parity with latest successful run.
+  - `scripts/unity_cached_builder_config.json` is pinned to Unity `2022.3.62f3-x86_64` to avoid selecting an editor without Android modules.
 
 ---
 

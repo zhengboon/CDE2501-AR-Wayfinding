@@ -1,5 +1,5 @@
 {
-  "unityExecutable": "",
+  "unityExecutable": "/mnt/c/Program Files/Unity/Hub/Editor/2022.3.62f3-x86_64/Editor/Unity.exe",
   "build": {
     "target": "StandaloneWindows64",
     "outputPath": "Builds/Windows/CDE2501-Wayfinding.exe",

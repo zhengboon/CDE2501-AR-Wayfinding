@@ -44,7 +44,7 @@
     <!-- Hero Section -->
     <header id="hero" class="hero section">
         <div class="hero-content show-on-scroll">
-            <div class="badge">Unity 2022.3.62f3 AR MVP</div>
+            <div class="badge">Unity 2022.3.62f3 AR MVP &bull; Android build verified 2026-04-11</div>
             <h1>Navigate <span class="highlight">Tomorrow</span></h1>
             <p>A Unity wayfinding app with flight-tracker AR camera view, elderly-first safety routing, GPS telemetry recording, and real-time path data collection for Queenstown Estate and NUS Engineering campus.</p>
             <div class="hero-buttons">
@@ -292,7 +292,7 @@
                 <div class="step-number">4</div>
                 <div class="step-content">
                     <h3>Alpha Testing &mdash; Record Data</h3>
-                    <p>Build the APK, install on a tester's phone, and use the <b>Rec: ON/OFF</b> toggle in the Quick Start overlay to gather GPS &amp; route telemetry as CSV.</p>
+                    <p>Build the APK, install on a tester's phone, and use the <b>Rec: ON/OFF</b> toggle in the Quick Start overlay to gather GPS &amp; route telemetry as CSV. Latest verified APK output is ~32 MB.</p>
                     <div class="code-block">
                         <pre><code id="apk-cmd">python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk</code></pre>
                         <button class="btn-copy" data-copy-target="apk-cmd">Copy</button>
@@ -311,6 +311,11 @@
             </div>
 
             <div class="acc-wrapper">
+                <div class="doc-card glass">
+                    <h4>Latest Android build status</h4>
+                    <p><b>Status:</b> Successful on <code>2026-04-11</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (~32 MB). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
+                </div>
+
                 <div class="doc-card glass">
                     <h4>Route does not update while moving</h4>
                     <p><b>Check:</b> <code>Sim Mode</code> is true and <code>Main Camera</code> is present. <br><b>Action:</b> Press <kbd>F5</kbd> for manual recalc, then move with <kbd>WASD</kbd>.</p>

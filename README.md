@@ -65,6 +65,19 @@ Or double-click `launch_unity_cached_build.bat`.
 
 `--force` now skips fingerprint scanning and jumps straight to Unity build invocation.
 
+If multiple Unity editors are installed, pin the executable explicitly:
+```bash
+python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"
+```
+
+### Latest Build Snapshot (2026-04-11)
+
+- Build command: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
+- Result: **Build Succeeded**
+- APK output: `Builds/Android/CDE2501-Wayfinding.apk`
+- APK size: **33,497,528 bytes** (~32 MB)
+- Build report: `UnityBuildCache/latest_build_report.md`
+
 ### Generate Maps from KML
 
 ```bash
