@@ -298,6 +298,7 @@ Tap **AR: OFF** to activate the camera-based destination overlay:
 - Selected destination is highlighted in orange
 - Route bearing indicator at bottom shows turn direction (left/right arrows)
 - Uses gyroscope for pitch detection, accelerometer as fallback
+- Includes a "Sync Gyro" button to zero the vertical pitch to your current phone angle
 - Works on any phone with camera, GPS, and compass
 
 ### Alpha tester UI

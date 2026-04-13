@@ -110,6 +110,14 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 
 ---
 
+## Code Review Fixes (2026-04-13)
+
+1. **Android Sensor Initialization**: Disabled `forceSimulationMode` effectively for Android device builds. Previously, it defaulted to `true` which locked location and compass output to the static WASD simulation values.
+2. **Camera Permissions**: AR Camera initialization now dynamically checks and requests `android.permission.CAMERA` at runtime.
+3. **Gyroscope Sync**: Added `SyncGyro()` functionality and a button in the `QuickStartBootstrap` AR overlay. Captures the device's current pitch to comfortably offset the view angle.
+
+---
+
 ## Build State
 
 ### APK Build Command
