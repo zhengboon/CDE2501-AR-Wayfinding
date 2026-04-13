@@ -45,6 +45,7 @@ namespace CDE2501.Wayfinding.AR
         private Quaternion _gyroOffset = Quaternion.identity;
         private string _selectedDestination;
         private RouteResult _lastRoute;
+        private float _userPitchOffset = 0f;
 
         private readonly List<DestinationLabel> _visibleLabels = new List<DestinationLabel>();
 
@@ -118,6 +119,14 @@ namespace CDE2501.Wayfinding.AR
 
         private void StartCamera()
         {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
+            {
+                UnityEngine.Android.Permission.RequestUserPermission(UnityEngine.Android.Permission.Camera);
+                StartCoroutine(CameraPermissionRoutine());
+                return;
+            }
+#endif
             if (_webcam != null && _webcam.isPlaying) return;
 
             WebCamDevice[] devices = WebCamTexture.devices;
@@ -139,6 +148,19 @@ namespace CDE2501.Wayfinding.AR
 
             _webcam = new WebCamTexture(backCamera ?? devices[0].name, Screen.width, Screen.height, 30);
             _webcam.Play();
+        }
+
+        private System.Collections.IEnumerator CameraPermissionRoutine()
+        {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            while (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
+            {
+                yield return new WaitForSeconds(0.5f);
+            }
+            StartCamera();
+#else
+            yield break;
+#endif
         }
 
         private void StopCamera()
@@ -448,12 +470,31 @@ namespace CDE2501.Wayfinding.AR
                 Vector3 euler = gyroRot.eulerAngles;
                 float pitch = euler.x;
                 if (pitch > 180f) pitch -= 360f;
-                return pitch;
+                return pitch - _userPitchOffset;
             }
 
             // Fallback: use accelerometer
             Vector3 accel = Input.acceleration;
-            return Mathf.Atan2(-accel.z, -accel.y) * Mathf.Rad2Deg;
+            float fallbackPitch = Mathf.Atan2(-accel.z, -accel.y) * Mathf.Rad2Deg;
+            return fallbackPitch - _userPitchOffset;
+        }
+
+        public void SyncGyro()
+        {
+            if (_gyroEnabled && SystemInfo.supportsGyroscope)
+            {
+                Quaternion gyroRot = _gyroOffset * GyroToUnity(Input.gyro.attitude);
+                Vector3 euler = gyroRot.eulerAngles;
+                float rawPitch = euler.x;
+                if (rawPitch > 180f) rawPitch -= 360f;
+                _userPitchOffset = rawPitch;
+            }
+            else
+            {
+                Vector3 accel = Input.acceleration;
+                float rawPitch = Mathf.Atan2(-accel.z, -accel.y) * Mathf.Rad2Deg;
+                _userPitchOffset = rawPitch;
+            }
         }
 
         private static Quaternion GyroToUnity(Quaternion gyro)

@@ -74,6 +74,9 @@ namespace CDE2501.Wayfinding.Location
 
         private void Awake()
         {
+#if UNITY_ANDROID && !UNITY_EDITOR
+            forceSimulationMode = false;
+#endif
             if (sprintMultiplier < 8f)
             {
                 sprintMultiplier = 8f;

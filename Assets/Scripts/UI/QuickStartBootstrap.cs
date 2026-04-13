@@ -365,6 +365,15 @@ namespace CDE2501.Wayfinding.UI
                     }
                 }
                 essentialX += 68f;
+
+                if (arActive)
+                {
+                    if (GUI.Button(new Rect(essentialX, 34f, 82f, 24f), "Sync Gyro"))
+                    {
+                        _flightTrackerARView.SyncGyro();
+                    }
+                    essentialX += 88f;
+                }
             }
 
             if (_dataSyncManager != null)
