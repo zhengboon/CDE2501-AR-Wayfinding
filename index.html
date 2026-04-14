@@ -129,7 +129,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">✈️</div>
                     <h3>Flight-Tracker AR View</h3>
-                    <p>Point your phone toward any destination to see its name, distance, and ETA floating on the camera feed. No ARKit or ARCore needed &mdash; uses GPS, compass, and gyroscope (with a Sync Gyro button to recalibrate the view to your holding angle).</p>
+                    <p>Point your phone toward any destination to see its name, distance, and ETA floating on the camera feed. No ARKit or ARCore needed &mdash; uses GPS, compass, and gyroscope. Features a live AR Status HUD and a Sync Gyro button to recalibrate the view to your holding angle.</p>
                 </div>
 
                 <div class="card glass show-on-scroll">
@@ -153,7 +153,13 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">📤</div>
                     <h3>One-Tap Data Share</h3>
-                    <p>The Share button invokes the Android share intent to send telemetry CSVs, GPS trail JSONs, and crash logs via Google Drive, Telegram, or email &mdash; no USB cable required.</p>
+                    <p>The Share button invokes the Android share intent to send telemetry CSVs, GPS trail JSONs, and crash logs via external apps &mdash; no USB cable required (fully supports Android 7+ via custom FileProvider).</p>
+                </div>
+
+                <div class="card glass show-on-scroll">
+                    <div class="icon">📍</div>
+                    <h3>Snap GPS Fast Lock</h3>
+                    <p>Instantly bypass the exponential smoothing filter with the Snap GPS button when you obtain a first fix, skipping the slow convergence loop so you can reliably auto-route from your true coordinates right away.</p>
                 </div>
             </div>
         </div>
@@ -209,13 +215,13 @@
                     <h2>What The App Does</h2>
                     <p>A complete wayfinding companion that downloads data from Google Drive on first launch, calculates safe routes, and lets testers record real walking paths to improve the graph.</p>
                     <ul class="feature-list">
-                        <li>📍 GPS &amp; Compass tracking with smoothing and simulation fallback</li>
-                        <li>✈️ Flight-tracker AR view &mdash; point phone at destinations to see labels, distance, ETA</li>
+                        <li>📍 GPS tracking with fast "Snap GPS" lock and simulation fallback</li>
+                        <li>✈️ Flight-tracker AR view &mdash; AR Status HUD, auto gyro sync, labels & ETA floating</li>
                         <li>🗺️ Minimap with heading arrow, route overlay, and pan/zoom</li>
                         <li>⏱️ Route ETA display (1.0 m/s elderly, 0.8 m/s wheelchair)</li>
                         <li>🚶 Record labeled walking paths from A to B with GPS breadcrumbs</li>
                         <li>📸 Auto-screenshots on heading changes + manual Snap button</li>
-                        <li>☁️ Google Drive sync &mdash; required data downloads on launch, then 15-minute background update checks while app is open</li>
+                        <li>☁️ Google Drive sync &mdash; data downloads on launch, secure sharing on Android 7+</li>
                         <li>🗂️ Street View dataset kept external to keep APK lean</li>
                         <li>🔧 Debug toggle hides all diagnostics for clean tester experience</li>
                     </ul>

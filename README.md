@@ -311,8 +311,10 @@ Tap **AR: OFF** to activate the camera-based destination overlay:
 - Labels show name, distance, and ETA — closer destinations appear larger
 - Selected destination is highlighted in orange
 - Route bearing indicator at bottom shows turn direction (left/right arrows)
-- Uses gyroscope for pitch detection, accelerometer as fallback
-- Includes a "Sync Gyro" button to zero the vertical pitch to your current phone angle
+- Uses gyroscope + accelerometer to orient floating markers properly regardless of phone holding angle
+- Includes an AR Status HUD (top-right) showing GPS/Compass ready state and live pitch angle
+- Auto Gyro Sync runs 1.5 s after AR initialization to automatically level the horizon
+- Manual "Sync Gyro" button to re-zero the vertical pitch to your current comfortable phone angle
 - Works on any phone with camera, GPS, and compass
 
 ### Alpha tester UI
