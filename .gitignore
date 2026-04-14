@@ -83,3 +83,5 @@ Assets/StreamingAssets/Data/street_view/
 Assets/StreamingAssets/Data/street_view.meta
 Assets/StreamingAssets/Data/street_view_manifest.json
 Assets/StreamingAssets/Data/street_view_manifest.json.meta
+
+.tmp.drivedownload/
