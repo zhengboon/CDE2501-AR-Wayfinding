@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    FileProvider paths for CDE2501 AR Wayfinding.
+    Covers Application.persistentDataPath which on Android maps to
+    /data/data/<package>/files/ — declared as <files-path>.
+    The external-files-path covers SD-card / emulated storage shares.
+-->
+<paths>
+    <files-path name="cde2501_files" path="." />
+    <external-files-path name="cde2501_external" path="." />
+    <cache-path name="cde2501_cache" path="." />
+</paths>

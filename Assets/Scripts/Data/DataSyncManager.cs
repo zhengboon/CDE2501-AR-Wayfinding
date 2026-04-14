@@ -544,7 +544,7 @@ namespace CDE2501.Wayfinding.Data
         }
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-        private static void ShareOnAndroid(List<string> filePaths)
+        private void ShareOnAndroid(List<string> filePaths)
         {
             try
             {
@@ -554,39 +554,58 @@ namespace CDE2501.Wayfinding.Data
                     intent.Call<AndroidJavaObject>("setAction", "android.intent.action.SEND_MULTIPLE");
                     intent.Call<AndroidJavaObject>("setType", "*/*");
 
-                    using (AndroidJavaClass uriClass = new AndroidJavaClass("android.net.Uri"))
                     using (AndroidJavaObject arrayList = new AndroidJavaObject("java.util.ArrayList"))
+                    using (AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
+                    using (AndroidJavaObject activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
+                    using (AndroidJavaObject context = activity.Call<AndroidJavaObject>("getApplicationContext"))
                     {
-                        using (AndroidJavaClass unityPlayer = new AndroidJavaClass("com.unity3d.player.UnityPlayer"))
-                        using (AndroidJavaObject activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
-                        using (AndroidJavaObject context = activity.Call<AndroidJavaObject>("getApplicationContext"))
-                        {
-                            string authority = context.Call<AndroidJavaObject>("getPackageName").Call<string>("toString") + ".fileprovider";
+                        string packageName = context.Call<AndroidJavaObject>("getPackageName").Call<string>("toString");
+                        string authority = packageName + ".fileprovider";
 
-                            using (AndroidJavaClass fileProviderClass = new AndroidJavaClass("androidx.core.content.FileProvider"))
+                        using (AndroidJavaClass fileProviderClass = new AndroidJavaClass("androidx.core.content.FileProvider"))
+                        {
+                            int added = 0;
+                            foreach (string path in filePaths)
                             {
-                                foreach (string path in filePaths)
+                                if (!File.Exists(path)) continue;
+                                try
                                 {
                                     using (AndroidJavaObject file = new AndroidJavaObject("java.io.File", path))
                                     {
-                                        AndroidJavaObject uri = fileProviderClass.CallStatic<AndroidJavaObject>("getUriForFile", context, authority, file);
+                                        AndroidJavaObject uri = fileProviderClass.CallStatic<AndroidJavaObject>(
+                                            "getUriForFile", context, authority, file);
                                         arrayList.Call<bool>("add", uri);
+                                        added++;
                                     }
                                 }
+                                catch (Exception fe)
+                                {
+                                    Debug.LogWarning($"[DataSyncManager] Skipping file {path}: {fe.Message}");
+                                }
+                            }
+
+                            if (added == 0)
+                            {
+                                StatusMessage = "Share: no files could be packaged. Check FileProvider config.";
+                                Debug.LogError("[DataSyncManager] Share failed: 0 URIs added to share intent.");
+                                return;
                             }
 
                             intent.Call<AndroidJavaObject>("putParcelableArrayListExtra", "android.intent.extra.STREAM", arrayList);
                             intent.Call<AndroidJavaObject>("addFlags", 1); // FLAG_GRANT_READ_URI_PERMISSION
 
-                            AndroidJavaObject chooser = intentClass.CallStatic<AndroidJavaObject>("createChooser", intent, "Share telemetry data");
+                            AndroidJavaObject chooser = intentClass.CallStatic<AndroidJavaObject>(
+                                "createChooser", intent, $"Share {added} telemetry files");
                             activity.Call("startActivity", chooser);
+                            StatusMessage = $"Sharing {added} files...";
                         }
                     }
                 }
             }
             catch (Exception e)
             {
-                Debug.LogError($"[DataSyncManager] Android share failed: {e.Message}");
+                StatusMessage = $"Share error: {e.Message}";
+                Debug.LogError($"[DataSyncManager] Android share failed: {e}");
             }
         }
 #endif

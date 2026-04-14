@@ -44,7 +44,7 @@
     <!-- Hero Section -->
     <header id="hero" class="hero section">
         <div class="hero-content show-on-scroll">
-            <div class="badge">Unity 2022.3.62f3 AR MVP &bull; Android build verified 2026-04-14</div>
+            <div class="badge">Unity 2022.3.62f3 AR MVP</div>
             <h1>Navigate <span class="highlight">Tomorrow</span></h1>
             <p>A Unity wayfinding app with flight-tracker AR camera view, elderly-first safety routing, GPS telemetry recording, and real-time path data collection for Queenstown Estate and NUS Engineering campus.</p>
             <div class="hero-buttons">
@@ -99,7 +99,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">💻</div>
                     <h3>Simulation Reality</h3>
-                    <p>Comprehensive keyboard simulation controls enable laptop-first path testing, while the runtime driver now switches to real GPS + compass data on-device when simulation mode is off.</p>
+                    <p>Comprehensive keyboard simulation controls enable efficient laptop-first path testing before full hardware-dependent deployment.</p>
                 </div>
 
                 <div class="card glass show-on-scroll">
@@ -129,7 +129,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">✈️</div>
                     <h3>Flight-Tracker AR View</h3>
-                    <p>Point your phone toward any destination to see its name, distance, and ETA floating on the camera feed. No ARKit or ARCore needed &mdash; uses GPS, compass, and gyroscope (with a Sync Gyro button to recalibrate the view to your holding angle).</p>
+                    <p>Point your phone toward any destination to see its name, distance, and ETA floating on the camera feed. No ARKit or ARCore needed &mdash; uses GPS, compass, and gyroscope.</p>
                 </div>
 
                 <div class="card glass show-on-scroll">
@@ -142,18 +142,6 @@
                     <div class="icon">🧩</div>
                     <h3>Alpha Tester UI</h3>
                     <p>Clean compact overlay showing only essentials: destination, path recording, route info. Full debug diagnostics hidden behind a toggle for developers.</p>
-                </div>
-
-                <div class="card glass show-on-scroll">
-                    <div class="icon">☁️</div>
-                    <h3>Thin APK + Drive Sync</h3>
-                    <p>APK ships only the minimum required files. Graphs, locations, boundaries, routing profiles, and optional map assets sync from Google Drive and update automatically every 15 minutes, while optional Street View assets stay outside the Unity bundle.</p>
-                </div>
-
-                <div class="card glass show-on-scroll">
-                    <div class="icon">📤</div>
-                    <h3>One-Tap Data Share</h3>
-                    <p>The Share button invokes the Android share intent to send telemetry CSVs, GPS trail JSONs, and crash logs via Google Drive, Telegram, or email &mdash; no USB cable required.</p>
                 </div>
             </div>
         </div>
@@ -215,8 +203,7 @@
                         <li>⏱️ Route ETA display (1.0 m/s elderly, 0.8 m/s wheelchair)</li>
                         <li>🚶 Record labeled walking paths from A to B with GPS breadcrumbs</li>
                         <li>📸 Auto-screenshots on heading changes + manual Snap button</li>
-                        <li>☁️ Google Drive sync &mdash; required data downloads on launch, then 15-minute background update checks while app is open</li>
-                        <li>🗂️ Street View dataset kept external to keep APK lean</li>
+                        <li>☁️ Google Drive sync &mdash; data downloads on launch, share telemetry from device</li>
                         <li>🔧 Debug toggle hides all diagnostics for clean tester experience</li>
                     </ul>
                 </div>
@@ -292,7 +279,7 @@
                 <div class="step-number">4</div>
                 <div class="step-content">
                     <h3>Alpha Testing &mdash; Record Data</h3>
-                    <p>Build the APK, install on a tester's phone, and use the <b>Rec: ON/OFF</b> toggle in the Quick Start overlay to gather GPS &amp; route telemetry as CSV. Latest verified APK output is ~32 MB.</p>
+                    <p>Build the APK, install on a tester's phone, and use the <b>Rec: ON/OFF</b> toggle in the Quick Start overlay to gather GPS &amp; route telemetry as CSV.</p>
                     <div class="code-block">
                         <pre><code id="apk-cmd">python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk</code></pre>
                         <button class="btn-copy" data-copy-target="apk-cmd">Copy</button>
@@ -311,16 +298,6 @@
             </div>
 
             <div class="acc-wrapper">
-                <div class="doc-card glass">
-                    <h4>Latest Android build status</h4>
-                    <p><b>Status:</b> Successful on <code>2026-04-14</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (33,513,760 bytes). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
-                </div>
-
-                <div class="doc-card glass">
-                    <h4>Latest code commit</h4>
-                    <p><b>Commit:</b> <code>e44c51c</code> (2026-04-14). <br><b>Update:</b> Quick Start overlay moved to a responsive GUILayout layout, simulated object driving now uses real GPS/compass on device when simulation is off, and AR camera mirroring was hardened.</p>
-                </div>
-
                 <div class="doc-card glass">
                     <h4>Route does not update while moving</h4>
                     <p><b>Check:</b> <code>Sim Mode</code> is true and <code>Main Camera</code> is present. <br><b>Action:</b> Press <kbd>F5</kbd> for manual recalc, then move with <kbd>WASD</kbd>.</p>
@@ -370,16 +347,6 @@
                     <h4>No session preview entries in Play Mode</h4>
                     <p><b>Check:</b> At least one Play session has completed (recording auto-starts by default on Play entry). <br><b>Action:</b> Complete one Play session; Quick Start then shows latest 5 recordings with <b>Open 1..5</b>, plus <b>Refresh</b> and <b>Folder</b> controls. If manually disabled earlier, turn on <code>CDE2501 &gt; Session Recorder &gt; Enabled</code>.</p>
                 </div>
-
-                <div class="doc-card glass">
-                    <h4>App stuck on "Downloading data files..." at launch</h4>
-                    <p><b>Check:</b> Device has internet access and the Drive files are shared as "Anyone with link &rarr; Viewer". <br><b>Action:</b> Tap the <b>Retry</b> button shown in the download progress panel. If persistent, verify the Drive file IDs in <code>DataSyncManager.cs</code> and re-share the required startup files on Google Drive.</p>
-                </div>
-
-                <div class="doc-card glass">
-                    <h4>App works offline after first launch</h4>
-                    <p><b>Info:</b> Required data files are cached in <code>persistentDataPath/Data/</code> after the first successful download. The app starts immediately on subsequent launches and runs 15-minute Drive update checks in the background.</p>
-                </div>
             </div>
         </div>
     </section>
@@ -393,14 +360,6 @@
             </div>
 
             <div class="acc-wrapper">
-                <div class="doc-card glass">
-                    <h4>✅ Thin APK + Drive sync</h4>
-                    <p>APK ships without large data files. Graphs, locations, boundaries, profiles, and optional map assets download from Google Drive and update every 15 minutes when files change. Already shipped.</p>
-                </div>
-                <div class="doc-card glass">
-                    <h4>✅ One-tap telemetry share</h4>
-                    <p>Share button sends all CSVs, GPS trail JSONs, and crash logs via Android share intent. No USB cable or Google account required from testers. Already shipped.</p>
-                </div>
                 <div class="doc-card glass">
                     <h4>📊 Path ingestion pipeline</h4>
                     <p>Douglas-Peucker simplification of walked GPS trails into graph nodes and edges. Replace synthetic OSM-generated graph with real walked-path data from field testers.</p>

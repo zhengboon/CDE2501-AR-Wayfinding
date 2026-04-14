@@ -2,7 +2,7 @@
 
 > Unity AR navigation MVP with elderly-first guidance and safety-weighted routing for **Queenstown Estate** and **NUS Engineering Campus**.
 
-Last updated: 2026-04-14
+Last updated: 2026-04-11
 
 ---
 
@@ -62,29 +62,6 @@ python scripts/unity_cached_builder.py --launch-editor
 python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk
 ```
 Or double-click `launch_unity_cached_build.bat`.
-
-`--force` now skips fingerprint scanning and jumps straight to Unity build invocation.
-
-If multiple Unity editors are installed, pin the executable explicitly:
-```bash
-python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"
-```
-
-### Latest Build Snapshot (2026-04-14)
-
-- Build command: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
-- Result: **Build Succeeded**
-- APK output: `Builds/Android/CDE2501-Wayfinding.apk`
-- APK size: **33,513,760 bytes** (~32 MB)
-- Build duration: **148.792 s** (cached builder report)
-- Build report: `UnityBuildCache/latest_build_report.md`
-
-### Latest Code Commit (2026-04-14)
-
-- Commit: `e44c51c` — `feat: implement AR flight tracking view, simulated object driver, and quick-start UI bootstrap`
-- `QuickStartBootstrap` status overlay refactored to `GUILayout`-based layout for cleaner, responsive control grouping.
-- `SimulatedObjectDriver` now resolves and uses real `GPSManager`/`CompassManager` sensor data on-device when simulation mode is off, while preserving simulation-driven behavior in editor flows.
-- `FlightTrackerARView` camera mirroring transform updated to `GUIUtility.ScaleAroundPivot(...)` for safer GUI matrix handling.
 
 ### Generate Maps from KML
 
@@ -205,14 +182,14 @@ The APK ships only the minimum required files. Large data files are downloaded f
 | File type | Location | Bundled? |
 |---|---|---|
 | Map atlas `.json` manifests | StreamingAssets/Data/ | ✅ Yes (~1 KB each) |
-| Street View dataset (`street_view/`, `street_view_manifest.json`) | `.tmp-streetview/manual_move/` (outside Unity assets) | ❌ Not bundled |
+| `street_view_manifest.json` | StreamingAssets/Data/ | ⚠️ Yes (2.8 MB — candidate for Drive offload) |
 | Graph + locations + boundaries + profiles | archived/ → Drive | ❌ Downloaded on launch |
-| Map tile `.png` + atlas `.json` metadata | archived/ → Drive | ❌ Downloaded as optional runtime assets |
+| Map tile `.png` atlases | archived/ | ❌ Not bundled (graceful degradation) |
 
 ### Drive File IDs
 
 Files are sourced from the synced project folder: `CDE2501-AR-Wayfinding/Assets/StreamingAssets/Data/archived/`.  
-When you regenerate data locally, Google Drive desktop auto-syncs. The app picks up updates on its next scheduled check.
+When you regenerate data locally, Google Drive desktop auto-syncs. The app picks up updates on its next hourly check.
 
 > **All Drive files must be shared as "Anyone with link → Viewer".**
 
@@ -221,23 +198,16 @@ When you regenerate data locally, Google Drive desktop auto-syncs. The app picks
 | estate_graph.json | `1rdVh89zKpehzd1_pjbiO15xQluxg-S3B` |
 | nus_estate_graph.json | `19mJFjc_52qA30apecosIkI4bEit6Jff5` |
 | locations.json | `1iudrdcjUA4axr7OlbVNtlX3sHB0351Ru` |
-| nus_locations.json | `1iw1X8HGkigw5P0K5w08dXMFcQ1Bx1Gv9` |
+| nus_locations.json | `1qAwOHLs0zzBNby82dH4ha98JitLL9m2g` |
 | routing_profiles.json | `1BgyDOE4ts3V-o5Na4NzfSJic7BZX5HiZ` |
-| queenstown_boundary.geojson | `1gXoUXctD0tI-T8mrXIZ5Eeo3h3Mz9PL0` |
+| queenstown_boundary.geojson | `1C2j_1QC9jyjbto7bCPQYkSEX6WjzHYze` |
 | nus_boundary.geojson | `1LZWYApt484SDCGqcK8Q4xXj2cD0AOFMx` |
 
 ### Sync behaviour
 
-- **First launch (no cached files):** progress bar UI downloads the 7 required startup files. Optional map assets are also downloaded when enabled.
-- **Subsequent launches:** files already cached → app starts immediately. A size-based update check runs every **15 minutes** and re-downloads only changed files.
-- **While app is open:** background checks continue every 15 minutes, and updated files are hot-reloaded for graph/locations/boundary/profiles/minimap textures where supported.
-- **Safety check:** if Drive returns an HTML page (auth/permission page), sync fails fast and logs a clear sharing-permission error instead of saving invalid JSON.
+- **First launch (no cached files):** progress bar UI downloads all 7 files sequentially. Retry button on failure.
+- **Subsequent launches:** files already cached → app starts immediately. Background hourly check compares `Content-Length` headers; re-downloads only changed files.
 - **Force re-sync:** call `DataSyncManager.ForceReSync()` (or clear `persistentDataPath/Data/` manually).
-
-### Runtime Update Scope
-
-- **Can update from Drive without reinstall:** graph JSON, locations JSON, boundary GeoJSON, routing profiles, map PNG atlases, map metadata JSON.
-- **Still requires new APK:** C# code, Unity scenes/prefabs, and project settings.
 
 ### Share / upload telemetry
 
@@ -312,7 +282,6 @@ Tap **AR: OFF** to activate the camera-based destination overlay:
 - Selected destination is highlighted in orange
 - Route bearing indicator at bottom shows turn direction (left/right arrows)
 - Uses gyroscope for pitch detection, accelerometer as fallback
-- Includes a "Sync Gyro" button to zero the vertical pitch to your current phone angle
 - Works on any phone with camera, GPS, and compass
 
 ### Alpha tester UI
@@ -352,7 +321,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 
 ## Known Gaps
 
-- Street View assets are intentionally externalized from Unity `StreamingAssets` and kept in local backup (`.tmp-streetview/manual_move/`) to keep APKs thin.
+- `street_view_manifest.json` (2.8 MB) is still bundled in the APK — candidate for Drive offload to further reduce APK size.
 - Street View/video-frame environment disabled by default (capture spacing too sparse). Archived assets retained.
 - NUS building inter-links include synthetic connectivity assumptions — field data will replace them after alpha testing.
 - GPS altitude accuracy is limited (~10–30 m error); floor estimation uses relative barometric delta.
@@ -364,7 +333,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 
 ## Roadmap
 
-1. ✅ **Thin APK + Drive sync** — required data files downloaded on first launch, 15-minute update checks with background polling while app is open
+1. ✅ **Thin APK + Drive sync** — data files downloaded on first launch, hourly update checks
 2. ✅ **Share button** — Android intent to send telemetry CSVs, recorded paths, crash logs
 3. **Alpha field testing** — deploy APK, collect walked-path telemetry + screenshots at NUS/Queenstown
 4. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges
