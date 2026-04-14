@@ -7,6 +7,11 @@ using UnityEngine;
 
 namespace CDE2501.Wayfinding.AR
 {
+    /// <summary>
+    /// Flight-tracker style AR overlay using WebCamTexture + device compass/gyroscope.
+    /// Correct Android gyro-to-Unity transform, pitch-driven label vertical placement,
+    /// and a persistent status HUD drawn inside the AR view itself.
+    /// </summary>
     public class FlightTrackerARView : MonoBehaviour
     {
         [Header("Dependencies")]
@@ -15,54 +20,76 @@ namespace CDE2501.Wayfinding.AR
         [SerializeField] private LocationManager locationManager;
         [SerializeField] private RouteCalculator routeCalculator;
 
-        [Header("Camera")]
-        [SerializeField] private float horizontalFovDegrees = 60f;
-        [SerializeField] private float verticalFovDegrees = 45f;
+        [Header("Camera FOV")]
+        [SerializeField] private float horizontalFovDegrees = 68f;
+        [SerializeField] private float verticalFovDegrees   = 50f;
 
-        [Header("Labels")]
+        [Header("Label Appearance")]
         [SerializeField] private float maxVisibleDistanceMeters = 2000f;
-        [SerializeField] private float labelMinScale = 0.6f;
-        [SerializeField] private float labelMaxScale = 1.4f;
-        [SerializeField] private Color labelColor = Color.white;
-        [SerializeField] private Color labelBgColor = new Color(0f, 0f, 0f, 0.7f);
+        [SerializeField] private float labelMinScale  = 0.65f;
+        [SerializeField] private float labelMaxScale  = 1.4f;
+        [SerializeField] private Color labelColor         = Color.white;
+        [SerializeField] private Color labelBgColor       = new Color(0f, 0f, 0f, 0.72f);
         [SerializeField] private Color selectedLabelColor = new Color(1f, 0.55f, 0.05f, 1f);
-        [SerializeField] private Color distanceColor = new Color(0.6f, 0.85f, 1f, 1f);
-        [SerializeField] private Color directionArrowColor = new Color(0.1f, 0.9f, 1f, 1f);
+        [SerializeField] private Color distanceColor      = new Color(0.6f, 0.9f, 1f, 1f);
+        [SerializeField] private Color accentColor        = new Color(0.1f, 0.85f, 1f, 1f);
 
         [Header("Route Overlay")]
         [SerializeField] private bool showRouteDirection = true;
-        [SerializeField] private Color routeBearingColor = new Color(1f, 0.3f, 0.1f, 0.9f);
+        [SerializeField] private Color routeArrowColor   = new Color(1f, 0.3f, 0.1f, 0.95f);
 
+        [Header("Gyro Smoothing")]
+        [SerializeField, Range(0.01f, 1f)] private float pitchSmoothingAlpha = 0.15f;
+
+        // ── public state ──────────────────────────────────────────────────────────
         public bool IsActive { get; private set; }
 
+        // ── private state ──────────────────────────────────────────────────────────
         private WebCamTexture _webcam;
-        private GUIStyle _labelStyle;
-        private GUIStyle _distStyle;
-        private GUIStyle _arrowStyle;
-        private Texture2D _bgTex;
-        private Texture2D _pixel;
-        private bool _gyroEnabled;
-        private Quaternion _gyroOffset = Quaternion.identity;
-        private string _selectedDestination;
+
+        // gyro
+        private bool      _gyroEnabled;
+        private float     _rawPitch;       // degrees, updated every frame (gyro or accel)
+        private float     _smoothPitch;    // exponentially smoothed
+        private float     _pitchOffset;    // set by SyncGyro / auto-init
+
+        // selection / route
+        private string      _selectedDestination;
         private RouteResult _lastRoute;
-        private float _userPitchOffset = 0f;
 
-        private readonly List<DestinationLabel> _visibleLabels = new List<DestinationLabel>();
+        // textures / styles (created lazily on first OnGUI)
+        private Texture2D _bgTex;
+        private Texture2D _whiteTex;
+        private Texture2D _hudBgTex;
+        private GUIStyle  _labelStyle;
+        private GUIStyle  _subStyle;
+        private GUIStyle  _hudStyle;
+        private GUIStyle  _arrowStyle;
 
+        // scratch list – re-used every frame to avoid GC
+        private readonly List<DestinationLabel> _visibleLabels = new List<DestinationLabel>(32);
+
+        private bool _gyroAutoSynced; // true once first auto-sync has run
+
+        // ── inner struct ──────────────────────────────────────────────────────────
         private struct DestinationLabel
         {
             public string name;
-            public float bearing;
-            public float distance;
-            public float screenX;
-            public float screenY;
-            public float scale;
-            public bool isSelected;
+            public float  bearing;
+            public float  distance;
+            public float  screenX;
+            public float  screenY;
+            public float  scale;
+            public bool   isSelected;
         }
+
+        // ═════════════════════════════════════════════════════════════════════════
+        // Unity lifecycle
+        // ═════════════════════════════════════════════════════════════════════════
 
         private void Awake()
         {
-            if (gpsManager == null) gpsManager = FindObjectOfType<GPSManager>();
+            if (gpsManager     == null) gpsManager     = FindObjectOfType<GPSManager>();
             if (compassManager == null) compassManager = FindObjectOfType<CompassManager>();
             if (locationManager == null) locationManager = FindObjectOfType<LocationManager>();
             if (routeCalculator == null) routeCalculator = FindObjectOfType<RouteCalculator>();
@@ -71,34 +98,38 @@ namespace CDE2501.Wayfinding.AR
         private void OnEnable()
         {
             if (routeCalculator != null)
-            {
-                routeCalculator.OnRouteUpdated += HandleRouteUpdated;
-            }
+                routeCalculator.OnRouteUpdated += OnRouteUpdated;
         }
 
         private void OnDisable()
         {
             if (routeCalculator != null)
-            {
-                routeCalculator.OnRouteUpdated -= HandleRouteUpdated;
-            }
+                routeCalculator.OnRouteUpdated -= OnRouteUpdated;
         }
 
-        private void HandleRouteUpdated(RouteResult result)
+        private void Update()
         {
-            _lastRoute = result;
+            if (!IsActive) return;
+            UpdatePitch();
         }
 
-        public void SetSelectedDestination(string destinationName)
+        private void OnDestroy()
         {
-            _selectedDestination = destinationName;
+            StopCameraInternal();
+            DestroyTex(ref _bgTex);
+            DestroyTex(ref _whiteTex);
+            DestroyTex(ref _hudBgTex);
         }
+
+        // ═════════════════════════════════════════════════════════════════════════
+        // Public API
+        // ═════════════════════════════════════════════════════════════════════════
 
         public void Activate()
         {
             if (IsActive) return;
             IsActive = true;
-
+            _gyroAutoSynced = false;
             StartCamera();
             EnableGyro();
         }
@@ -107,15 +138,33 @@ namespace CDE2501.Wayfinding.AR
         {
             if (!IsActive) return;
             IsActive = false;
-
-            StopCamera();
+            StopCameraInternal();
         }
 
         public void Toggle()
         {
             if (IsActive) Deactivate();
-            else Activate();
+            else          Activate();
         }
+
+        public void SetSelectedDestination(string destinationName)
+        {
+            _selectedDestination = destinationName;
+        }
+
+        /// <summary>
+        /// Zeros the pitch so that the current phone tilt becomes "level".
+        /// Call this whenever the user has raised/lowered the phone to a comfortable viewing angle.
+        /// </summary>
+        public void SyncGyro()
+        {
+            _pitchOffset = _rawPitch;
+            Debug.Log($"[FlightTrackerARView] SyncGyro: offset set to {_pitchOffset:F1}°");
+        }
+
+        // ═════════════════════════════════════════════════════════════════════════
+        // Camera
+        // ═════════════════════════════════════════════════════════════════════════
 
         private void StartCamera()
         {
@@ -127,6 +176,11 @@ namespace CDE2501.Wayfinding.AR
                 return;
             }
 #endif
+            StartCameraInternal();
+        }
+
+        private void StartCameraInternal()
+        {
             if (_webcam != null && _webcam.isPlaying) return;
 
             WebCamDevice[] devices = WebCamTexture.devices;
@@ -136,42 +190,39 @@ namespace CDE2501.Wayfinding.AR
                 return;
             }
 
-            string backCamera = null;
-            for (int i = 0; i < devices.Length; i++)
+            string backName = null;
+            foreach (var d in devices)
             {
-                if (!devices[i].isFrontFacing)
-                {
-                    backCamera = devices[i].name;
-                    break;
-                }
+                if (!d.isFrontFacing) { backName = d.name; break; }
             }
 
-            _webcam = new WebCamTexture(backCamera ?? devices[0].name, Screen.width, Screen.height, 30);
+            _webcam = new WebCamTexture(backName ?? devices[0].name, Screen.width, Screen.height, 30);
             _webcam.Play();
+            Debug.Log($"[FlightTrackerARView] Camera started: {_webcam.deviceName}");
+        }
+
+        private void StopCameraInternal()
+        {
+            if (_webcam == null) return;
+            _webcam.Stop();
+            Destroy(_webcam);
+            _webcam = null;
         }
 
         private System.Collections.IEnumerator CameraPermissionRoutine()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
             while (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
-            {
                 yield return new WaitForSeconds(0.5f);
-            }
-            StartCamera();
+            StartCameraInternal();
 #else
             yield break;
 #endif
         }
 
-        private void StopCamera()
-        {
-            if (_webcam != null)
-            {
-                _webcam.Stop();
-                Destroy(_webcam);
-                _webcam = null;
-            }
-        }
+        // ═════════════════════════════════════════════════════════════════════════
+        // Gyroscope / pitch
+        // ═════════════════════════════════════════════════════════════════════════
 
         private void EnableGyro()
         {
@@ -179,59 +230,63 @@ namespace CDE2501.Wayfinding.AR
             {
                 Input.gyro.enabled = true;
                 _gyroEnabled = true;
-                _gyroOffset = Quaternion.Euler(90f, 0f, 0f);
             }
+            _smoothPitch = 0f;
+            _rawPitch    = 0f;
         }
 
-        private void OnDestroy()
+        private void UpdatePitch()
         {
-            StopCamera();
-            if (_bgTex != null) Destroy(_bgTex);
-            if (_pixel != null) Destroy(_pixel);
-        }
+            float newRaw;
 
-        private void EnsureStyles()
-        {
-            if (_labelStyle != null) return;
-
-            if (_bgTex == null)
+            if (_gyroEnabled && SystemInfo.supportsGyroscope)
             {
-                _bgTex = new Texture2D(1, 1);
-                _bgTex.SetPixel(0, 0, labelBgColor);
-                _bgTex.Apply();
+                // Android → Unity coordinate conversion:
+                //   Android gyro uses a right-handed system with Z pointing out of the screen.
+                //   Unity uses left-handed. The standard conversion for portrait-landscape is:
+                //     unityQ = Quaternion(-gx, -gy, gz, gw)
+                //   Then we rotate by -90° around X to go from landscape-native to portrait-up.
+                Quaternion raw    = Input.gyro.attitude;
+                Quaternion unity  = new Quaternion(-raw.x, -raw.y, raw.z, raw.w);
+                Quaternion adjust = Quaternion.Euler(-90f, 0f, 0f); // portrait correction
+                Quaternion final  = adjust * unity;
+
+                // Extract pitch (X rotation in Unity = tilt forward/back)
+                Vector3 euler = final.eulerAngles;
+                float px = euler.x;
+                if (px > 180f) px -= 360f; // wrap to [-180, 180]
+                newRaw = px;
+            }
+            else
+            {
+                // Accelerometer fallback: phone laying flat = 0, pointing up = -90
+                Vector3 g = Input.acceleration;
+                newRaw = Mathf.Atan2(-g.z, Mathf.Sqrt(g.x * g.x + g.y * g.y)) * Mathf.Rad2Deg;
             }
 
-            if (_pixel == null)
+            _rawPitch    = newRaw;
+            _smoothPitch = Mathf.LerpAngle(_smoothPitch, _rawPitch, pitchSmoothingAlpha);
+
+            // Auto-sync once we have a stable first reading (gives OS time to initialise gyro)
+            if (!_gyroAutoSynced && Time.time > 1.5f)
             {
-                _pixel = new Texture2D(1, 1);
-                _pixel.SetPixel(0, 0, Color.white);
-                _pixel.Apply();
+                _pitchOffset    = _smoothPitch;
+                _gyroAutoSynced = true;
             }
-
-            _labelStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 24,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = labelColor, background = _bgTex },
-                padding = new RectOffset(12, 12, 6, 6)
-            };
-
-            _distStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 18,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = distanceColor },
-                padding = new RectOffset(8, 8, 2, 2)
-            };
-
-            _arrowStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 36,
-                alignment = TextAnchor.MiddleCenter,
-                normal = { textColor = directionArrowColor }
-            };
         }
+
+        /// <summary>Corrected pitch in degrees relative to the user's synced zero angle.</summary>
+        private float CorrectedPitch => _smoothPitch - _pitchOffset;
+
+        // ═════════════════════════════════════════════════════════════════════════
+        // Route callback
+        // ═════════════════════════════════════════════════════════════════════════
+
+        private void OnRouteUpdated(RouteResult result) => _lastRoute = result;
+
+        // ═════════════════════════════════════════════════════════════════════════
+        // Rendering
+        // ═════════════════════════════════════════════════════════════════════════
 
         private void OnGUI()
         {
@@ -239,202 +294,175 @@ namespace CDE2501.Wayfinding.AR
 
             EnsureStyles();
             DrawCameraBackground();
-            ComputeVisibleLabels();
-            DrawDestinationLabels();
+            ComputeLabels();
+            DrawLabels();
 
             if (showRouteDirection && _lastRoute != null && _lastRoute.success)
-            {
-                DrawRouteBearingIndicator();
-            }
+                DrawRouteBearing();
+
+            DrawStatusHUD();
         }
+
+        // ── camera background ─────────────────────────────────────────────────────
 
         private void DrawCameraBackground()
         {
             if (_webcam == null || !_webcam.isPlaying) return;
 
-            // Handle rotation for mobile camera orientation
-            float angle = -_webcam.videoRotationAngle;
-            bool mirror = _webcam.videoVerticallyMirrored;
-
-            Matrix4x4 prev = GUI.matrix;
+            float  angle  = -_webcam.videoRotationAngle;
+            bool   mirror = _webcam.videoVerticallyMirrored;
             Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
 
-            if (Mathf.Abs(angle) > 0.1f || mirror)
-            {
+            Matrix4x4 prev = GUI.matrix;
+            if (Mathf.Abs(angle) > 0.5f)
                 GUIUtility.RotateAroundPivot(angle, center);
-                if (mirror)
-                {
-                    GUIUtility.ScaleAroundPivot(new Vector2(1f, -1f), center);
-                }
-            }
+            if (mirror)
+                GUIUtility.ScaleAroundPivot(new Vector2(1f, -1f), center);
 
             GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _webcam, ScaleMode.ScaleAndCrop);
             GUI.matrix = prev;
         }
 
-        private void ComputeVisibleLabels()
+        // ── destination labels ────────────────────────────────────────────────────
+
+        private void ComputeLabels()
         {
             _visibleLabels.Clear();
 
-            if (gpsManager == null || !gpsManager.IsReady) return;
-            if (compassManager == null || !compassManager.IsReady) return;
+            if (gpsManager     == null || !gpsManager.IsReady)     return;
+            if (compassManager == null || !compassManager.IsReady)  return;
             if (locationManager == null || locationManager.Locations.Count == 0) return;
 
-            double myLat = gpsManager.SmoothedPoint.latitude;
-            double myLon = gpsManager.SmoothedPoint.longitude;
-            float myHeading = compassManager.SmoothedHeading;
+            double myLat     = gpsManager.SmoothedPoint.latitude;
+            double myLon     = gpsManager.SmoothedPoint.longitude;
+            float  myHeading = compassManager.SmoothedHeading;
+            float  pitch     = CorrectedPitch;            // positive = tilted up (phone held up)
 
-            float pitch = GetDevicePitch();
             float halfH = horizontalFovDegrees * 0.5f;
-            float halfV = verticalFovDegrees * 0.5f;
+            float halfV = verticalFovDegrees   * 0.5f;
 
-            for (int i = 0; i < locationManager.Locations.Count; i++)
+            foreach (LocationPoint loc in locationManager.Locations)
             {
-                LocationPoint loc = locationManager.Locations[i];
                 if (loc == null || string.IsNullOrWhiteSpace(loc.name)) continue;
                 if (loc.gps_lat == 0 && loc.gps_lon == 0) continue;
 
-                float bearing = RouteCalculator.ComputeBearingDegrees(myLat, myLon, loc.gps_lat, loc.gps_lon);
+                float bearing  = RouteCalculator.ComputeBearingDegrees(myLat, myLon, loc.gps_lat, loc.gps_lon);
                 float distance = RouteCalculator.HaversineDistanceMeters(myLat, myLon, loc.gps_lat, loc.gps_lon);
 
                 if (distance > maxVisibleDistanceMeters || distance < 1f) continue;
 
-                float relativeBearing = Mathf.DeltaAngle(myHeading, bearing);
-                if (Mathf.Abs(relativeBearing) > halfH) continue;
+                float relBearing = Mathf.DeltaAngle(myHeading, bearing);
+                if (Mathf.Abs(relBearing) > halfH) continue;
 
-                float screenX = (relativeBearing / halfH + 1f) * 0.5f * Screen.width;
+                // ── Horizontal position: linear mapping from FOV to screen width
+                float sx = (relBearing / halfH + 1f) * 0.5f * Screen.width;
 
-                // Use pitch to shift labels vertically — closer to horizon = middle of screen
-                float elevAngle = -pitch;
-                float screenY = (1f - (elevAngle / halfV + 1f) * 0.5f) * Screen.height;
-                // Offset by distance — farther destinations sit closer to horizon
-                float distanceFactor = Mathf.Clamp01(distance / maxVisibleDistanceMeters);
-                screenY = Mathf.Lerp(Screen.height * 0.35f, Screen.height * 0.5f, distanceFactor);
+                // ── Vertical position: driven by gyro pitch.
+                //    pitch = 0  → label at screen centre (horizon)
+                //    pitch > 0  → phone tilted up → label moves UP
+                //    pitch < 0  → phone tilted down → label moves DOWN
+                //    Clamp so labels never leave the usable screen area.
+                float normV = Mathf.Clamp(pitch / halfV, -1f, 1f);       // [-1, 1]
+                float sy    = (0.5f - normV * 0.5f) * Screen.height;     // screen Y
 
-                float scale = Mathf.Lerp(labelMaxScale, labelMinScale, distanceFactor);
+                // Keep labels away from extreme edges
+                sy = Mathf.Clamp(sy, Screen.height * 0.1f, Screen.height * 0.85f);
+
+                float distFactor = Mathf.Clamp01(distance / maxVisibleDistanceMeters);
+                float scale = Mathf.Lerp(labelMaxScale, labelMinScale, distFactor);
 
                 bool isSelected = !string.IsNullOrWhiteSpace(_selectedDestination) &&
                     string.Equals(loc.name, _selectedDestination, StringComparison.OrdinalIgnoreCase);
 
                 _visibleLabels.Add(new DestinationLabel
                 {
-                    name = loc.name,
-                    bearing = bearing,
-                    distance = distance,
-                    screenX = screenX,
-                    screenY = screenY,
-                    scale = scale,
+                    name       = loc.name,
+                    bearing    = bearing,
+                    distance   = distance,
+                    screenX    = sx,
+                    screenY    = sy,
+                    scale      = scale,
                     isSelected = isSelected
                 });
             }
         }
 
-        private void DrawDestinationLabels()
+        private void DrawLabels()
         {
-            for (int i = 0; i < _visibleLabels.Count; i++)
-            {
-                DestinationLabel label = _visibleLabels[i];
-                DrawLabel(label);
-            }
+            foreach (var lbl in _visibleLabels)
+                DrawOneLabel(lbl);
         }
 
-        private void DrawLabel(DestinationLabel label)
+        private void DrawOneLabel(DestinationLabel lbl)
         {
+            // Scale the GUI matrix around the label's screen position for size variation
             Matrix4x4 prev = GUI.matrix;
-            GUI.matrix = Matrix4x4.Scale(new Vector3(label.scale, label.scale, 1f));
+            Vector2 pivot = new Vector2(lbl.screenX, lbl.screenY);
+            GUIUtility.ScaleAroundPivot(new Vector2(lbl.scale, lbl.scale), pivot);
 
-            float sx = label.screenX / label.scale;
-            float sy = label.screenY / label.scale;
+            float sx = lbl.screenX;
+            float sy = lbl.screenY;
 
-            // Name
-            Color origColor = _labelStyle.normal.textColor;
-            if (label.isSelected)
-            {
-                _labelStyle.normal.textColor = selectedLabelColor;
-            }
+            // --- Pill background ---
+            float pilW = 180f;
+            float pilH = 52f;
+            Rect pilRect = new Rect(sx - pilW * 0.5f, sy - pilH * 0.5f, pilW, pilH);
+            Color prevBg = GUI.backgroundColor;
+            GUI.color = lbl.isSelected
+                ? new Color(selectedLabelColor.r, selectedLabelColor.g, selectedLabelColor.b, 0.82f)
+                : new Color(0f, 0f, 0f, 0.72f);
+            GUI.DrawTexture(pilRect, _bgTex, ScaleMode.StretchToFill);
+            GUI.color = Color.white;
 
-            string distText = label.distance >= 1000f
-                ? $"{label.distance / 1000f:F1} km"
-                : $"{label.distance:F0} m";
+            // --- Name ---
+            Color nameCol = lbl.isSelected ? selectedLabelColor : labelColor;
+            _labelStyle.normal.textColor = nameCol;
+            GUI.Label(new Rect(sx - 86f, sy - 26f, 172f, 26f), lbl.name, _labelStyle);
 
-            float etaSeconds = label.distance / 1.0f; // elderly speed
-            string etaText = etaSeconds >= 60f
-                ? $"~{etaSeconds / 60f:F0} min"
-                : $"~{etaSeconds:F0} s";
-
-            GUIContent nameContent = new GUIContent(label.name);
-            Vector2 nameSize = _labelStyle.CalcSize(nameContent);
-            Rect nameRect = new Rect(sx - nameSize.x * 0.5f, sy - nameSize.y, nameSize.x, nameSize.y);
-            GUI.Label(nameRect, nameContent, _labelStyle);
-
-            _labelStyle.normal.textColor = origColor;
-
-            // Distance + ETA
-            GUIContent distContent = new GUIContent($"{distText}  {etaText}");
-            Vector2 distSize = _distStyle.CalcSize(distContent);
-            Rect distRect = new Rect(sx - distSize.x * 0.5f, sy + 2f, distSize.x, distSize.y);
-            GUI.Label(distRect, distContent, _distStyle);
-
-            // Direction dot
-            float dotSize = 8f;
-            Color prevGUIColor = GUI.color;
-            GUI.color = label.isSelected ? selectedLabelColor : directionArrowColor;
-            if (_pixel != null)
-            {
-                GUI.DrawTexture(new Rect(sx - dotSize * 0.5f, sy - nameSize.y - dotSize - 4f, dotSize, dotSize), _pixel);
-            }
-            GUI.color = prevGUIColor;
+            // --- Distance + ETA ---
+            string distTxt = lbl.distance >= 1000f
+                ? $"{lbl.distance / 1000f:F1} km"
+                : $"{lbl.distance:F0} m";
+            float etaSec = lbl.distance / 1.0f;
+            string etaTxt = etaSec >= 60f ? $"~{etaSec / 60f:F0} min" : $"~{etaSec:F0} s";
+            GUI.Label(new Rect(sx - 86f, sy, 172f, 24f), $"{distTxt}  {etaTxt}", _subStyle);
 
             GUI.matrix = prev;
         }
 
-        private void DrawRouteBearingIndicator()
+        // ── route bearing ─────────────────────────────────────────────────────────
+
+        private void DrawRouteBearing()
         {
             if (gpsManager == null || !gpsManager.IsReady) return;
             if (compassManager == null || !compassManager.IsReady) return;
-            if (_lastRoute == null || !_lastRoute.success || _lastRoute.nodePath == null || _lastRoute.nodePath.Count < 2) return;
+            if (_lastRoute == null || !_lastRoute.success ||
+                _lastRoute.nodePath == null || _lastRoute.nodePath.Count < 2) return;
 
-            // Get the next node on the route to show immediate direction
-            // This gives a "turn-by-turn" feel
-            float myHeading = compassManager.SmoothedHeading;
-
-            // Show a compass-like bearing indicator at the bottom of screen
-            float halfH = horizontalFovDegrees * 0.5f;
             float routeBearing = GetNextRouteBearing();
             if (float.IsNaN(routeBearing)) return;
 
-            float relativeBearing = Mathf.DeltaAngle(myHeading, routeBearing);
-            bool inView = Mathf.Abs(relativeBearing) <= halfH;
+            float myHeading   = compassManager.SmoothedHeading;
+            float relBearing  = Mathf.DeltaAngle(myHeading, routeBearing);
+            float halfH       = horizontalFovDegrees * 0.5f;
+            bool  inView      = Mathf.Abs(relBearing) <= halfH;
 
-            float indicatorY = Screen.height - 80f;
-            float indicatorX;
+            float indY = Screen.height - 90f;
+            float indX = inView
+                ? (relBearing / halfH + 1f) * 0.5f * Screen.width
+                : (relBearing > 0f ? Screen.width - 50f : 50f);
 
-            if (inView)
-            {
-                indicatorX = (relativeBearing / halfH + 1f) * 0.5f * Screen.width;
-            }
-            else
-            {
-                indicatorX = relativeBearing > 0 ? Screen.width - 40f : 40f;
-            }
+            // Arrow + bearing
+            string arrow = inView ? "▼" : (relBearing > 0f ? "►" : "◄");
 
-            // Draw route direction arrow
-            string arrow = inView ? "▼" : (relativeBearing > 0 ? "►" : "◄");
-            Color prevColor = GUI.color;
-            GUI.color = routeBearingColor;
+            _arrowStyle.normal.textColor = routeArrowColor;
+            GUI.Label(new Rect(indX - 24f, indY - 40f, 48f, 48f), arrow, _arrowStyle);
 
-            GUIStyle arrowDraw = new GUIStyle(_arrowStyle);
-            arrowDraw.normal.textColor = routeBearingColor;
-            GUI.Label(new Rect(indicatorX - 20f, indicatorY, 40f, 40f), arrow, arrowDraw);
-
-            // Bearing text
-            string bearingText = $"{relativeBearing:+0;-0}°";
-            GUIStyle bearingStyle = new GUIStyle(_distStyle);
-            bearingStyle.normal.textColor = routeBearingColor;
-            Vector2 bearingSize = bearingStyle.CalcSize(new GUIContent(bearingText));
-            GUI.Label(new Rect(indicatorX - bearingSize.x * 0.5f, indicatorY + 38f, bearingSize.x, bearingSize.y), bearingText, bearingStyle);
-
-            GUI.color = prevColor;
+            string bearingTxt = $"{relBearing:+0;-0}°";
+            _subStyle.normal.textColor = routeArrowColor;
+            Vector2 bsz = _subStyle.CalcSize(new GUIContent(bearingTxt));
+            GUI.Label(new Rect(indX - bsz.x * 0.5f, indY + 10f, bsz.x, bsz.y), bearingTxt, _subStyle);
+            _subStyle.normal.textColor = distanceColor; // reset
         }
 
         private float GetNextRouteBearing()
@@ -445,61 +473,111 @@ namespace CDE2501.Wayfinding.AR
             double myLat = gpsManager.SmoothedPoint.latitude;
             double myLon = gpsManager.SmoothedPoint.longitude;
 
-            // Find the destination endpoint bearing
             string lastNodeId = _lastRoute.nodePath[_lastRoute.nodePath.Count - 1];
-            if (locationManager != null)
-            {
-                for (int i = 0; i < locationManager.Locations.Count; i++)
-                {
-                    LocationPoint loc = locationManager.Locations[i];
-                    if (loc != null && string.Equals(loc.indoor_node_id, lastNodeId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return RouteCalculator.ComputeBearingDegrees(myLat, myLon, loc.gps_lat, loc.gps_lon);
-                    }
-                }
-            }
+            if (locationManager == null) return float.NaN;
 
+            foreach (var loc in locationManager.Locations)
+            {
+                if (loc != null && string.Equals(loc.indoor_node_id, lastNodeId, StringComparison.OrdinalIgnoreCase))
+                    return RouteCalculator.ComputeBearingDegrees(myLat, myLon, loc.gps_lat, loc.gps_lon);
+            }
             return float.NaN;
         }
 
-        private float GetDevicePitch()
-        {
-            if (_gyroEnabled && SystemInfo.supportsGyroscope)
-            {
-                Quaternion gyroRot = _gyroOffset * GyroToUnity(Input.gyro.attitude);
-                Vector3 euler = gyroRot.eulerAngles;
-                float pitch = euler.x;
-                if (pitch > 180f) pitch -= 360f;
-                return pitch - _userPitchOffset;
-            }
+        // ── status HUD ────────────────────────────────────────────────────────────
 
-            // Fallback: use accelerometer
-            Vector3 accel = Input.acceleration;
-            float fallbackPitch = Mathf.Atan2(-accel.z, -accel.y) * Mathf.Rad2Deg;
-            return fallbackPitch - _userPitchOffset;
+        private void DrawStatusHUD()
+        {
+            // Small pill in the top-right corner showing GPS / Compass / Gyro status
+            bool gpsOk     = gpsManager     != null && gpsManager.IsReady;
+            bool compassOk = compassManager  != null && compassManager.IsReady;
+
+            string gyroLabel = _gyroEnabled
+                ? (_gyroAutoSynced ? $"Gyro ✓ {CorrectedPitch:+0;-0}°" : "Gyro init…")
+                : $"Accel {CorrectedPitch:+0;-0}°";
+
+            string line1 = $"GPS {(gpsOk ? "✓" : "…")}  Compass {(compassOk ? "✓" : "…")}";
+            string line2 = gyroLabel;
+            if (_webcam == null || !_webcam.isPlaying) line2 += "  CAM ✗";
+
+            float pw = 230f, ph = 50f;
+            float px = Screen.width - pw - 8f, py = 8f;
+
+            GUI.color = new Color(0f, 0f, 0f, 0.65f);
+            GUI.DrawTexture(new Rect(px, py, pw, ph), _hudBgTex, ScaleMode.StretchToFill);
+            GUI.color = Color.white;
+
+            _hudStyle.normal.textColor = gpsOk ? new Color(0.3f, 1f, 0.5f) : new Color(1f, 0.6f, 0.1f);
+            GUI.Label(new Rect(px + 8f, py + 4f, pw - 16f, 22f), line1, _hudStyle);
+            _hudStyle.normal.textColor = new Color(0.7f, 0.9f, 1f);
+            GUI.Label(new Rect(px + 8f, py + 24f, pw - 16f, 22f), line2, _hudStyle);
         }
 
-        public void SyncGyro()
+        // ═════════════════════════════════════════════════════════════════════════
+        // Style initialisation
+        // ═════════════════════════════════════════════════════════════════════════
+
+        private void EnsureStyles()
         {
-            if (_gyroEnabled && SystemInfo.supportsGyroscope)
+            if (_labelStyle != null) return;
+
+            _bgTex    = MakeTex(new Color(0f, 0f, 0f, 0.72f));
+            _whiteTex = MakeTex(Color.white);
+            _hudBgTex = MakeTex(new Color(0f, 0f, 0f, 0.65f));
+
+            _labelStyle = new GUIStyle(GUI.skin.label)
             {
-                Quaternion gyroRot = _gyroOffset * GyroToUnity(Input.gyro.attitude);
-                Vector3 euler = gyroRot.eulerAngles;
-                float rawPitch = euler.x;
-                if (rawPitch > 180f) rawPitch -= 360f;
-                _userPitchOffset = rawPitch;
-            }
-            else
+                fontSize  = 20,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                padding   = new RectOffset(0, 0, 0, 0)
+            };
+            _labelStyle.normal.textColor = labelColor;
+
+            _subStyle = new GUIStyle(GUI.skin.label)
             {
-                Vector3 accel = Input.acceleration;
-                float rawPitch = Mathf.Atan2(-accel.z, -accel.y) * Mathf.Rad2Deg;
-                _userPitchOffset = rawPitch;
-            }
+                fontSize  = 15,
+                alignment = TextAnchor.MiddleCenter,
+                padding   = new RectOffset(0, 0, 0, 0)
+            };
+            _subStyle.normal.textColor = distanceColor;
+
+            _hudStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize  = 14,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft
+            };
+            _hudStyle.normal.textColor = Color.white;
+
+            _arrowStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize  = 40,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter
+            };
+            _arrowStyle.normal.textColor = routeArrowColor;
         }
 
-        private static Quaternion GyroToUnity(Quaternion gyro)
+        // ═════════════════════════════════════════════════════════════════════════
+        // Helpers
+        // ═════════════════════════════════════════════════════════════════════════
+
+        private static Texture2D MakeTex(Color c)
         {
-            return new Quaternion(gyro.x, gyro.y, -gyro.z, -gyro.w);
+            var t = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+            {
+                wrapMode   = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Point
+            };
+            t.SetPixel(0, 0, c);
+            t.Apply();
+            return t;
+        }
+
+        private static void DestroyTex(ref Texture2D t)
+        {
+            if (t != null) { Destroy(t); t = null; }
         }
     }
 }

@@ -460,6 +460,16 @@ namespace CDE2501.Wayfinding.UI
                 }
             }
 
+            // Snap GPS — instantly moves SmoothedPoint to the current raw fix
+            if (_gpsManager != null && _gpsManager.IsReady)
+            {
+                if (GUILayout.Button("Snap GPS", GUILayout.Width(80f)))
+                {
+                    _gpsManager.SnapToCurrentGPS();
+                    RecalculateCurrentRoute("GPS Snapped to current position");
+                }
+            }
+
             if (_dataSyncManager != null && GUILayout.Button("Share", GUILayout.Width(80f)))
             {
                 _dataSyncManager.ShareTelemetryData();

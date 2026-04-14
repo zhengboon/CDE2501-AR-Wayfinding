@@ -95,6 +95,20 @@ namespace CDE2501.Wayfinding.Location
             sourceMode = mode;
         }
 
+        /// <summary>
+        /// Instantly snaps SmoothedPoint to the current RawPoint, bypassing the exponential
+        /// smoothing filter. Call this when the app first gets a GPS fix to avoid the slow
+        /// convergence from the default start coordinates.
+        /// </summary>
+        public void SnapToCurrentGPS()
+        {
+            if (!IsReady) return;
+            SmoothedPoint = RawPoint;
+            _hasInitial   = true;
+            OnLocationUpdated?.Invoke(RawPoint, SmoothedPoint);
+            Debug.Log($"[GPSManager] Snapped to current GPS: {RawPoint.latitude:F6}, {RawPoint.longitude:F6}");
+        }
+
         private bool ResolveUseSimulationMode()
         {
             if (simulationProvider == null && !_searchedForSimulation)

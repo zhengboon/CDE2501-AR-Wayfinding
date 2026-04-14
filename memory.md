@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-13 (15-minute Drive sync + runtime refresh)
+> Living document. Updated: 2026-04-14 (latest commit review + APK rebuild)
 
 ---
 
@@ -14,17 +14,18 @@
 
 ---
 
-## Latest Verified Android Build (2026-04-13)
+## Latest Verified Android Build (2026-04-14)
 
 - Command used:
   `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
 - Result: **Build Succeeded**
 - Output: `Builds/Android/CDE2501-Wayfinding.apk`
-- File size: **33,503,852 bytes** (~32 MB)
-- Build duration: **178.111 s**
+- File size: **33,513,760 bytes** (~32 MB)
+- Build duration: **148.792 s** (cached builder report)
 - Report: `UnityBuildCache/latest_build_report.md`
 - Notes:
   - Log scanner still catches licensing client errors early in startup, but Unity resolves entitlement and the final build succeeds.
+  - Unity build log confirms `Build Finished, Result: Success` with `Total errors: 0`.
   - `ProjectSettings.asset` currently keeps `preloadedAssets: []` for build stability and parity with latest successful run.
   - `scripts/unity_cached_builder_config.json` is pinned to Unity `2022.3.62f3-x86_64` to avoid selecting an editor without Android modules.
 
@@ -118,7 +119,7 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 
 1. **Android Sensor Initialization**: Disabled `forceSimulationMode` effectively for Android device builds. Previously, it defaulted to `true` which locked location and compass output to the static WASD simulation values.
 2. **Camera Permissions**: AR Camera initialization now dynamically checks and requests `android.permission.CAMERA` at runtime.
-3. **Gyroscope Sync**: Added `SyncGyro()` functionality and a button in the `QuickStartBootstrap` AR overlay. Captures the device's current pitch to comfortably offset the view angle.
+3. **Gyroscope Sync**: Added `SyncGyro()` functionality and a button in the `QuickStartBootstrap` AR overlay. Captures the device's current pitch to comfortably offset the view angle.\n\n---\n\n## Code Review Fixes (2026-04-14)\n\n1. **Gyroscope math rewritten**: Previous `_gyroOffset * GyroToUnity(q)` transform produced wrong pitch/yaw on Android. New transform: `new Quaternion(-x,-y,z,w)` then apply `Euler(-90,0,0)` correction for portrait mode. Labels now correctly move up/down as the phone tilts.\n2. **Pitch-driven label Y position**: Label `screenY` is now computed from gyro pitch directly (`normV = pitch / halfV`) and no longer overridden by a distance-based lerp. Full tilt range maps to the full screen height.\n3. **Auto Gyro Sync**: On first activation the AR view waits 1.5 seconds for the gyro OS init, then auto-zeroes `_pitchOffset` so the user doesn't need to tap Sync Gyro every time.\n4. **GPS Snap**: Added `GPSManager.SnapToCurrentGPS()` which instantly sets `SmoothedPoint = RawPoint`, bypassing the exponential smoothing filter. Exposed as **Snap GPS** button in the overlay (visible when GPS is Ready). Also triggers a route recalculate.\n5. **AR HUD**: AR view now draws a small status pill (top-right) showing GPS / Compass ready state and live corrected pitch angle so users can see what the system is reading.\n6. **FlightTrackerARView cleaned up**: Removed `_gyroOffset` Quaternion field, removed `GetDevicePitch()` method, replaced with `UpdatePitch()` running in `Update()` with exponential smoothing and proper coordinate transform.\n
 
 ## Runtime Update Expansion (2026-04-13)
 
@@ -127,6 +128,15 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 3. **Live runtime refresh**: `QuickStartBootstrap` now subscribes to `DataSyncManager.OnFilesUpdated` and hot-reloads changed graph, locations, boundary, routing profiles, minimap texture, and reference map texture.
 4. **Persistent-first loading**: minimap/reference map loaders now prefer `persistentDataPath/Data/` before falling back to bundled `StreamingAssets`.
 5. **Stale Drive IDs corrected** for `nus_locations.json` and `queenstown_boundary.geojson`.
+
+---
+
+## Latest Commit Reviewed (2026-04-14)
+
+- Commit: `e44c51c` — `feat: implement AR flight tracking view, simulated object driver, and quick-start UI bootstrap`
+- `QuickStartBootstrap`: status panel UI refactored from fixed `GUI.Rect` controls to grouped `GUILayout` flow, improving readability and control alignment in runtime.
+- `SimulatedObjectDriver`: now resolves `GPSManager` + `CompassManager` and uses real device position/heading when simulation mode is off; simulation data remains fallback/primary in sim mode.
+- `FlightTrackerARView`: camera mirroring in GUI path switched to `GUIUtility.ScaleAroundPivot(...)` to avoid direct GUI matrix scaling side effects.
 
 ---
 
@@ -165,16 +175,16 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 
 | Hash | Date | Summary |
 |---|---|---|
-| cd42bee | 2026-04-10 | Switch DataSyncManager to synced project Drive file IDs |
-| c4024eb | 2026-04-09 | Update website and README to reflect current functionality |
-| 29c55db | 2026-04-09 | Fix heading clamping, compass init, download errors, path validation |
-| 677bc64 | 2026-04-09 | Add From/To location selection for path recording |
-| c4fe208 | 2026-04-09 | Thin APK: Drive sync, share button, ARM64-only, progress bar |
-| 85e0a61 | 2026-04-09 | Add DataSyncManager and CrashReporter |
-| 0bb9920 | 2026-04-09 | Move map tile PNGs to archived/ |
-| 14e1e8b | 2026-04-09 | Set Android min SDK 24, OpenGLES3 for ARCore |
-| d0bcd66 | earlier | Heading direction arrow on minimap player marker |
-| 356b3f7 | earlier | Flight-tracker AR camera view with destination labels |
+| e44c51c | 2026-04-14 | feat: implement AR flight tracking view, simulated object driver, and quick-start UI bootstrap |
+| c109ec2 | 2026-04-14 | Refactor map loading and syncing logic; enhance runtime updates |
+| fd825a0 | 2026-04-13 | fix(ar): resolve simulated values lock on Android, add camera permission request, and sync gyro button |
+| e9cd709 | 2026-04-13 | feat: add simulation provider for PC testing, bootstrap UI, and AR flight tracker view |
+| 580f476 | 2026-04-11 | fix: update project settings and documentation for latest Android build verification |
+| dac7f0b | 2026-04-11 | fix: harden thin-APK sync/build flow and refresh project docs |
+| 7274431 | 2026-04-11 | chore: import course datasheets, site guides, and presentation materials into project directory |
+| eeffca9 | 2026-04-11 | fix: switch active build target in batchmode before BuildPlayer call |
+| 73cb041 | 2026-04-11 | docs: add memory.md and sync README + website with thin APK architecture |
+| cd42bee | 2026-04-10 | feat: switch DataSyncManager to use synced project Drive file IDs |
 
 ---
 
