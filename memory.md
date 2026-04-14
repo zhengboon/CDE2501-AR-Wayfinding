@@ -290,3 +290,15 @@ While attempting to generate the thin APK via headless batchmode (`unity_cached_
    - **Error**: Data sync could save an HTML auth/share page if Drive links were not publicly shared.
    - **Cause**: Download path accepted any successful HTTP payload without content validation.
    - **Fix**: Added HTML payload detection and fail-fast logs with explicit share-permission guidance.
+
+
+---
+
+## Code Review Fixes (2026-04-14 pass 2 - Share)
+
+1. **FLAG_ACTIVITY_NEW_TASK added**: share intent now includes `0x10000001` (FLAG_GRANT_READ_URI_PERMISSION | FLAG_ACTIVITY_NEW_TASK) instead of just `1`, preventing crashes when called from application context.
+2. **Wider file scan**: ShareTelemetryData now searches Telemetry/, RecordedPaths/, and Crashes/ for csv/json/txt/png/jpg — screenshots from field sessions are now included.
+3. **Deduplication**: HashSet-based dedup prevents duplicate URIs when multiple patterns match the same file.
+4. **Descriptive status messages**: Every failure path now shows a visible StatusMessage so the user knows exactly what went wrong instead of a silent no-op.
+5. **Cleaner Android Java flow**: activity acquired first, then context from it; intent constructed after URI list is ready, avoiding partially-initialized intent bugs.
+
