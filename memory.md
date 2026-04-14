@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding â€” Memory
 
-> Living document. Updated: 2026-04-14 (latest commit review + APK rebuild)
+> Living document. Updated: 2026-04-14 (share/AR deep review pass 3 + APK rebuild)
 
 ---
 
@@ -128,7 +128,7 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 1. **Gyroscope math rewritten**: New transform: `new Quaternion(-x,-y,z,w)` then `Euler(-90,0,0)` portrait correction. Labels now move correctly when phone tilts.
 2. **Pitch-driven label Y**: screenY now computed from live gyro pitch. Old distance-based lerp removed.
 3. **Auto Gyro Sync**: AR view auto-zeroes pitchOffset 1.5 s after activation. Manual Sync Gyro button still available.
-4. **GPS Snap**: Added `GPSManager.SnapToCurrentGPS()` — snaps SmoothedPoint=RawPoint instantly. Shown as Snap GPS button (visible when GPS Ready). Triggers route recalc.
+4. **GPS Snap**: Added `GPSManager.SnapToCurrentGPS()` - snaps SmoothedPoint=RawPoint instantly. Shown as Snap GPS button (visible when GPS Ready). Triggers route recalc.
 5. **AR status HUD**: Status pill in AR view (top-right) shows GPS/Compass ready and live pitch.
 6. **FlightTrackerARView rewrite**: Removed old gyroOffset + GetDevicePitch. Replaced with UpdatePitch() in Update() with correct Android coordinate transform.
 7. **Share Intent Fix**: Added FileProvider and file_paths config to AndroidManifest so the Telemetry sharing intent doesn't silent crash.
@@ -297,8 +297,24 @@ While attempting to generate the thin APK via headless batchmode (`unity_cached_
 ## Code Review Fixes (2026-04-14 pass 2 - Share)
 
 1. **FLAG_ACTIVITY_NEW_TASK added**: share intent now includes `0x10000001` (FLAG_GRANT_READ_URI_PERMISSION | FLAG_ACTIVITY_NEW_TASK) instead of just `1`, preventing crashes when called from application context.
-2. **Wider file scan**: ShareTelemetryData now searches Telemetry/, RecordedPaths/, and Crashes/ for csv/json/txt/png/jpg — screenshots from field sessions are now included.
+2. **Wider file scan**: ShareTelemetryData now searches Telemetry/, RecordedPaths/, and Crashes/ for csv/json/txt/png/jpg screenshots from field sessions.
 3. **Deduplication**: HashSet-based dedup prevents duplicate URIs when multiple patterns match the same file.
 4. **Descriptive status messages**: Every failure path now shows a visible StatusMessage so the user knows exactly what went wrong instead of a silent no-op.
 5. **Cleaner Android Java flow**: activity acquired first, then context from it; intent constructed after URI list is ready, avoiding partially-initialized intent bugs.
+
+---
+
+## Code Review Fixes (2026-04-14 pass 3 - AR/Share follow-up)
+
+1. **Auto gyro sync timing corrected**: `FlightTrackerARView` now waits 1.5 seconds from AR activation (`Time.time - _arActivatedAtTime`) instead of global uptime, so "wait 1.5 s then Sync Gyro" troubleshooting is behaviorally correct.
+2. **Share scan expanded again**: added `*.jpeg` to share file patterns so camera/export variants are included consistently.
+
+---
+
+## Code Review Fixes (2026-04-14 pass 4 - Build hardening)
+
+1. **Android resource packaging fix**: moved FileProvider XML resource out of deprecated `Assets/Plugins/Android/res/...` into `Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/file_paths.xml` with a library manifest, matching Unity 2022 Android plugin expectations.
+2. **Project settings normalization**: reset `ProjectSettings/ProjectSettings.asset` back to `preloadedAssets: []` to avoid accidental XR preloads changing runtime behavior.
+3. **XR GUID stability restored**: reverted unexpected GUID churn in `Assets/XR/Resources/XRSimulationRuntimeSettings.asset.meta` and `Assets/XR/UserSimulationSettings/Resources/XRSimulationPreferences.asset.meta`.
+4. **Stale XR temp asset cleanup**: removed generated files under `Assets/XR/Temp/` before build to prevent simulation-preprocessor move/collision failures.
 

@@ -328,6 +328,11 @@
                 </div>
 
                 <div class="doc-card glass">
+                    <h4>Latest local review pass</h4>
+                    <p><b>Date:</b> <code>2026-04-14</code>. <br><b>Hardening:</b> AR auto-sync now uses activation-relative delay, share scan includes <code>.jpeg</code>, FileProvider XML resource moved to <code>Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/</code>, and transient XR temp files are cleared before build.</p>
+                </div>
+
+                <div class="doc-card glass">
                     <h4>Route does not update while moving</h4>
                     <p><b>Check:</b> <code>Sim Mode</code> is true and <code>Main Camera</code> is present. <br><b>Action:</b> Press <kbd>F5</kbd> for manual recalc, then move with <kbd>WASD</kbd>.</p>
                 </div>
@@ -406,6 +411,11 @@
                     <h4>Share button shows "Share error: ..."</h4>
                     <p><b>Check:</b> FileProvider misconfiguration or missing permission. <br><b>Action:</b> Rebuild the APK (FileProvider config is now included in <code>Assets/Plugins/Android/AndroidManifest.xml</code>). The error message in the status bar will show the exact Java exception for further diagnosis.</p>
                 </div>
+
+                <div class="doc-card glass">
+                    <h4>Android build fails with obsolete res path</h4>
+                    <p><b>Check:</b> Build log includes <code>OBSOLETE - Providing Android resources in Assets/Plugins/Android/res</code>. <br><b>Action:</b> Keep <code>file_paths.xml</code> under <code>Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/</code> and do not use <code>Assets/Plugins/Android/res/</code>.</p>
+                </div>
             </div>
         </div>
     </section>
@@ -425,7 +435,7 @@
                 </div>
                 <div class="doc-card glass">
                     <h4>✅ One-tap telemetry share</h4>
-                    <p>Share button sends all CSVs, GPS trail JSONs, and crash logs via Android share intent. No USB cable or Google account required from testers. Already shipped.</p>
+                    <p>Share button sends CSVs, GPS trail JSONs, screenshots, and crash logs via Android share intent. Uses Android 7+ FileProvider with <code>FLAG_ACTIVITY_NEW_TASK</code> + URI read grants. Already shipped.</p>
                 </div>
                 <div class="doc-card glass">
                     <h4>📊 Path ingestion pipeline</h4>

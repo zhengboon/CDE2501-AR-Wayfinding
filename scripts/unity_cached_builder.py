@@ -468,6 +468,10 @@ def build_if_needed(
     unity_project_path = format_path_for_unity(PROJECT_ROOT, unity_exe)
     unity_log_path = format_path_for_unity(log_file, unity_exe)
     unity_output_path = format_path_for_unity(output_path, unity_exe)
+    scene_value = str(scene_path)
+    scene_as_path = Path(scene_path).expanduser()
+    if scene_as_path.is_absolute():
+        scene_value = format_path_for_unity(scene_as_path, unity_exe)
 
     command = [
         str(unity_exe),
@@ -479,16 +483,22 @@ def build_if_needed(
         EXECUTE_METHOD,
         "-logFile",
         unity_log_path,
+        "-cde2501BuildTarget",
+        str(target),
+        "-cde2501BuildOutput",
+        unity_output_path,
+        "-cde2501ScenePath",
+        scene_value,
+        "-cde2501DevelopmentBuild",
+        "1" if dev_build else "0",
     ]
 
     if use_nographics:
         command.insert(3, "-nographics")
 
     env = os.environ.copy()
-    scene_value = str(scene_path)
-    scene_as_path = Path(scene_path).expanduser()
-    if scene_as_path.is_absolute():
-        scene_value = format_path_for_unity(scene_as_path, unity_exe)
+    # Keep env vars for native Linux/macOS Unity execution; command-line args above
+    # are added as a WSL-safe fallback when launching Windows Unity from WSL.
     env["CDE2501_BUILD_TARGET"] = str(target)
     env["CDE2501_BUILD_OUTPUT"] = unity_output_path
     env["CDE2501_SCENE_PATH"] = scene_value

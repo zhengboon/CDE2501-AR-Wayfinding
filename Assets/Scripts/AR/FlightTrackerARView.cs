@@ -70,6 +70,7 @@ namespace CDE2501.Wayfinding.AR
         private readonly List<DestinationLabel> _visibleLabels = new List<DestinationLabel>(32);
 
         private bool _gyroAutoSynced; // true once first auto-sync has run
+        private float _arActivatedAtTime;
 
         // ── inner struct ──────────────────────────────────────────────────────────
         private struct DestinationLabel
@@ -129,6 +130,7 @@ namespace CDE2501.Wayfinding.AR
         {
             if (IsActive) return;
             IsActive = true;
+            _arActivatedAtTime = Time.time;
             _gyroAutoSynced = false;
             StartCamera();
             EnableGyro();
@@ -267,8 +269,8 @@ namespace CDE2501.Wayfinding.AR
             _rawPitch    = newRaw;
             _smoothPitch = Mathf.LerpAngle(_smoothPitch, _rawPitch, pitchSmoothingAlpha);
 
-            // Auto-sync once we have a stable first reading (gives OS time to initialise gyro)
-            if (!_gyroAutoSynced && Time.time > 1.5f)
+            // Auto-sync once we have a stable first reading after AR activation.
+            if (!_gyroAutoSynced && (Time.time - _arActivatedAtTime) > 1.5f)
             {
                 _pitchOffset    = _smoothPitch;
                 _gyroAutoSynced = true;

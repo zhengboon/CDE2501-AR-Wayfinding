@@ -520,7 +520,7 @@ namespace CDE2501.Wayfinding.Data
                 Path.Combine(baseDir, "Crashes"),
             };
 
-            var patterns = new[] { "*.csv", "*.json", "*.txt", "*.png", "*.jpg" };
+            var patterns = new[] { "*.csv", "*.json", "*.txt", "*.png", "*.jpg", "*.jpeg" };
 
             var files = new List<string>();
             foreach (string root in searchRoots)

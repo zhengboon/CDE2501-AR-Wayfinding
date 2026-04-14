@@ -12,16 +12,20 @@ namespace CDE2501.Wayfinding.EditorTools
         private const string EnvBuildOutput = "CDE2501_BUILD_OUTPUT";
         private const string EnvScenePath = "CDE2501_SCENE_PATH";
         private const string EnvDevelopmentBuild = "CDE2501_DEVELOPMENT_BUILD";
+        private const string ArgBuildTarget = "-cde2501BuildTarget";
+        private const string ArgBuildOutput = "-cde2501BuildOutput";
+        private const string ArgScenePath = "-cde2501ScenePath";
+        private const string ArgDevelopmentBuild = "-cde2501DevelopmentBuild";
 
         private const string DefaultScenePath = "Assets/Scenes/Main.unity";
 
         [MenuItem("CDE2501/Build/Build From Environment")]
         public static void BuildFromEnvironment()
         {
-            string targetRaw = ReadEnv(EnvBuildTarget, BuildTarget.StandaloneWindows64.ToString());
-            string outputRaw = ReadEnv(EnvBuildOutput, "Builds/Windows/CDE2501-Wayfinding.exe");
-            string sceneRaw = ReadEnv(EnvScenePath, DefaultScenePath);
-            string developmentRaw = ReadEnv(EnvDevelopmentBuild, "0");
+            string targetRaw = ReadEnvOrArg(EnvBuildTarget, ArgBuildTarget, BuildTarget.StandaloneWindows64.ToString());
+            string outputRaw = ReadEnvOrArg(EnvBuildOutput, ArgBuildOutput, "Builds/Windows/CDE2501-Wayfinding.exe");
+            string sceneRaw = ReadEnvOrArg(EnvScenePath, ArgScenePath, DefaultScenePath);
+            string developmentRaw = ReadEnvOrArg(EnvDevelopmentBuild, ArgDevelopmentBuild, "0");
 
             if (!TryParseBuildTarget(targetRaw, out BuildTarget target))
             {
@@ -275,10 +279,40 @@ namespace CDE2501.Wayfinding.EditorTools
             return value == "1" || value == "true" || value == "yes" || value == "y" || value == "on";
         }
 
-        private static string ReadEnv(string key, string fallback)
+        private static string ReadEnvOrArg(string envKey, string argKey, string fallback)
         {
-            string value = Environment.GetEnvironmentVariable(key);
+            string value = Environment.GetEnvironmentVariable(envKey);
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return value;
+            }
+
+            value = ReadCommandLineArg(argKey);
             return string.IsNullOrWhiteSpace(value) ? fallback : value;
+        }
+
+        private static string ReadCommandLineArg(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return null;
+            }
+
+            string[] args = Environment.GetCommandLineArgs();
+            if (args == null || args.Length == 0)
+            {
+                return null;
+            }
+
+            for (int i = 0; i < args.Length - 1; i++)
+            {
+                if (string.Equals(args[i], key, StringComparison.OrdinalIgnoreCase))
+                {
+                    return args[i + 1];
+                }
+            }
+
+            return null;
         }
 
         private static void Fail(string message)

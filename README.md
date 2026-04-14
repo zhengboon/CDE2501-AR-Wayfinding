@@ -81,10 +81,17 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 
 ### Latest Code Commit (2026-04-14)
 
-- Commit: `e44c51c` — `feat: implement AR flight tracking view, simulated object driver, and quick-start UI bootstrap`
-- `QuickStartBootstrap` status overlay refactored to `GUILayout`-based layout for cleaner, responsive control grouping.
-- `SimulatedObjectDriver` now resolves and uses real `GPSManager`/`CompassManager` sensor data on-device when simulation mode is off, while preserving simulation-driven behavior in editor flows.
-- `FlightTrackerARView` camera mirroring transform updated to `GUIUtility.ScaleAroundPivot(...)` for safer GUI matrix handling.
+- Commit: `46c6ebe` — `fix(share): proper FLAGS, wider file scan, deduplicate, clearer status messages`
+- Share intent now uses Android 7+ safe `FileProvider` flow with `FLAG_GRANT_READ_URI_PERMISSION | FLAG_ACTIVITY_NEW_TASK`.
+- Share scan widened to include telemetry CSV/JSON/TXT and session screenshots (`.png`, `.jpg`, `.jpeg`) across `Telemetry/`, `RecordedPaths/`, and `Crashes/`.
+- Status feedback now distinguishes common failure states (`No data to share yet`, `Share error: ...`) to avoid silent no-op behavior.
+- AR troubleshooting path is now aligned with the live AR HUD + manual `Sync Gyro` + `Snap GPS` workflow used during field testing.
+
+### Latest Local Review Pass (2026-04-14)
+
+- AR auto-sync timing uses activation-relative delay (`Time.time - _arActivatedAtTime > 1.5f`) for consistent on-device behavior.
+- Android FileProvider resource moved to `Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/file_paths.xml` to avoid Unity 2022 deprecated `Assets/Plugins/Android/res` build failures.
+- XR build stability normalized: `preloadedAssets` reset to empty and transient `Assets/XR/Temp/*` simulation files cleared before APK generation.
 
 ### Generate Maps from KML
 
@@ -335,6 +342,7 @@ By default, the overlay shows only essential controls: Wheelchair toggle, Rec, S
 | Route starts from wrong location | GPS smoothing hasn't converged | Tap **Snap GPS** in overlay to instantly lock to raw fix |
 | Share shows "No data to share yet" | No recordings exist yet | Start **Rec: ON**, walk a path, stop it, then Share |
 | Share shows "Share error: ..." | FileProvider not registered | Rebuild APK — config now in `Assets/Plugins/Android/AndroidManifest.xml` |
+| Android build fails with `OBSOLETE ... Assets/Plugins/Android/res` | Legacy Android resource path used | Keep `file_paths.xml` under `Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/` (not `Assets/Plugins/Android/res/`) |
 | Minimap elements drift when turning | Follow-heading mode active | Toggle follow-heading off as fallback |
 | Route not refreshing after area switch | Map area just changed | Press `F5` to force recalc |
 | NUS area empty after switch | `Map Area: NUS Engineering` shown | Toggle area once, wait for auto-route |
