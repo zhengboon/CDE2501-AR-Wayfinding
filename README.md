@@ -316,6 +316,8 @@ Tap **AR: OFF** to activate the camera-based destination overlay:
 - Auto Gyro Sync runs 1.5 s after AR initialization to automatically level the horizon
 - Manual "Sync Gyro" button to re-zero the vertical pitch to your current comfortable phone angle
 - Works on any phone with camera, GPS, and compass
+- **Snap GPS** button instantly locks position to the raw GPS fix (bypasses smoothing filter) — tap it immediately after AR activates to get accurate label positions
+- **`Sync Gyro`** button re-zeroes pitch offset at any time for re-calibration mid-session
 
 ### Alpha tester UI
 By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, AR, Path Record, Destination, Map Area. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
@@ -329,6 +331,10 @@ By default, the overlay shows only essential controls: Wheelchair toggle, Rec, S
 | Route does not update while moving | `Sim Mode` true, `Main Camera` present | Press `F5`, then `WASD` |
 | Play mode shows only sky/ground | Scene is `Untitled` not `Main.unity` | Open `Assets/Scenes/Main.unity`, replay |
 | GPS/Compass not ready | Overlay status text | Laptop: `F2` simulation; Mobile: enable Location Services |
+| AR labels don't move when tilting | Gyro not yet synced | Wait 1.5 s for auto-sync or tap **Sync Gyro**; check AR HUD top-right |
+| Route starts from wrong location | GPS smoothing hasn't converged | Tap **Snap GPS** in overlay to instantly lock to raw fix |
+| Share shows "No data to share yet" | No recordings exist yet | Start **Rec: ON**, walk a path, stop it, then Share |
+| Share shows "Share error: ..." | FileProvider not registered | Rebuild APK — config now in `Assets/Plugins/Android/AndroidManifest.xml` |
 | Minimap elements drift when turning | Follow-heading mode active | Toggle follow-heading off as fallback |
 | Route not refreshing after area switch | Map area just changed | Press `F5` to force recalc |
 | NUS area empty after switch | `Map Area: NUS Engineering` shown | Toggle area once, wait for auto-route |
@@ -367,7 +373,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 ## Roadmap
 
 1. ✅ **Thin APK + Drive sync** — required data files downloaded on first launch, 15-minute update checks with background polling while app is open
-2. ✅ **Share button** — Android intent to send telemetry CSVs, recorded paths, crash logs
+2. ✅ **Share button** — Android intent sends telemetry CSVs, recorded paths, screenshots, crash logs; Android 7+ FileProvider with FLAG_ACTIVITY_NEW_TASK
 3. **Alpha field testing** — deploy APK, collect walked-path telemetry + screenshots at NUS/Queenstown
 4. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges
 5. **Replace synthetic graph** — swap OSM-generated NUS graph with real walked-path data

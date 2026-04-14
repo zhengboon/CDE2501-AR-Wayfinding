@@ -153,7 +153,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">📤</div>
                     <h3>One-Tap Data Share</h3>
-                    <p>The Share button invokes the Android share intent to send telemetry CSVs, GPS trail JSONs, and crash logs via external apps &mdash; no USB cable required (fully supports Android 7+ via custom FileProvider).</p>
+                    <p>The Share button invokes the Android share intent to send telemetry CSVs, GPS trail JSONs, screenshots, and crash logs via any app &mdash; no USB cable required. Fully supports Android 7+ via FileProvider with <code>FLAG_ACTIVITY_NEW_TASK</code>.</p>
                 </div>
 
                 <div class="card glass show-on-scroll">
@@ -324,7 +324,7 @@
 
                 <div class="doc-card glass">
                     <h4>Latest code commit</h4>
-                    <p><b>Commit:</b> <code>e44c51c</code> (2026-04-14). <br><b>Update:</b> Quick Start overlay moved to a responsive GUILayout layout, simulated object driving now uses real GPS/compass on device when simulation is off, and AR camera mirroring was hardened.</p>
+                    <p><b>Commit:</b> <code>46c6ebe</code> (2026-04-14). <br><b>Updates:</b> Gyro math rewritten for correct Android portrait transform, pitch-driven AR label Y, auto gyro sync, GPS Snap button, AR status HUD, FileProvider share intent fixed with <code>FLAG_ACTIVITY_NEW_TASK</code>, wider share file scan including screenshots.</p>
                 </div>
 
                 <div class="doc-card glass">
@@ -385,6 +385,26 @@
                 <div class="doc-card glass">
                     <h4>App works offline after first launch</h4>
                     <p><b>Info:</b> Required data files are cached in <code>persistentDataPath/Data/</code> after the first successful download. The app starts immediately on subsequent launches and runs 15-minute Drive update checks in the background.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>AR labels aren't moving when I tilt the phone</h4>
+                    <p><b>Check:</b> Gyro not yet synced or OS hasn't initialised gyro sensor. <br><b>Action:</b> Wait 1&ndash;2 s after enabling AR (auto-sync fires at 1.5 s). Then tap <b>Sync Gyro</b> to manually zero the pitch at your current holding angle. The AR HUD (top-right) shows live Gyro&thinsp;✓ and corrected pitch.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>Route starts from wrong location / GPS drifting</h4>
+                    <p><b>Check:</b> GPS smoothing filter hasn't converged yet (exponential filter takes 10&ndash;20 updates). <br><b>Action:</b> Tap <b>Snap GPS</b> in the overlay (appears once GPS is Ready) to instantly lock SmoothedPoint to the current raw fix and force a route recalculate.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>Share button shows "No data to share yet"</h4>
+                    <p><b>Check:</b> No recording sessions started yet &mdash; Telemetry/, RecordedPaths/, and Crashes/ directories are empty. <br><b>Action:</b> Start a <b>Rec: ON</b> session, walk a path, then stop it. The Share button will find the CSV and any screenshots automatically.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>Share button shows "Share error: ..."</h4>
+                    <p><b>Check:</b> FileProvider misconfiguration or missing permission. <br><b>Action:</b> Rebuild the APK (FileProvider config is now included in <code>Assets/Plugins/Android/AndroidManifest.xml</code>). The error message in the status bar will show the exact Java exception for further diagnosis.</p>
                 </div>
             </div>
         </div>
