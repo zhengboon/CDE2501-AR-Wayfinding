@@ -359,7 +359,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 - NUS building inter-links include synthetic connectivity assumptions — field data will replace them after alpha testing.
 - GPS altitude accuracy is limited (~10–30 m error); floor estimation uses relative barometric delta.
 - Flight-tracker AR view uses WebCamTexture + compass (no ARCore/ARKit dependency). AR plugins remain in project for future plane-detection features.
-- No Google Sign-In yet — testers share data manually via the Share button (Android intent).
+- No Google Sign-In yet — testers share data manually via the Share button (with full Android 7+ FileProvider support).
 - Drive file IDs must remain **"Anyone with link → Viewer"**; verify after any Drive folder restructuring.
 
 ---
