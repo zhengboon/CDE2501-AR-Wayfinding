@@ -5,6 +5,8 @@ namespace CDE2501.Wayfinding.Location
     public class SimulatedObjectDriver : MonoBehaviour
     {
         [SerializeField] private SimulationProvider simulationProvider;
+        [SerializeField] private GPSManager gpsManager;
+        [SerializeField] private CompassManager compassManager;
         [SerializeField] private Transform targetTransform;
         [SerializeField] private bool rotateWithHeading = true;
         [SerializeField] private bool applyPitchFromSimulation = true;
@@ -29,6 +31,16 @@ namespace CDE2501.Wayfinding.Location
             {
                 simulationProvider = FindObjectOfType<SimulationProvider>();
             }
+
+            if (gpsManager == null)
+            {
+                gpsManager = FindObjectOfType<GPSManager>();
+            }
+
+            if (compassManager == null)
+            {
+                compassManager = FindObjectOfType<CompassManager>();
+            }
         }
 
         private void LateUpdate()
@@ -38,17 +50,30 @@ namespace CDE2501.Wayfinding.Location
                 return;
             }
 
-            bool shouldDrive = !driveOnlyWhenSimulationModeEnabled || simulationProvider.ForceSimulationMode;
+            if (gpsManager == null)
+            {
+                gpsManager = FindObjectOfType<GPSManager>();
+            }
+
+            if (compassManager == null)
+            {
+                compassManager = FindObjectOfType<CompassManager>();
+            }
+
+            bool isSimulating = simulationProvider.ForceSimulationMode;
+            bool hasRealLocation = !isSimulating && gpsManager != null && gpsManager.IsReady;
+            bool shouldDrive = !driveOnlyWhenSimulationModeEnabled || isSimulating || hasRealLocation;
+
             if (!shouldDrive)
             {
                 _wasDrivingLastFrame = false;
                 return;
             }
 
-            // Re-anchor whenever simulation driving resumes to prevent camera jump.
+            // Re-anchor whenever driving resumes to prevent camera jump.
             if (!_isInitialized || !_wasDrivingLastFrame)
             {
-                _originGeo = simulationProvider.CurrentPoint;
+                _originGeo = isSimulating || !hasRealLocation ? simulationProvider.CurrentPoint : gpsManager.SmoothedPoint;
                 _originWorld = targetTransform.position;
                 _originY = targetTransform.position.y;
                 _isInitialized = true;
@@ -59,7 +84,9 @@ namespace CDE2501.Wayfinding.Location
                 metersPerUnityUnit = 1f;
             }
 
-            Vector2 offsetMeters = GeoOffsetMeters(_originGeo, simulationProvider.CurrentPoint);
+            GeoPoint currentGeo = isSimulating || !hasRealLocation ? simulationProvider.CurrentPoint : gpsManager.SmoothedPoint;
+            Vector2 offsetMeters = GeoOffsetMeters(_originGeo, currentGeo);
+            
             Vector3 newPos = _originWorld + new Vector3(
                 offsetMeters.x / metersPerUnityUnit,
                 0f,
@@ -72,16 +99,23 @@ namespace CDE2501.Wayfinding.Location
             }
             else
             {
-                newPos.y = _originY + (simulationProvider.VerticalOffsetMeters / metersPerUnityUnit);
+                float simVerticalOffset = isSimulating ? simulationProvider.VerticalOffsetMeters : 0f;
+                newPos.y = _originY + (simVerticalOffset / metersPerUnityUnit);
             }
 
             targetTransform.position = newPos;
 
             if (rotateWithHeading)
             {
-                Vector3 euler = targetTransform.rotation.eulerAngles;
-                float pitch = applyPitchFromSimulation ? -simulationProvider.CurrentPitch : euler.x;
-                targetTransform.rotation = Quaternion.Euler(pitch, simulationProvider.CurrentHeading, euler.z);
+                float currentHeading = isSimulating || compassManager == null || !compassManager.IsReady ? 
+                    simulationProvider.CurrentHeading : compassManager.SmoothedHeading;
+                float currentPitch = isSimulating ? -simulationProvider.CurrentPitch : targetTransform.rotation.eulerAngles.x;
+
+                targetTransform.rotation = Quaternion.Euler(
+                    applyPitchFromSimulation && isSimulating ? currentPitch : targetTransform.rotation.eulerAngles.x, 
+                    currentHeading, 
+                    targetTransform.rotation.eulerAngles.z
+                );
             }
 
             _wasDrivingLastFrame = true;
@@ -111,7 +145,10 @@ namespace CDE2501.Wayfinding.Location
                 return;
             }
 
-            _originGeo = simulationProvider.CurrentPoint;
+            bool isSimulating = simulationProvider.ForceSimulationMode;
+            bool hasRealLocation = !isSimulating && gpsManager != null && gpsManager.IsReady;
+
+            _originGeo = isSimulating || !hasRealLocation ? simulationProvider.CurrentPoint : gpsManager.SmoothedPoint;
             _originWorld = targetTransform.position;
             _originY = targetTransform.position.y;
             _isInitialized = true;

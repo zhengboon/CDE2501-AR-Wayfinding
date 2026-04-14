@@ -388,10 +388,7 @@ namespace CDE2501.Wayfinding.UI
 
         private void OnGUI()
         {
-            if (!showStatusOverlay)
-            {
-                return;
-            }
+            if (!showStatusOverlay) return;
 
             EnsureOverlayStyles();
 
@@ -400,7 +397,7 @@ namespace CDE2501.Wayfinding.UI
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
 
             EnsurePanelRect(scale);
-            _panelRect = GUI.Window(GetInstanceID() + 1000, _panelRect, DrawStatusWindow, "Quick Start Status", _panelStyle);
+            _panelRect = GUILayout.Window(GetInstanceID() + 1000, _panelRect, DrawStatusWindow, "Quick Start Status", _panelStyle);
             GUI.matrix = prev;
         }
 
@@ -409,129 +406,113 @@ namespace CDE2501.Wayfinding.UI
             bool shouldRecalculate = false;
             string pendingRecalcReason = null;
 
-            // --- Essential controls (always visible) ---
-            float essentialX = 12f;
+            GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
 
+            // Essential controls
+            GUILayout.BeginHorizontal();
             if (_routeCalculator != null)
             {
                 bool wheelchair = _routeCalculator.CurrentMode == RoutingMode.Wheelchair;
-                bool newWheelchair = GUI.Toggle(new Rect(essentialX, 34f, 180f, 24f), wheelchair, $"Wheelchair: {(wheelchair ? "True" : "False")}");
+                bool newWheelchair = GUILayout.Toggle(wheelchair, $"Wheelchair: {(wheelchair ? "True" : "False")}", GUILayout.Width(160f));
                 if (newWheelchair != wheelchair)
                 {
                     _routeCalculator.CurrentMode = newWheelchair ? RoutingMode.Wheelchair : RoutingMode.NormalElderly;
                     shouldRecalculate = true;
                     pendingRecalcReason = "Mobility mode UI toggle";
                 }
-                essentialX += 186f;
             }
 
             if (_telemetryRecorder != null)
             {
                 bool isRecording = _telemetryRecorder.IsRecording;
-                bool newRecording = GUI.Toggle(new Rect(essentialX, 34f, 80f, 24f), isRecording, isRecording ? "Rec: ON" : "Rec: OFF");
+                bool newRecording = GUILayout.Toggle(isRecording, isRecording ? "Rec: ON" : "Rec: OFF", GUILayout.Width(80f));
                 if (newRecording != isRecording)
                 {
                     if (newRecording) _telemetryRecorder.StartRecording();
                     else _telemetryRecorder.StopRecording();
                 }
-                essentialX += 86f;
             }
 
             if (_pathScreenshotRecorder != null && _telemetryRecorder != null && _telemetryRecorder.IsRecording)
             {
-                if (GUI.Button(new Rect(essentialX, 34f, 50f, 24f), "Snap"))
+                if (GUILayout.Button("Snap", GUILayout.Width(60f)))
                 {
                     _pathScreenshotRecorder.CaptureManual();
                 }
-                essentialX += 56f;
             }
+            GUILayout.EndHorizontal();
 
+            GUILayout.BeginHorizontal();
             if (_flightTrackerARView != null)
             {
                 bool arActive = _flightTrackerARView.IsActive;
-                if (GUI.Button(new Rect(essentialX, 34f, 62f, 24f), arActive ? "AR: ON" : "AR: OFF"))
+                if (GUILayout.Button(arActive ? "AR: ON" : "AR: OFF", GUILayout.Width(80f)))
                 {
                     _flightTrackerARView.Toggle();
                     if (_flightTrackerARView.IsActive)
                     {
-                        string destName = GetCurrentDestinationName();
-                        _flightTrackerARView.SetSelectedDestination(destName);
+                        _flightTrackerARView.SetSelectedDestination(GetCurrentDestinationName());
                     }
                 }
-                essentialX += 68f;
-
-                if (arActive)
+                if (arActive && GUILayout.Button("Sync Gyro", GUILayout.Width(80f)))
                 {
-                    if (GUI.Button(new Rect(essentialX, 34f, 82f, 24f), "Sync Gyro"))
-                    {
-                        _flightTrackerARView.SyncGyro();
-                    }
-                    essentialX += 88f;
+                    _flightTrackerARView.SyncGyro();
                 }
             }
 
-            if (_dataSyncManager != null)
+            if (_dataSyncManager != null && GUILayout.Button("Share", GUILayout.Width(80f)))
             {
-                if (GUI.Button(new Rect(essentialX, 34f, 56f, 24f), "Share"))
-                {
-                    _dataSyncManager.ShareTelemetryData();
-                }
-                essentialX += 62f;
+                _dataSyncManager.ShareTelemetryData();
             }
 
-            bool newDebug = GUI.Toggle(new Rect(essentialX, 34f, 80f, 24f), _showDebugInfo, "Debug");
+            bool newDebug = GUILayout.Toggle(_showDebugInfo, "Debug", GUILayout.Width(80f));
             if (newDebug != _showDebugInfo)
             {
                 _showDebugInfo = newDebug;
                 if (_graphRuntimeVisualizer != null) _graphRuntimeVisualizer.enabled = _showDebugInfo;
                 if (_destinationMarkerVisualizer != null) _destinationMarkerVisualizer.enabled = _showDebugInfo;
             }
+            GUILayout.EndHorizontal();
 
-            // --- Debug controls (hidden unless Debug is on) ---
+            // Debug controls
             if (_showDebugInfo)
             {
-                float debugX = essentialX + 86f;
-
+                GUILayout.BeginHorizontal();
                 if (_routeCalculator != null)
                 {
                     bool rain = _routeCalculator.RainMode;
-                    bool newRain = GUI.Toggle(new Rect(debugX, 34f, 140f, 24f), rain, $"Rain: {(rain ? "True" : "False")}");
+                    bool newRain = GUILayout.Toggle(rain, $"Rain: {(rain ? "True" : "False")}", GUILayout.Width(100f));
                     if (newRain != rain)
                     {
                         _routeCalculator.RainMode = newRain;
                         shouldRecalculate = true;
                         pendingRecalcReason = "Rain mode UI toggle";
                     }
-                    debugX += 146f;
                 }
 
                 if (_simulationProvider != null)
                 {
                     bool sim = _simulationProvider.ForceSimulationMode;
-                    bool newSim = GUI.Toggle(new Rect(debugX, 34f, 150f, 24f), sim, $"Sim Mode: {(sim ? "True" : "False")}");
-                    if (newSim != sim)
-                    {
-                        _simulationProvider.ForceSimulationMode = newSim;
-                    }
-                    debugX += 156f;
+                    bool newSim = GUILayout.Toggle(sim, $"Sim Mode: {(sim ? "True" : "False")}", GUILayout.Width(130f));
+                    if (newSim != sim) _simulationProvider.ForceSimulationMode = newSim;
                 }
 
-                bool newNearestStart = GUI.Toggle(new Rect(debugX, 34f, 140f, 24f), useNearestNodeAsStart, $"Nearest Start: {(useNearestNodeAsStart ? "True" : "False")}");
+                bool newNearestStart = GUILayout.Toggle(useNearestNodeAsStart, $"Nearest Start: {(useNearestNodeAsStart ? "True" : "False")}", GUILayout.Width(150f));
                 if (newNearestStart != useNearestNodeAsStart)
                 {
                     useNearestNodeAsStart = newNearestStart;
                     shouldRecalculate = true;
                     pendingRecalcReason = "Nearest Start UI toggle";
                 }
-            }
+                GUILayout.EndHorizontal();
 
-            if (!disableYoutubeImageSystems && _showDebugInfo && _streetViewExplorer != null)
-            {
-                bool streetViewActive = _streetViewExplorer.IsStreetViewActive;
-                bool newStreetViewActive = GUI.Toggle(new Rect(742f, 34f, 188f, 24f), streetViewActive, $"StreetView: {(streetViewActive ? "True" : "False")}");
-                if (newStreetViewActive != streetViewActive)
+                if (!disableYoutubeImageSystems && _streetViewExplorer != null)
                 {
-                    _streetViewExplorer.SetStreetViewActive(newStreetViewActive);
+                    GUILayout.BeginHorizontal();
+                    bool streetViewActive = _streetViewExplorer.IsStreetViewActive;
+                    bool newStreetViewActive = GUILayout.Toggle(streetViewActive, $"StreetView: {(streetViewActive ? "True" : "False")}");
+                    if (newStreetViewActive != streetViewActive) _streetViewExplorer.SetStreetViewActive(newStreetViewActive);
+                    GUILayout.EndHorizontal();
                 }
             }
 
@@ -539,196 +520,117 @@ namespace CDE2501.Wayfinding.UI
             RefreshUIDestinations();
             string destinationName = GetCurrentDestinationName();
 
-            float destinationRowY = 64f;
+            GUILayout.BeginHorizontal();
             string mapAreaLabel = useNusMapArea ? "NUS Engineering" : "Queenstown";
-            if (GUI.Button(new Rect(668f, destinationRowY, 262f, 24f), $"Map Area: {mapAreaLabel}"))
-            {
-                ToggleMapAreaSelection();
-            }
+            if (GUILayout.Button($"Map Area: {mapAreaLabel}")) ToggleMapAreaSelection();
+            GUILayout.EndHorizontal();
 
-            GUI.Label(new Rect(12f, destinationRowY, 108f, 24f), "Destination:", _bodyStyle);
-            Rect destinationButtonRect = new Rect(122f, destinationRowY, 344f, 24f);
-            if (GUI.Button(destinationButtonRect, destinationName))
-            {
-                _destinationDropdownExpanded = !_destinationDropdownExpanded;
-            }
-
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("Destination:", _bodyStyle, GUILayout.Width(90f));
+            if (GUILayout.Button(destinationName, GUILayout.ExpandWidth(true))) _destinationDropdownExpanded = !_destinationDropdownExpanded;
+            
             bool hasDestinations = _locationsLoaded && _uiDestinations.Count > 0;
             if (hasDestinations)
             {
-                if (GUI.Button(new Rect(476f, destinationRowY, 92f, 24f), "Prev"))
-                {
-                    CycleDestination(-1);
-                }
-
-                if (GUI.Button(new Rect(572f, destinationRowY, 92f, 24f), "Next"))
-                {
-                    CycleDestination(1);
-                }
+                if (GUILayout.Button("Prev", GUILayout.Width(60f))) CycleDestination(-1);
+                if (GUILayout.Button("Next", GUILayout.Width(60f))) CycleDestination(1);
             }
+            GUILayout.EndHorizontal();
 
-            float dropdownHeight = 0f;
             if (_destinationDropdownExpanded && hasDestinations)
             {
                 float rowHeight = Mathf.Max(30f, bodyFontSize + 8f);
-                float maxDropdownHeight = Mathf.Min(180f, _panelRect.height * 0.4f);
-                dropdownHeight = Mathf.Min(maxDropdownHeight, (_uiDestinations.Count * rowHeight) + 8f);
-
-                Rect dropdownRect = new Rect(122f, destinationRowY + 28f, 344f, dropdownHeight);
-                if (Event.current.type == EventType.MouseDown &&
-                    !destinationButtonRect.Contains(Event.current.mousePosition) &&
-                    !dropdownRect.Contains(Event.current.mousePosition))
-                {
-                    _destinationDropdownExpanded = false;
-                }
-
-                GUI.Box(dropdownRect, GUIContent.none);
-
-                Rect viewport = new Rect(dropdownRect.x + 4f, dropdownRect.y + 4f, dropdownRect.width - 8f, dropdownRect.height - 8f);
-                Rect content = new Rect(0f, 0f, viewport.width - 16f, _uiDestinations.Count * rowHeight);
-                _destinationDropdownScroll = GUI.BeginScrollView(viewport, _destinationDropdownScroll, content);
+                float dropdownHeight = Mathf.Min(180f, _uiDestinations.Count * rowHeight + 8f);
+                _destinationDropdownScroll = GUILayout.BeginScrollView(_destinationDropdownScroll, GUILayout.Height(dropdownHeight));
                 for (int i = 0; i < _uiDestinations.Count; i++)
                 {
                     string itemName = _uiDestinations[i].name;
                     string itemLabel = i == destinationIndex ? $"[x] {itemName}" : itemName;
-                    if (GUI.Button(new Rect(0f, i * rowHeight, content.width, rowHeight - 2f), itemLabel))
+                    if (GUILayout.Button(itemLabel))
                     {
                         SetDestinationIndex(i, recalculate: true);
                         _destinationDropdownExpanded = false;
                     }
                 }
-
-                GUI.EndScrollView();
+                GUILayout.EndScrollView();
             }
 
-            // --- Path recording UI (always visible) ---
-            float pathRowY = destinationRowY + 32f + dropdownHeight + 2f;
-            float pathRecordHeight = 0f;
-            float pathFromDropdownHeight = 0f;
+            // Path Recording UI
             if (_userPathRecorder != null)
             {
                 if (_userPathRecorder.IsRecordingPath)
                 {
-                    string pathLabel = $"Recording: {_userPathRecorder.CurrentFromLabel} -> {_userPathRecorder.CurrentToLabel} ({_userPathRecorder.CurrentPointCount} pts)";
-                    GUI.Label(new Rect(12f, pathRowY, _panelRect.width - 120f, 24f), pathLabel, _bodyStyle);
-                    if (GUI.Button(new Rect(_panelRect.width - 108f, pathRowY, 96f, 24f), "Stop Path"))
-                    {
-                        _userPathRecorder.StopPathRecording();
-                    }
-                    pathRecordHeight = 28f;
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label($"Recording: {_userPathRecorder.CurrentFromLabel} -> {_userPathRecorder.CurrentToLabel} ({_userPathRecorder.CurrentPointCount} pts)", _bodyStyle);
+                    if (GUILayout.Button("Stop Path", GUILayout.Width(90f))) _userPathRecorder.StopPathRecording();
+                    GUILayout.EndHorizontal();
                 }
                 else if (hasDestinations)
                 {
-                    // Clamp path from index
                     _pathFromIndex = Mathf.Clamp(_pathFromIndex, 0, Mathf.Max(0, _uiDestinations.Count - 1));
                     string fromName = _uiDestinations.Count > 0 ? _uiDestinations[_pathFromIndex].name : "none";
 
-                    GUI.Label(new Rect(12f, pathRowY, 42f, 24f), "From:", _bodyStyle);
-                    Rect fromButtonRect = new Rect(56f, pathRowY, 180f, 24f);
-                    if (GUI.Button(fromButtonRect, fromName))
-                    {
-                        _pathFromDropdownExpanded = !_pathFromDropdownExpanded;
-                    }
-
-                    GUI.Label(new Rect(242f, pathRowY, 28f, 24f), "->", _bodyStyle);
-                    GUI.Label(new Rect(272f, pathRowY, 180f, 24f), destinationName, _bodyStyle);
-
-                    if (GUI.Button(new Rect(460f, pathRowY, 80f, 24f), "Record"))
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Label("From:", _bodyStyle, GUILayout.Width(45f));
+                    if (GUILayout.Button(fromName, GUILayout.ExpandWidth(true))) _pathFromDropdownExpanded = !_pathFromDropdownExpanded;
+                    GUILayout.Label("->", _bodyStyle, GUILayout.Width(25f));
+                    GUILayout.Label(destinationName, _bodyStyle, GUILayout.ExpandWidth(true));
+                    if (GUILayout.Button("Record", GUILayout.Width(70f)))
                     {
                         _userPathRecorder.StartPathRecording(fromName, destinationName);
                         _pathFromDropdownExpanded = false;
                     }
-
                     int savedPaths = _userPathRecorder.PathIndex != null ? _userPathRecorder.PathIndex.paths.Count : 0;
-                    GUI.Label(new Rect(548f, pathRowY, 160f, 24f), $"Saved: {savedPaths}", _bodyStyle);
+                    GUILayout.Label($"Saved: {savedPaths}", _bodyStyle, GUILayout.Width(70f));
+                    GUILayout.EndHorizontal();
 
-                    // From dropdown
                     if (_pathFromDropdownExpanded && _uiDestinations.Count > 0)
                     {
                         float rowHeight = Mathf.Max(30f, bodyFontSize + 8f);
-                        float maxDropHeight = Mathf.Min(160f, _panelRect.height * 0.35f);
-                        pathFromDropdownHeight = Mathf.Min(maxDropHeight, (_uiDestinations.Count * rowHeight) + 8f);
-
-                        Rect fromDropRect = new Rect(56f, pathRowY + 28f, 180f, pathFromDropdownHeight);
-                        if (Event.current.type == EventType.MouseDown &&
-                            !fromButtonRect.Contains(Event.current.mousePosition) &&
-                            !fromDropRect.Contains(Event.current.mousePosition))
-                        {
-                            _pathFromDropdownExpanded = false;
-                        }
-
-                        GUI.Box(fromDropRect, GUIContent.none);
-                        Rect fromViewport = new Rect(fromDropRect.x + 4f, fromDropRect.y + 4f, fromDropRect.width - 8f, fromDropRect.height - 8f);
-                        Rect fromContent = new Rect(0f, 0f, fromViewport.width - 16f, _uiDestinations.Count * rowHeight);
-                        _pathFromDropdownScroll = GUI.BeginScrollView(fromViewport, _pathFromDropdownScroll, fromContent);
+                        float dropdownHeight = Mathf.Min(160f, _uiDestinations.Count * rowHeight + 8f);
+                        _pathFromDropdownScroll = GUILayout.BeginScrollView(_pathFromDropdownScroll, GUILayout.Height(dropdownHeight));
                         for (int i = 0; i < _uiDestinations.Count; i++)
                         {
                             string itemName = _uiDestinations[i].name;
                             string itemLabel = i == _pathFromIndex ? $"[x] {itemName}" : itemName;
-                            if (GUI.Button(new Rect(0f, i * rowHeight, fromContent.width, rowHeight - 2f), itemLabel))
+                            if (GUILayout.Button(itemLabel))
                             {
                                 _pathFromIndex = i;
                                 _pathFromDropdownExpanded = false;
                             }
                         }
-                        GUI.EndScrollView();
+                        GUILayout.EndScrollView();
                     }
-
-                    pathRecordHeight = 28f + pathFromDropdownHeight;
                 }
             }
 
-            float sessionPreviewHeight = 0f;
+            // Session UI
             if (_showDebugInfo && Application.isEditor)
             {
                 RefreshPlaySessionRecordingsIfNeeded();
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"Sessions ({_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount}):", _bodyStyle);
+                if (GUILayout.Button("Refresh", GUILayout.Width(80f))) RefreshPlaySessionRecordingsIfNeeded(forceRefresh: true);
+                if (GUILayout.Button("Folder", GUILayout.Width(80f))) OpenPlaySessionFolder();
+                GUILayout.EndHorizontal();
 
-                float sessionRowY = pathRowY + pathRecordHeight + 2f;
-                GUI.Label(new Rect(12f, sessionRowY, 190f, 24f), $"Sessions ({_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount}):", _bodyStyle);
-
-                float refreshButtonX = Mathf.Max(12f, _panelRect.width - 178f);
-                if (GUI.Button(new Rect(refreshButtonX, sessionRowY, 80f, 24f), "Refresh"))
+                if (_recentPlaySessionRecordings.Count > 0)
                 {
-                    RefreshPlaySessionRecordingsIfNeeded(forceRefresh: true);
-                }
-
-                if (GUI.Button(new Rect(refreshButtonX + 86f, sessionRowY, 80f, 24f), "Folder"))
-                {
-                    OpenPlaySessionFolder();
-                }
-
-                float buttonsStartX = 204f;
-                float buttonWidth = 74f;
-                float buttonGap = 6f;
-                float availableWidth = Mathf.Max(0f, _panelRect.width - buttonsStartX - 12f);
-                int buttonsPerRow = Mathf.Max(1, Mathf.FloorToInt((availableWidth + buttonGap) / (buttonWidth + buttonGap)));
-                int sessionRows = Mathf.Max(1, Mathf.CeilToInt(_recentPlaySessionRecordings.Count / (float)buttonsPerRow));
-
-                for (int i = 0; i < _recentPlaySessionRecordings.Count; i++)
-                {
-                    int row = i / buttonsPerRow;
-                    int col = i % buttonsPerRow;
-                    float buttonX = buttonsStartX + (col * (buttonWidth + buttonGap));
-                    float buttonY = sessionRowY + (row * 26f);
-
-                    if (GUI.Button(new Rect(buttonX, buttonY, buttonWidth, 24f), $"Open {i + 1}"))
+                    GUILayout.BeginHorizontal();
+                    for (int i = 0; i < _recentPlaySessionRecordings.Count; i++)
                     {
-                        OpenPlaySessionRecording(_recentPlaySessionRecordings[i]);
+                        if (GUILayout.Button($"Open {i + 1}", GUILayout.Width(80f))) OpenPlaySessionRecording(_recentPlaySessionRecordings[i]);
                     }
+                    GUILayout.EndHorizontal();
+                    GUILayout.Label($"Latest: {System.IO.Path.GetFileName(_recentPlaySessionRecordings[0])}", _bodyStyle);
                 }
-
-                float latestRowY = sessionRowY + Mathf.Max(24f, sessionRows * 26f);
-                string latestSessionText = _recentPlaySessionRecordings.Count > 0
-                    ? $"Latest: {Path.GetFileName(_recentPlaySessionRecordings[0])}"
-                    : "Latest: none";
-                GUI.Label(new Rect(12f, latestRowY, _panelRect.width - 24f, 24f), latestSessionText, _bodyStyle);
-                sessionPreviewHeight = (latestRowY - sessionRowY) + 24f;
+                else
+                {
+                    GUILayout.Label("Latest: none", _bodyStyle);
+                }
             }
 
-            if (shouldRecalculate)
-            {
-                RecalculateCurrentRoute(pendingRecalcReason ?? "UI State Changed");
-            }
+            if (shouldRecalculate) RecalculateCurrentRoute(pendingRecalcReason ?? "UI State Changed");
 
             string routeMessage = _lastRouteResult == null
                 ? "No route yet."
@@ -766,7 +668,7 @@ namespace CDE2501.Wayfinding.UI
                     $"Route line preview: {(_routePathVisualizer != null)}\n" +
                     $"Mini map: {(_miniMapOverlay != null)}\n" +
                     $"Telemetry: {(_telemetryRecorder != null ? (_telemetryRecorder.IsRecording ? $"Rec -> {_telemetryRecorder.CurrentSessionFile}" : "Ready") : "missing")}\n" +
-                    $"Play sessions retained: {(_recentPlaySessionRecordings.Count > 0 ? $"{_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount} (latest: {Path.GetFileName(_recentPlaySessionRecordings[0])})" : $"0/{MaxPlaySessionPreviewCount}")}\n" +
+                    $"Play sessions retained: {(_recentPlaySessionRecordings.Count > 0 ? $"{_recentPlaySessionRecordings.Count}/{MaxPlaySessionPreviewCount} (latest: {System.IO.Path.GetFileName(_recentPlaySessionRecordings[0])})" : $"0/{MaxPlaySessionPreviewCount}")}\n" +
                     $"Map area: {(useNusMapArea ? "NUS Engineering" : "Queenstown")}\n" +
                     $"Map files: mini={(_activeMiniMapImageFile ?? "n/a")}, ref={(_activeReferenceMapImageFile ?? "n/a")}\n" +
                     $"Data files: graph={(_activeGraphFile ?? "n/a")}, locations={(_activeLocationsFile ?? "n/a")}\n" +
@@ -776,7 +678,6 @@ namespace CDE2501.Wayfinding.UI
             }
             else
             {
-                // Compact alpha tester view
                 bool gpsLost = _telemetryRecorder != null && _telemetryRecorder.IsGpsLost;
                 string gpsStatus = gpsLost
                     ? "GPS LOST"
@@ -793,14 +694,12 @@ namespace CDE2501.Wayfinding.UI
                     $"Destination: {destinationName}";
             }
 
-            float infoTop = pathRowY + pathRecordHeight + sessionPreviewHeight + 4f;
-            Rect infoViewport = new Rect(12f, infoTop, _panelRect.width - 24f, Mathf.Max(24f, _panelRect.height - infoTop - 8f));
-            float contentHeight = Mathf.Max(infoViewport.height, _bodyStyle.CalcHeight(new GUIContent(text), infoViewport.width - 24f) + 12f);
-            Rect contentRect = new Rect(0f, 0f, infoViewport.width - 20f, contentHeight);
-            _panelScroll = GUI.BeginScrollView(infoViewport, _panelScroll, contentRect);
-            GUI.Label(new Rect(0f, 0f, contentRect.width, contentRect.height), text, _bodyStyle);
-            GUI.EndScrollView();
-            GUI.DragWindow(new Rect(0f, 0f, _panelRect.width, 30f));
+            _panelScroll = GUILayout.BeginScrollView(_panelScroll, GUILayout.ExpandHeight(true));
+            GUILayout.Label(text, _bodyStyle);
+            GUILayout.EndScrollView();
+
+            GUILayout.EndVertical();
+            GUI.DragWindow();
         }
 
         private string ConsumeManualRecalculateReason()

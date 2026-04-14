@@ -264,7 +264,7 @@ namespace CDE2501.Wayfinding.AR
                 GUIUtility.RotateAroundPivot(angle, center);
                 if (mirror)
                 {
-                    GUI.matrix *= Matrix4x4.Scale(new Vector3(1f, -1f, 1f));
+                    GUIUtility.ScaleAroundPivot(new Vector2(1f, -1f), center);
                 }
             }
 
