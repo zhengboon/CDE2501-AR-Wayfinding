@@ -147,7 +147,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">☁️</div>
                     <h3>Thin APK + Drive Sync</h3>
-                    <p>APK ships only the minimum required files. Graphs, locations, boundaries, and routing profiles download from Google Drive on first launch and update automatically every hour, while optional Street View assets stay outside the Unity bundle.</p>
+                    <p>APK ships only the minimum required files. Graphs, locations, boundaries, routing profiles, and optional map assets sync from Google Drive and update automatically every 15 minutes, while optional Street View assets stay outside the Unity bundle.</p>
                 </div>
 
                 <div class="card glass show-on-scroll">
@@ -215,7 +215,7 @@
                         <li>⏱️ Route ETA display (1.0 m/s elderly, 0.8 m/s wheelchair)</li>
                         <li>🚶 Record labeled walking paths from A to B with GPS breadcrumbs</li>
                         <li>📸 Auto-screenshots on heading changes + manual Snap button</li>
-                        <li>☁️ Google Drive sync &mdash; data downloads on launch, share telemetry from device</li>
+                        <li>☁️ Google Drive sync &mdash; required data downloads on launch, then 15-minute background update checks while app is open</li>
                         <li>🗂️ Street View dataset kept external to keep APK lean</li>
                         <li>🔧 Debug toggle hides all diagnostics for clean tester experience</li>
                     </ul>
@@ -313,7 +313,7 @@
             <div class="acc-wrapper">
                 <div class="doc-card glass">
                     <h4>Latest Android build status</h4>
-                    <p><b>Status:</b> Successful on <code>2026-04-11</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (~32 MB). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
+                    <p><b>Status:</b> Successful on <code>2026-04-13</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (~32 MB). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
                 </div>
 
                 <div class="doc-card glass">
@@ -368,12 +368,12 @@
 
                 <div class="doc-card glass">
                     <h4>App stuck on "Downloading data files..." at launch</h4>
-                    <p><b>Check:</b> Device has internet access and the Drive files are shared as "Anyone with link &rarr; Viewer". <br><b>Action:</b> Tap the <b>Retry</b> button shown in the download progress panel. If persistent, verify the Drive file IDs in <code>DataSyncManager.cs</code> and re-share all 7 files publicly on Google Drive.</p>
+                    <p><b>Check:</b> Device has internet access and the Drive files are shared as "Anyone with link &rarr; Viewer". <br><b>Action:</b> Tap the <b>Retry</b> button shown in the download progress panel. If persistent, verify the Drive file IDs in <code>DataSyncManager.cs</code> and re-share the required startup files on Google Drive.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>App works offline after first launch</h4>
-                    <p><b>Info:</b> All 7 data files are cached in <code>persistentDataPath/Data/</code> after the first successful download. The app starts immediately on subsequent launches and only contacts Drive for optional hourly update checks.</p>
+                    <p><b>Info:</b> Required data files are cached in <code>persistentDataPath/Data/</code> after the first successful download. The app starts immediately on subsequent launches and runs 15-minute Drive update checks in the background.</p>
                 </div>
             </div>
         </div>
@@ -390,7 +390,7 @@
             <div class="acc-wrapper">
                 <div class="doc-card glass">
                     <h4>✅ Thin APK + Drive sync</h4>
-                    <p>APK ships without large data files. Graphs, locations, boundaries, and profiles download from Google Drive on first launch and update hourly when files change. Already shipped.</p>
+                    <p>APK ships without large data files. Graphs, locations, boundaries, profiles, and optional map assets download from Google Drive and update every 15 minutes when files change. Already shipped.</p>
                 </div>
                 <div class="doc-card glass">
                     <h4>✅ One-tap telemetry share</h4>

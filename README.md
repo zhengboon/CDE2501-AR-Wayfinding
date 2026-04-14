@@ -70,12 +70,12 @@ If multiple Unity editors are installed, pin the executable explicitly:
 python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"
 ```
 
-### Latest Build Snapshot (2026-04-11)
+### Latest Build Snapshot (2026-04-13)
 
 - Build command: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
 - Result: **Build Succeeded**
 - APK output: `Builds/Android/CDE2501-Wayfinding.apk`
-- APK size: **33,497,528 bytes** (~32 MB)
+- APK size: **33,503,852 bytes** (~32 MB)
 - Build report: `UnityBuildCache/latest_build_report.md`
 
 ### Generate Maps from KML
@@ -199,12 +199,12 @@ The APK ships only the minimum required files. Large data files are downloaded f
 | Map atlas `.json` manifests | StreamingAssets/Data/ | ✅ Yes (~1 KB each) |
 | Street View dataset (`street_view/`, `street_view_manifest.json`) | `.tmp-streetview/manual_move/` (outside Unity assets) | ❌ Not bundled |
 | Graph + locations + boundaries + profiles | archived/ → Drive | ❌ Downloaded on launch |
-| Map tile `.png` atlases | archived/ | ❌ Not bundled (graceful degradation) |
+| Map tile `.png` + atlas `.json` metadata | archived/ → Drive | ❌ Downloaded as optional runtime assets |
 
 ### Drive File IDs
 
 Files are sourced from the synced project folder: `CDE2501-AR-Wayfinding/Assets/StreamingAssets/Data/archived/`.  
-When you regenerate data locally, Google Drive desktop auto-syncs. The app picks up updates on its next hourly check.
+When you regenerate data locally, Google Drive desktop auto-syncs. The app picks up updates on its next scheduled check.
 
 > **All Drive files must be shared as "Anyone with link → Viewer".**
 
@@ -213,17 +213,23 @@ When you regenerate data locally, Google Drive desktop auto-syncs. The app picks
 | estate_graph.json | `1rdVh89zKpehzd1_pjbiO15xQluxg-S3B` |
 | nus_estate_graph.json | `19mJFjc_52qA30apecosIkI4bEit6Jff5` |
 | locations.json | `1iudrdcjUA4axr7OlbVNtlX3sHB0351Ru` |
-| nus_locations.json | `1qAwOHLs0zzBNby82dH4ha98JitLL9m2g` |
+| nus_locations.json | `1iw1X8HGkigw5P0K5w08dXMFcQ1Bx1Gv9` |
 | routing_profiles.json | `1BgyDOE4ts3V-o5Na4NzfSJic7BZX5HiZ` |
-| queenstown_boundary.geojson | `1C2j_1QC9jyjbto7bCPQYkSEX6WjzHYze` |
+| queenstown_boundary.geojson | `1gXoUXctD0tI-T8mrXIZ5Eeo3h3Mz9PL0` |
 | nus_boundary.geojson | `1LZWYApt484SDCGqcK8Q4xXj2cD0AOFMx` |
 
 ### Sync behaviour
 
-- **First launch (no cached files):** progress bar UI downloads all 7 files sequentially. Retry button on failure.
-- **Subsequent launches:** files already cached → app starts immediately. Background hourly check compares `Content-Length` headers; re-downloads only changed files.
+- **First launch (no cached files):** progress bar UI downloads the 7 required startup files. Optional map assets are also downloaded when enabled.
+- **Subsequent launches:** files already cached → app starts immediately. A size-based update check runs every **15 minutes** and re-downloads only changed files.
+- **While app is open:** background checks continue every 15 minutes, and updated files are hot-reloaded for graph/locations/boundary/profiles/minimap textures where supported.
 - **Safety check:** if Drive returns an HTML page (auth/permission page), sync fails fast and logs a clear sharing-permission error instead of saving invalid JSON.
 - **Force re-sync:** call `DataSyncManager.ForceReSync()` (or clear `persistentDataPath/Data/` manually).
+
+### Runtime Update Scope
+
+- **Can update from Drive without reinstall:** graph JSON, locations JSON, boundary GeoJSON, routing profiles, map PNG atlases, map metadata JSON.
+- **Still requires new APK:** C# code, Unity scenes/prefabs, and project settings.
 
 ### Share / upload telemetry
 
@@ -350,7 +356,7 @@ The website includes: feature showcase, OneMap API documentation, map atlas prev
 
 ## Roadmap
 
-1. ✅ **Thin APK + Drive sync** — data files downloaded on first launch, hourly update checks
+1. ✅ **Thin APK + Drive sync** — required data files downloaded on first launch, 15-minute update checks with background polling while app is open
 2. ✅ **Share button** — Android intent to send telemetry CSVs, recorded paths, crash logs
 3. **Alpha field testing** — deploy APK, collect walked-path telemetry + screenshots at NUS/Queenstown
 4. **Path ingestion pipeline** — Douglas-Peucker simplification of GPS trails into graph nodes/edges

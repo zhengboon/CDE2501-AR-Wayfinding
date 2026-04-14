@@ -18,7 +18,7 @@ namespace CDE2501.Wayfinding.Data
         [SerializeField] private string boundaryGeoJsonFileName = "queenstown_boundary.geojson";
         [SerializeField] private bool includeNodesWithoutGeoData = true;
         [SerializeField] private bool autoLoadOnStart = true;
-        [SerializeField] private bool refreshBoundaryFromStreamingOnLoad = true;
+        [SerializeField] private bool refreshBoundaryFromStreamingOnLoad = false;
 
         private readonly List<Vector2> _polygonLonLat = new List<Vector2>();
         private readonly Dictionary<string, Vector2> _nodeLonLat = new Dictionary<string, Vector2>(StringComparer.OrdinalIgnoreCase);

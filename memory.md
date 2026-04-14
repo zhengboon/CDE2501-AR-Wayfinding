@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-11 (post Android build verification)
+> Living document. Updated: 2026-04-13 (15-minute Drive sync + runtime refresh)
 
 ---
 
@@ -10,18 +10,18 @@
 1. Ships only the minimum required files in the APK itself
 2. Downloads all large/regeneratable data files from Google Drive on first launch
 3. Caches downloaded files in `Application.persistentDataPath/Data/`
-4. Updates automatically (hourly) when Drive files change
+4. Updates automatically every 15 minutes when Drive files change (including background checks while app is open)
 
 ---
 
-## Latest Verified Android Build (2026-04-11)
+## Latest Verified Android Build (2026-04-13)
 
 - Command used:
   `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
 - Result: **Build Succeeded**
 - Output: `Builds/Android/CDE2501-Wayfinding.apk`
-- File size: **33,497,528 bytes** (~32 MB)
-- Build duration: **653.576 s**
+- File size: **33,503,852 bytes** (~32 MB)
+- Build duration: **178.111 s**
 - Report: `UnityBuildCache/latest_build_report.md`
 - Notes:
   - Log scanner still catches licensing client errors early in startup, but Unity resolves entitlement and the final build succeeds.
@@ -49,9 +49,13 @@
 App launch
   ↓
 DataSyncManager.Start()
-  ├── All 7 files exist locally? → SyncComplete immediately → QuickStartBootstrap.StartAfterSync()
-  └── Missing any? → SyncRoutine() → download from Drive → progress bar UI → StartAfterSync()
-       └── Hourly update check: HEAD request per file, compare Content-Length, re-download if changed
+  ├── All required files exist locally? → SyncComplete immediately → QuickStartBootstrap.StartAfterSync()
+  └── Missing any required file? → SyncRoutine() → download required files (and optional map assets if enabled) → progress bar UI → StartAfterSync()
+       └── 15-minute update cycle:
+           - Check on launch (if interval elapsed)
+           - Continue background checks every 15 minutes while app is open
+           - Compare Content-Length and re-download changed files
+           - Raise OnFilesUpdated event so QuickStartBootstrap hot-refreshes runtime components
 ```
 
 ### File Path Resolution (QuickStartBootstrap)
@@ -62,19 +66,19 @@ DataSyncManager.Start()
 
 Pattern-based discovery (`FindBestDataFileByPattern`) probes both directories, picks alphabetically latest filename match.
 
-### Drive File IDs (as of cd42bee — 2026-04-10)
+### Drive File IDs (as of runtime sync expansion — 2026-04-13)
 
 Source: `CDE2501-AR-Wayfinding/Assets/StreamingAssets/Data/archived/` (synced via Google Drive desktop)  
-Single source of truth — regenerate locally → Drive auto-syncs → app picks up on next hourly check.
+Single source of truth — regenerate locally → Drive auto-syncs → app picks up on next scheduled 15-minute check.
 
 | File | Drive ID |
 |---|---|
 | estate_graph.json | 1rdVh89zKpehzd1_pjbiO15xQluxg-S3B |
 | nus_estate_graph.json | 19mJFjc_52qA30apecosIkI4bEit6Jff5 |
 | locations.json | 1iudrdcjUA4axr7OlbVNtlX3sHB0351Ru |
-| nus_locations.json | 1qAwOHLs0zzBNby82dH4ha98JitLL9m2g |
+| nus_locations.json | 1iw1X8HGkigw5P0K5w08dXMFcQ1Bx1Gv9 |
 | routing_profiles.json | 1BgyDOE4ts3V-o5Na4NzfSJic7BZX5HiZ |
-| queenstown_boundary.geojson | 1C2j_1QC9jyjbto7bCPQYkSEX6WjzHYze |
+| queenstown_boundary.geojson | 1gXoUXctD0tI-T8mrXIZ5Eeo3h3Mz9PL0 |
 | nus_boundary.geojson | 1LZWYApt484SDCGqcK8Q4xXj2cD0AOFMx |
 
 Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}&export=download`  
@@ -86,7 +90,7 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 
 | Component | File | Role |
 |---|---|---|
-| DataSyncManager | Assets/Scripts/Data/DataSyncManager.cs | Download + cache 7 data files from Drive. OnGUI progress bar. Hourly update check. Share button (Android intent). |
+| DataSyncManager | Assets/Scripts/Data/DataSyncManager.cs | Download + cache required + optional Drive assets. OnGUI progress bar. 15-minute on-launch + background update loop. Share button (Android intent). |
 | CrashReporter | Assets/Scripts/Data/CrashReporter.cs | Captures UnityEngine errors/exceptions to `persistentDataPath/Crashes/` for tester upload. |
 | QuickStartBootstrap | Assets/Scripts/UI/QuickStartBootstrap.cs | Orchestrates everything. Waits for DataSyncManager.SyncComplete before loading graph/locations. Dual-path file resolution (streaming + persistent). |
 | GraphLoader | Assets/Scripts/IndoorGraph/GraphLoader.cs | Loads graph JSON. SetGraphFileName(name, reload) called on map-area switch. |
@@ -116,6 +120,14 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 2. **Camera Permissions**: AR Camera initialization now dynamically checks and requests `android.permission.CAMERA` at runtime.
 3. **Gyroscope Sync**: Added `SyncGyro()` functionality and a button in the `QuickStartBootstrap` AR overlay. Captures the device's current pitch to comfortably offset the view angle.
 
+## Runtime Update Expansion (2026-04-13)
+
+1. **Update interval changed to 15 minutes** (`updateCheckIntervalHours = 0.25f`), including continuous background checks while app remains open.
+2. **Drive sync scope expanded** from only 7 required files to include optional map PNG/JSON runtime assets.
+3. **Live runtime refresh**: `QuickStartBootstrap` now subscribes to `DataSyncManager.OnFilesUpdated` and hot-reloads changed graph, locations, boundary, routing profiles, minimap texture, and reference map texture.
+4. **Persistent-first loading**: minimap/reference map loaders now prefer `persistentDataPath/Data/` before falling back to bundled `StreamingAssets`.
+5. **Stale Drive IDs corrected** for `nus_locations.json` and `queenstown_boundary.geojson`.
+
 ---
 
 ## Build State
@@ -131,7 +143,7 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 - Map atlas JSON manifests (6 × ~1 KB)
 - No Street View dataset (moved outside Unity assets)
 
-**Downloaded on first launch from Drive:**
+**Downloaded on first launch from Drive (required):**
 - `estate_graph.json` (~1.1 MB)
 - `nus_estate_graph.json` (~421 KB)
 - `locations.json` (~1.3 KB)
@@ -140,8 +152,12 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 - `queenstown_boundary.geojson` (~1 KB)
 - `nus_boundary.geojson` (~2.4 KB)
 
-**Excluded entirely (archived/, not in APK):**
-- All map tile PNGs (~1–4 MB each) — minimap and routing work without them
+**Downloaded as optional runtime assets (when enabled):**
+- Queenstown/NUS map tile PNG atlases
+- Corresponding atlas metadata JSON files
+
+**Still excluded from APK:**
+- Street View image datasets (`street_view/`)
 
 ---
 
@@ -165,7 +181,7 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 ## Alpha Test Workflow
 
 1. Build APK → install on tester's phone
-2. First launch: Drive sync UI shows (downloads 7 files, ~2 MB total)
+2. First launch: Drive sync UI shows (downloads required files first; optional map assets follow when enabled)
 3. Tester selects destination, taps **Rec: OFF** to start telemetry
 4. Walk route — auto-screenshots at turns and every 10 s
 5. Tap **Stop** / **Share** to send CSVs + paths + crash logs via Android share intent
@@ -210,7 +226,7 @@ python scripts/generate_osm_graph_from_kml.py \
   --boundary-output Assets/StreamingAssets/Data/archived/nus_boundary.geojson
 ```
 
-After regenerating → Drive auto-syncs → app downloads on next hourly check (or `ForceReSync()`).
+After regenerating → Drive auto-syncs → app downloads on next scheduled 15-minute check (or `ForceReSync()`).
 
 ---
 

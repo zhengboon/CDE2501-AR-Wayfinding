@@ -62,7 +62,7 @@ namespace CDE2501.Wayfinding.UI
 
         [Header("Data")]
         [SerializeField] private string manifestFileName = "street_view_manifest.json";
-        [SerializeField] private bool refreshManifestFromStreamingOnLoad = true;
+        [SerializeField] private bool refreshManifestFromStreamingOnLoad = false;
         [SerializeField] private bool autoLoadOnStart = true;
 
         [Header("Mode")]

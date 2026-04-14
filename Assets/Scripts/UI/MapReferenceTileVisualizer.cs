@@ -123,7 +123,7 @@ namespace CDE2501.Wayfinding.UI
             }
         }
 
-        public void SetTileFileName(string fileName)
+        public void SetTileFileName(string fileName, bool forceReload = false)
         {
             if (string.IsNullOrWhiteSpace(fileName))
             {
@@ -131,7 +131,8 @@ namespace CDE2501.Wayfinding.UI
             }
 
             string normalized = fileName.Trim();
-            if (string.Equals(tileFileName, normalized, StringComparison.OrdinalIgnoreCase))
+            bool isSameFile = string.Equals(tileFileName, normalized, StringComparison.OrdinalIgnoreCase);
+            if (isSameFile && !forceReload)
             {
                 return;
             }
@@ -257,28 +258,47 @@ namespace CDE2501.Wayfinding.UI
         private IEnumerator LoadTextureRoutine()
         {
             _loadingTexture = true;
-            string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", tileFileName);
-            string url = ToUnityWebRequestPath(streamingPath);
-            yield return LoadAtlasMetadataRoutine(streamingPath);
+            string persistentPath = Path.Combine(Application.persistentDataPath, "Data", tileFileName);
+            yield return LoadTextureFromPathRoutine(persistentPath);
+
+            if (_texture == null)
+            {
+                string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", tileFileName);
+                yield return LoadTextureFromPathRoutine(streamingPath);
+            }
+
+            _loadingTexture = false;
+        }
+
+        private IEnumerator LoadTextureFromPathRoutine(string imagePath)
+        {
+            if (string.IsNullOrWhiteSpace(imagePath))
+            {
+                yield break;
+            }
+
+            string url = ToUnityWebRequestPath(imagePath);
+            yield return LoadAtlasMetadataRoutine(imagePath);
 
             using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
             {
                 yield return request.SendWebRequest();
-                if (request.result == UnityWebRequest.Result.Success)
+                if (request.result != UnityWebRequest.Result.Success)
                 {
-                    _texture = DownloadHandlerTexture.GetContent(request);
-                    if (_texture != null)
-                    {
-                        _texture.wrapMode = TextureWrapMode.Clamp;
-                        _texture.filterMode = FilterMode.Bilinear;
-                        _texture.anisoLevel = 4;
-                    }
-                    ApplyTexture();
-                    FitQuadToGraph();
+                    yield break;
                 }
-            }
 
-            _loadingTexture = false;
+                _texture = DownloadHandlerTexture.GetContent(request);
+                if (_texture != null)
+                {
+                    _texture.wrapMode = TextureWrapMode.Clamp;
+                    _texture.filterMode = FilterMode.Bilinear;
+                    _texture.anisoLevel = 4;
+                }
+
+                ApplyTexture();
+                FitQuadToGraph();
+            }
         }
 
         private void ApplyTexture()
@@ -323,26 +343,9 @@ namespace CDE2501.Wayfinding.UI
                     return;
                 }
 
-                string dataDir = Path.Combine(Application.streamingAssetsPath, "Data");
-                if (!Directory.Exists(dataDir))
-                {
-                    return;
-                }
-
-                string[] candidates = Directory.GetFiles(dataDir, "queenstown_map_z*.png");
-                if (candidates == null || candidates.Length == 0)
-                {
-                    return;
-                }
-
-                string chosen = candidates[0];
-                for (int i = 1; i < candidates.Length; i++)
-                {
-                    if (string.Compare(Path.GetFileName(candidates[i]), Path.GetFileName(chosen), StringComparison.OrdinalIgnoreCase) > 0)
-                    {
-                        chosen = candidates[i];
-                    }
-                }
+                string chosen = null;
+                ConsiderBestMatchingMapInDirectory(Path.Combine(Application.persistentDataPath, "Data"), ref chosen);
+                ConsiderBestMatchingMapInDirectory(Path.Combine(Application.streamingAssetsPath, "Data"), ref chosen);
 
                 string chosenName = Path.GetFileName(chosen);
                 if (!string.IsNullOrWhiteSpace(chosenName))
@@ -353,6 +356,42 @@ namespace CDE2501.Wayfinding.UI
             catch (Exception)
             {
                 // Keep configured tile when discovery fails.
+            }
+        }
+
+        private static void ConsiderBestMatchingMapInDirectory(string directoryPath, ref string currentBestPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                return;
+            }
+
+            string[] candidates = Directory.GetFiles(directoryPath, "queenstown_map_z*.png");
+            if (candidates == null || candidates.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                string candidate = candidates[i];
+                if (string.IsNullOrWhiteSpace(candidate))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(currentBestPath))
+                {
+                    currentBestPath = candidate;
+                    continue;
+                }
+
+                string candidateName = Path.GetFileName(candidate);
+                string currentName = Path.GetFileName(currentBestPath);
+                if (string.Compare(candidateName, currentName, StringComparison.OrdinalIgnoreCase) > 0)
+                {
+                    currentBestPath = candidate;
+                }
             }
         }
 

@@ -203,6 +203,9 @@ namespace CDE2501.Wayfinding.UI
                 _dataSyncManager = gameObject.AddComponent<DataSyncManager>();
             }
 
+            _dataSyncManager.OnFilesUpdated -= HandleDataFilesUpdated;
+            _dataSyncManager.OnFilesUpdated += HandleDataFilesUpdated;
+
             if (_dataSyncManager.SyncComplete)
             {
                 StartAfterSync();
@@ -235,8 +238,99 @@ namespace CDE2501.Wayfinding.UI
             _status = $"Data sync failed: {error}. Tap Retry in the download panel.";
         }
 
+        private void HandleDataFilesUpdated(IReadOnlyList<string> updatedRelativePaths)
+        {
+            if (updatedRelativePaths == null || updatedRelativePaths.Count == 0)
+            {
+                return;
+            }
+
+            bool graphChanged = ContainsUpdatedFile(updatedRelativePaths, _activeGraphFile);
+            bool locationsChanged = ContainsUpdatedFile(updatedRelativePaths, _activeLocationsFile);
+            bool boundaryChanged =
+                ContainsUpdatedFile(updatedRelativePaths, "queenstown_boundary.geojson") ||
+                ContainsUpdatedFile(updatedRelativePaths, "nus_boundary.geojson");
+            bool profilesChanged = ContainsUpdatedFile(updatedRelativePaths, "routing_profiles.json");
+
+            bool miniMapChanged = ContainsUpdatedFile(updatedRelativePaths, _activeMiniMapImageFile) ||
+                                  ContainsUpdatedFile(updatedRelativePaths, Path.ChangeExtension(_activeMiniMapImageFile, ".json"));
+            bool referenceMapChanged = ContainsUpdatedFile(updatedRelativePaths, _activeReferenceMapImageFile) ||
+                                       ContainsUpdatedFile(updatedRelativePaths, Path.ChangeExtension(_activeReferenceMapImageFile, ".json"));
+
+            if (graphChanged && _graphLoader != null && !string.IsNullOrWhiteSpace(_activeGraphFile))
+            {
+                _graphLoader.SetGraphFileName(_activeGraphFile, reload: true);
+            }
+
+            if (locationsChanged && _locationManager != null && !string.IsNullOrWhiteSpace(_activeLocationsFile))
+            {
+                _locationManager.SetLocationsFileName(_activeLocationsFile, reload: true);
+            }
+
+            if (profilesChanged && _routeCalculator != null)
+            {
+                _routeCalculator.InitializeFromJson();
+            }
+
+            if (boundaryChanged && _boundaryConstraintManager != null)
+            {
+                _boundaryConstraintManager.LoadBoundary();
+            }
+
+            if (miniMapChanged && _miniMapOverlay != null && !string.IsNullOrWhiteSpace(_activeMiniMapImageFile))
+            {
+                _miniMapOverlay.SetMapImageFileName(_activeMiniMapImageFile, resetView: false, forceReload: true);
+            }
+
+            if (referenceMapChanged && _mapReferenceTileVisualizer != null && !string.IsNullOrWhiteSpace(_activeReferenceMapImageFile))
+            {
+                _mapReferenceTileVisualizer.SetTileFileName(_activeReferenceMapImageFile, forceReload: true);
+            }
+
+            if (graphChanged || locationsChanged || boundaryChanged || profilesChanged)
+            {
+                StartAutoRouteWait();
+                RecalculateCurrentRoute("Drive data auto-updated");
+            }
+
+            _status = $"Drive sync updated {updatedRelativePaths.Count} file(s). Runtime content refreshed.";
+        }
+
+        private static bool ContainsUpdatedFile(IReadOnlyList<string> updatedRelativePaths, string expectedFileName)
+        {
+            if (updatedRelativePaths == null || updatedRelativePaths.Count == 0 || string.IsNullOrWhiteSpace(expectedFileName))
+            {
+                return false;
+            }
+
+            string expected = expectedFileName.Trim();
+            for (int i = 0; i < updatedRelativePaths.Count; i++)
+            {
+                string candidate = updatedRelativePaths[i];
+                if (string.IsNullOrWhiteSpace(candidate))
+                {
+                    continue;
+                }
+
+                string candidateFileName = Path.GetFileName(candidate.Trim().Replace('\\', '/'));
+                if (string.Equals(candidateFileName, expected, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         private void OnDestroy()
         {
+            if (_dataSyncManager != null)
+            {
+                _dataSyncManager.OnSyncComplete -= StartAfterSync;
+                _dataSyncManager.OnSyncFailed -= HandleSyncFailed;
+                _dataSyncManager.OnFilesUpdated -= HandleDataFilesUpdated;
+            }
+
             StopAutoRouteWait();
             Unsubscribe();
         }

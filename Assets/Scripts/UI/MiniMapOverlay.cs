@@ -347,7 +347,7 @@ namespace CDE2501.Wayfinding.UI
             }
         }
 
-        public void SetMapImageFileName(string fileName, bool resetView = true)
+        public void SetMapImageFileName(string fileName, bool resetView = true, bool forceReload = false)
         {
             if (string.IsNullOrWhiteSpace(fileName))
             {
@@ -355,7 +355,8 @@ namespace CDE2501.Wayfinding.UI
             }
 
             string normalized = fileName.Trim();
-            if (string.Equals(mapImageFileName, normalized, StringComparison.OrdinalIgnoreCase))
+            bool isSameFile = string.Equals(mapImageFileName, normalized, StringComparison.OrdinalIgnoreCase);
+            if (isSameFile && !forceReload)
             {
                 return;
             }
@@ -938,27 +939,9 @@ namespace CDE2501.Wayfinding.UI
                     return;
                 }
 
-                string dataDir = Path.Combine(Application.streamingAssetsPath, "Data");
-                if (!Directory.Exists(dataDir))
-                {
-                    return;
-                }
-
-                string[] candidates = Directory.GetFiles(dataDir, "queenstown_map_z*.png");
-                if (candidates == null || candidates.Length == 0)
-                {
-                    return;
-                }
-
-                string chosenPath = candidates[0];
-                for (int i = 1; i < candidates.Length; i++)
-                {
-                    string candidate = candidates[i];
-                    if (string.Compare(Path.GetFileName(candidate), Path.GetFileName(chosenPath), StringComparison.OrdinalIgnoreCase) > 0)
-                    {
-                        chosenPath = candidate;
-                    }
-                }
+                string chosenPath = null;
+                ConsiderBestMatchingMapInDirectory(Path.Combine(Application.persistentDataPath, "Data"), ref chosenPath);
+                ConsiderBestMatchingMapInDirectory(Path.Combine(Application.streamingAssetsPath, "Data"), ref chosenPath);
 
                 string chosenName = Path.GetFileName(chosenPath);
                 if (!string.IsNullOrWhiteSpace(chosenName))
@@ -977,13 +960,13 @@ namespace CDE2501.Wayfinding.UI
         {
             _isMapTextureLoading = true;
 
-            string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", mapImageFileName);
-            yield return LoadTextureFromPathRoutine(streamingPath);
+            string persistentPath = Path.Combine(Application.persistentDataPath, "Data", mapImageFileName);
+            yield return LoadTextureFromPathRoutine(persistentPath);
 
             if (_mapTexture == null)
             {
-                string persistentPath = Path.Combine(Application.persistentDataPath, "Data", mapImageFileName);
-                yield return LoadTextureFromPathRoutine(persistentPath);
+                string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", mapImageFileName);
+                yield return LoadTextureFromPathRoutine(streamingPath);
             }
 
             _isMapTextureLoading = false;
@@ -1003,24 +986,78 @@ namespace CDE2501.Wayfinding.UI
         {
             _isVideoFrameManifestLoading = true;
 
-            string path = Path.Combine(Application.streamingAssetsPath, "Data", "video_frame_map.json");
-            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(path)))
+            string persistentPath = Path.Combine(Application.persistentDataPath, "Data", "video_frame_map.json");
+            yield return LoadVideoFrameManifestFromPathRoutine(persistentPath);
+
+            if (_videoFrameManifest == null)
             {
-                yield return request.SendWebRequest();
-                if (request.result == UnityWebRequest.Result.Success)
-                {
-                    try
-                    {
-                        _videoFrameManifest = JsonUtility.FromJson<VideoFrameManifestData>(request.downloadHandler.text);
-                    }
-                    catch (Exception e)
-                    {
-                        Debug.LogError($"Failed to parse video frame manifest: {e.Message}");
-                    }
-                }
+                string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", "video_frame_map.json");
+                yield return LoadVideoFrameManifestFromPathRoutine(streamingPath);
             }
 
             _isVideoFrameManifestLoading = false;
+        }
+
+        private static void ConsiderBestMatchingMapInDirectory(string directoryPath, ref string currentBestPath)
+        {
+            if (string.IsNullOrWhiteSpace(directoryPath) || !Directory.Exists(directoryPath))
+            {
+                return;
+            }
+
+            string[] candidates = Directory.GetFiles(directoryPath, "queenstown_map_z*.png");
+            if (candidates == null || candidates.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                string candidate = candidates[i];
+                if (string.IsNullOrWhiteSpace(candidate))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(currentBestPath))
+                {
+                    currentBestPath = candidate;
+                    continue;
+                }
+
+                string candidateName = Path.GetFileName(candidate);
+                string currentName = Path.GetFileName(currentBestPath);
+                if (string.Compare(candidateName, currentName, StringComparison.OrdinalIgnoreCase) > 0)
+                {
+                    currentBestPath = candidate;
+                }
+            }
+        }
+
+        private IEnumerator LoadVideoFrameManifestFromPathRoutine(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                yield break;
+            }
+
+            using (UnityWebRequest request = UnityWebRequest.Get(ToUnityWebRequestPath(path)))
+            {
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    yield break;
+                }
+
+                try
+                {
+                    _videoFrameManifest = JsonUtility.FromJson<VideoFrameManifestData>(request.downloadHandler.text);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError($"Failed to parse video frame manifest: {e.Message}");
+                }
+            }
         }
 
         private IEnumerator LoadTextureFromPathRoutine(string path)

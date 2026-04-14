@@ -53,7 +53,7 @@ namespace CDE2501.Wayfinding.UI
         [SerializeField] private GraphLoader graphLoader;
         [SerializeField] private RouteCalculator routeCalculator;
         [SerializeField] private string manifestFileName = "video_frame_map.json";
-        [SerializeField] private bool refreshFromStreamingAssetsOnLoad = true;
+        [SerializeField] private bool refreshFromStreamingAssetsOnLoad = false;
         [SerializeField] private bool autoLoadOnStart = true;
 
         [Header("Marker Limits")]
