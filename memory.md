@@ -119,7 +119,20 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 
 1. **Android Sensor Initialization**: Disabled `forceSimulationMode` effectively for Android device builds. Previously, it defaulted to `true` which locked location and compass output to the static WASD simulation values.
 2. **Camera Permissions**: AR Camera initialization now dynamically checks and requests `android.permission.CAMERA` at runtime.
-3. **Gyroscope Sync**: Added `SyncGyro()` functionality and a button in the `QuickStartBootstrap` AR overlay. Captures the device's current pitch to comfortably offset the view angle.\n\n---\n\n## Code Review Fixes (2026-04-14)\n\n1. **Gyroscope math rewritten**: Previous `_gyroOffset * GyroToUnity(q)` transform produced wrong pitch/yaw on Android. New transform: `new Quaternion(-x,-y,z,w)` then apply `Euler(-90,0,0)` correction for portrait mode. Labels now correctly move up/down as the phone tilts.\n2. **Pitch-driven label Y position**: Label `screenY` is now computed from gyro pitch directly (`normV = pitch / halfV`) and no longer overridden by a distance-based lerp. Full tilt range maps to the full screen height.\n3. **Auto Gyro Sync**: On first activation the AR view waits 1.5 seconds for the gyro OS init, then auto-zeroes `_pitchOffset` so the user doesn't need to tap Sync Gyro every time.\n4. **GPS Snap**: Added `GPSManager.SnapToCurrentGPS()` which instantly sets `SmoothedPoint = RawPoint`, bypassing the exponential smoothing filter. Exposed as **Snap GPS** button in the overlay (visible when GPS is Ready). Also triggers a route recalculate.\n5. **AR HUD**: AR view now draws a small status pill (top-right) showing GPS / Compass ready state and live corrected pitch angle so users can see what the system is reading.\n6. **FlightTrackerARView cleaned up**: Removed `_gyroOffset` Quaternion field, removed `GetDevicePitch()` method, replaced with `UpdatePitch()` running in `Update()` with exponential smoothing and proper coordinate transform.\n
+3. **Gyroscope Sync**: Added `SyncGyro()` and a Sync Gyro button in the AR overlay. Captures current pitch as offset so the view zeroes at the user's holding angle.
+
+---
+
+## Code Review Fixes (2026-04-14)
+
+1. **Gyroscope math rewritten**: New transform: `new Quaternion(-x,-y,z,w)` then `Euler(-90,0,0)` portrait correction. Labels now move correctly when phone tilts.
+2. **Pitch-driven label Y**: screenY now computed from live gyro pitch. Old distance-based lerp removed.
+3. **Auto Gyro Sync**: AR view auto-zeroes pitchOffset 1.5 s after activation. Manual Sync Gyro button still available.
+4. **GPS Snap**: Added `GPSManager.SnapToCurrentGPS()` — snaps SmoothedPoint=RawPoint instantly. Shown as Snap GPS button (visible when GPS Ready). Triggers route recalc.
+5. **AR status HUD**: Status pill in AR view (top-right) shows GPS/Compass ready and live pitch.
+6. **FlightTrackerARView rewrite**: Removed old gyroOffset + GetDevicePitch. Replaced with UpdatePitch() in Update() with correct Android coordinate transform.
+7. **Share Intent Fix**: Added FileProvider and file_paths config to AndroidManifest so the Telemetry sharing intent doesn't silent crash.
+
 
 ## Runtime Update Expansion (2026-04-13)
 
