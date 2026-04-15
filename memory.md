@@ -156,12 +156,12 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 
 ---
 
-## Latest Commit Reviewed (2026-04-14)
+## Latest Commit Reviewed (2026-04-15)
 
-- Commit: `e44c51c` — `feat: implement AR flight tracking view, simulated object driver, and quick-start UI bootstrap`
-- `QuickStartBootstrap`: status panel UI refactored from fixed `GUI.Rect` controls to grouped `GUILayout` flow, improving readability and control alignment in runtime.
-- `SimulatedObjectDriver`: now resolves `GPSManager` + `CompassManager` and uses real device position/heading when simulation mode is off; simulation data remains fallback/primary in sim mode.
-- `FlightTrackerARView`: camera mirroring in GUI path switched to `GUIUtility.ScaleAroundPivot(...)` to avoid direct GUI matrix scaling side effects.
+- Commit: `022b64d` — `fix(sync): harden Drive probes, polish overlay UI, and rebuild Android`
+- `DataSyncManager`: runtime update checks now include HEAD-to-ranged-GET fallback probe so restrictive networks do not silently stall Drive updates.
+- `QuickStartBootstrap`: status strip now includes Drive detail messaging; overlay texture lifecycle cleanup added.
+- `FlightTrackerARView`: camera permission coroutine is now tied to AR lifecycle and is canceled when AR is toggled off.
 
 ---
 
@@ -200,6 +200,7 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 
 | Hash | Date | Summary |
 |---|---|---|
+| 022b64d | 2026-04-15 | fix(sync): harden Drive probes, polish overlay UI, and rebuild Android |
 | d07c9ce | 2026-04-15 | fix(sync): strengthen runtime update logic and polish quick-start UI |
 | 827a0be | 2026-04-14 | fix: update AR auto-sync timing, expand share file patterns, and relocate FileProvider resource |
 | 84b7f74 | 2026-04-14 | docs: update index/README with share fix troubleshooting, AR HUD, Snap GPS, latest commit hash |
@@ -209,7 +210,6 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 | 63c2ddd | 2026-04-14 | docs: update index.html and README.md with newly added features and fixes |
 | 90e6746 | 2026-04-14 | docs: update memory.md |
 | 8e0dc64 | 2026-04-14 | chore: remove duplicate syncing files, add .tmp.drivedownload to gitignore |
-| 9c9f059 | 2026-04-14 | fix(share): add AndroidManifest FileProvider, fix share intent, remove duplicate DataSyncManager |
 
 ---
 
