@@ -44,7 +44,7 @@
     <!-- Hero Section -->
     <header id="hero" class="hero section">
         <div class="hero-content show-on-scroll">
-            <div class="badge">Unity 2022.3.62f3 AR MVP &bull; Android build verified 2026-04-16</div>
+            <div class="badge">Unity 2022.3.62f3 AR MVP &bull; Crash triage pass 2 (Android XR startup disabled)</div>
             <h1>Navigate <span class="highlight">Tomorrow</span></h1>
             <p>A Unity wayfinding app with flight-tracker AR camera view, elderly-first safety routing, GPS telemetry recording, and real-time path data collection for Queenstown Estate and NUS Engineering campus.</p>
             <div class="hero-buttons">
@@ -323,6 +323,11 @@
                 </div>
 
                 <div class="doc-card glass">
+                    <h4>Current build blocker</h4>
+                    <p><b>Check:</b> Rebuild attempts at <code>01:46:50</code> and <code>01:50:02</code> failed before compile due Unity auth. <br><b>Action:</b> Refresh Unity Hub sign-in/license token, then rerun the same Android build command.</p>
+                </div>
+
+                <div class="doc-card glass">
                     <h4>Latest code commit</h4>
                     <p><b>Review pass:</b> <code>2026-04-16</code>. <br><b>Updates:</b> NUS footage annotations were integrated into runtime routing via <code>video_route_hints.json</code> + A* edge multipliers in <code>RouteCalculator</code>, with integration status tracked in the NUS annotation TSV files.</p>
                 </div>
@@ -330,6 +335,11 @@
                 <div class="doc-card glass">
                     <h4>Latest local review pass</h4>
                     <p><b>Date:</b> <code>2026-04-16</code>. <br><b>Hardening:</b> Route cache keys now include route-hint revision, graph-scoped hint loading is applied on graph init/reload, and unresolved Home-linked footage segments are explicitly marked partial in docs until node mapping is confirmed.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>App instantly closes on launch</h4>
+                    <p><b>Check:</b> This is an active incident on some Android 13 devices. <br><b>Action:</b> Current triage already enforces optional AR flags in merged Android manifest and disables Android XR loader startup (<code>m_Loaders: []</code>, <code>m_InitManagerOnStart: 0</code>). Install the next rebuilt APK once Unity license token refresh allows build to complete.</p>
                 </div>
 
                 <div class="doc-card glass">

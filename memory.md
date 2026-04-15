@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-16 (NUS footage integration into runtime routing + Android rebuild)
+> Living document. Updated: 2026-04-16 (Crash triage pass 2: Android XR startup disabled, rebuild blocked by Unity license token)
 
 ---
 
@@ -11,6 +11,36 @@
 2. Downloads all large/regeneratable data files from Google Drive on first launch
 3. Caches downloaded files in `Application.persistentDataPath/Data/`
 4. Updates automatically every 15 minutes when Drive files change (including background checks while app is open)
+
+---
+
+## Active Incident (2026-04-16)
+
+### Symptom
+
+- Latest APK still **instantly closes on launch** on target Android device (user report).
+
+### Verified So Far
+
+1. APK build succeeds in batch mode (`Build Finished, Result: Success`).
+2. Final generated Android manifest is now patched late-postprocess to:
+   - `com.google.ar.core = optional`
+   - `android.hardware.camera.ar required=false`
+   - `com.google.ar.core.depth required=false`
+   - `UnityPlayerActivity hardwareAccelerated=true`
+3. Build pipeline no longer failing from stale Bee/Gradle lock folders after process cleanup.
+4. Android XR startup dependence was removed:
+   - `Assets/XR/XRGeneralSettingsPerBuildTarget.asset` now has Android `m_Loaders: []`
+   - Android `m_InitManagerOnStart: 0`
+5. Two rebuild attempts after this change failed before build execution due Unity auth:
+   - `UnityBuildCache/logs/unity_build_20260416_014650.log`
+   - `UnityBuildCache/logs/unity_build_20260416_015002.log`
+   - both report `[Licensing::Module] Error: Access token is unavailable; failed to update`
+
+### Next Immediate Triage Step
+
+1. Refresh Unity Hub login/token and rerun Android build.
+2. Install rebuilt APK on target device and re-check launch behavior.
 
 ---
 

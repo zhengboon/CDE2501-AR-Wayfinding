@@ -2,7 +2,7 @@
 
 > Unity AR navigation MVP with elderly-first guidance and safety-weighted routing for **Queenstown Estate** and **NUS Engineering Campus**.
 
-Last updated: 2026-04-16
+Last updated: 2026-04-16 (Crash triage: Android XR startup disabled; rebuild pending Unity license token refresh)
 
 ---
 
@@ -15,6 +15,8 @@ Last updated: 2026-04-16
 | **Profiles** | Elderly (1.0 m/s), Wheelchair (0.8 m/s) | Same |
 
 **Core stack:** Unity 2022.3.62f3, C# (AR/GPS/Routing), Python (data generation & build automation), ARCore/ARKit, OSM/OneMap integration.
+
+> Current incident note: latest user test still reports an instant close on launch; manifest hardening is complete and Android XR startup has been disabled for triage. Rebuild is currently blocked by Unity licensing token availability in batch mode.
 
 **Key capabilities:**
 - GPS + Compass sensor fusion with simulation mode for laptop-first testing
@@ -78,6 +80,7 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 - APK size: **33,609,658 bytes** (~32.1 MB)
 - Build duration: **291.409 s** (cached builder report), build runner stage **235.850 s**
 - Build report: `UnityBuildCache/latest_build_report.md`
+- Current blocker for new rebuild: batch build attempts at `01:46:50` and `01:50:02` failed with Unity licensing token error (`Access token is unavailable`) before compile/build stages.
 
 ### Latest Logic/UI Review (2026-04-15)
 
@@ -202,6 +205,7 @@ Docs/                       Architecture docs & raw data caches
 ## Build Targets
 
 - **Android:** ARCore plugin enabled in XR Plug-in Management. Min SDK 24, ARM64-only (ARMv7 dropped).
+- **Android runtime startup path:** XR loader auto-init is disabled (`m_Loaders: []`, `m_InitManagerOnStart: 0`) so app launch does not depend on ARCore loader initialization.
 - **iOS:** ARKit plugin enabled; requires `Info.plist` strings:
   - `NSCameraUsageDescription`
   - `NSLocationWhenInUseUsageDescription`
