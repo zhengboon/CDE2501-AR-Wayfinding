@@ -76,15 +76,17 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 - Result: **Build Succeeded**
 - APK output: `Builds/Android/CDE2501-Wayfinding.apk`
 - APK size: **33,443,534 bytes** (~31.9 MB)
-- Build duration: **153.803 s** (cached builder report)
+- Build duration: **117.515 s** (cached builder report)
 - Build report: `UnityBuildCache/latest_build_report.md`
 
 ### Latest Logic/UI Review (2026-04-15)
 
 - Drive runtime update detection now uses remote metadata fingerprint (`Content-Length + Last-Modified + ETag`) instead of size-only checks, so same-size file edits are detected.
+- Runtime update probing now falls back from `HEAD` to ranged `GET` (`Range: bytes=0-0`) when Drive/CDN rejects `HEAD`, preventing false "incomplete" checks on some networks.
 - Failed update checks no longer silently report "up to date" and no longer advance the schedule marker; the app surfaces "Drive update check incomplete. Will retry."
 - Added **Sync Now** button to Quick Start overlay for immediate Drive checks (no need to wait for the 15-minute interval).
-- Quick Start overlay UI refreshed with a runtime status strip (GPS / Compass / Drive state) and cleaner visual panel styling.
+- Quick Start overlay UI refreshed with a runtime status strip (GPS / Compass / Drive state), detailed Drive sync message line, and cleaner panel styling.
+- AR camera permission polling is now lifecycle-safe: if AR is toggled off while permission dialog is open, camera startup no longer occurs later in the background.
 - Cached build launcher now measures duration with `time.perf_counter()` for stable timing even if system clock changes.
 
 ### Generate Maps from KML
@@ -322,7 +324,7 @@ Tap **AR: OFF** to activate the camera-based destination overlay:
 - **`Sync Gyro`** button re-zeroes pitch offset at any time for re-calibration mid-session
 
 ### Alpha tester UI
-By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, AR, Sync Now, Share, Path Record, Destination, Map Area. A compact status strip now shows GPS/Compass/Drive sync state. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
+By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, AR, Sync Now, Share, Path Record, Destination, Map Area. A compact status strip now shows GPS/Compass/Drive sync state plus a live Drive detail line (checking, retry-needed, updated, or up-to-date). Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
 
 ---
 
@@ -337,6 +339,8 @@ By default, the overlay shows only essential controls: Wheelchair toggle, Rec, S
 | Route starts from wrong location | GPS smoothing hasn't converged | Tap **Snap GPS** in overlay to instantly lock to raw fix |
 | Drive file changed but app did not refresh | Old APK using size-only update checks | Install latest APK and tap **Sync Now**; runtime sync now compares remote metadata fingerprint |
 | Drive status shows "update check incomplete" | Network/share permission issue during runtime check | Verify internet + Drive sharing (`Anyone with link -> Viewer`), then tap **Sync Now** again |
+| Drive checks keep failing on networks that block `HEAD` | Older runtime only used metadata HEAD checks | Install latest APK; runtime now auto-falls back to ranged GET probe and then downloads changed files normally |
+| AR camera starts unexpectedly after closing AR | Permission dialog coroutine outlived AR state | Install latest APK; permission polling is now cancelled on AR deactivation and only starts camera when AR is still active |
 | Share shows "No data to share yet" | No recordings exist yet | Start **Rec: ON**, walk a path, stop it, then Share |
 | Share shows "Share error: ..." | FileProvider not registered | Rebuild APK — config now in `Assets/Plugins/Android/AndroidManifest.xml` |
 | Android build fails with `OBSOLETE ... Assets/Plugins/Android/res` | Legacy Android resource path used | Keep `file_paths.xml` under `Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/` (not `Assets/Plugins/Android/res/`) |

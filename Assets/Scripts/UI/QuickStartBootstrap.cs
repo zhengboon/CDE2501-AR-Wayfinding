@@ -132,6 +132,7 @@ namespace CDE2501.Wayfinding.UI
         private GUIStyle _panelStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _captionStyle;
+        private GUIStyle _metaStyle;
         private Texture2D _panelTexture;
         private Rect _panelRect;
         private bool _panelRectInitialized;
@@ -334,6 +335,12 @@ namespace CDE2501.Wayfinding.UI
 
             StopAutoRouteWait();
             Unsubscribe();
+
+            if (_panelTexture != null)
+            {
+                Destroy(_panelTexture);
+                _panelTexture = null;
+            }
         }
 
         private void Update()
@@ -734,7 +741,7 @@ namespace CDE2501.Wayfinding.UI
 
         private void DrawRuntimeStatusStrip()
         {
-            if (_captionStyle == null)
+            if (_captionStyle == null || _metaStyle == null)
             {
                 return;
             }
@@ -742,6 +749,7 @@ namespace CDE2501.Wayfinding.UI
             string gpsState = (_gpsManager != null && _gpsManager.IsReady) ? "Ready" : "Waiting";
             string compassState = (_compassManager != null && _compassManager.IsReady) ? "Ready" : "Waiting";
             string driveState = "N/A";
+            string driveDetail = "Drive sync manager missing.";
             if (_dataSyncManager != null)
             {
                 if (_dataSyncManager.IsSyncing)
@@ -760,12 +768,26 @@ namespace CDE2501.Wayfinding.UI
                 {
                     driveState = "Idle";
                 }
+
+                driveDetail = _dataSyncManager.StatusMessage;
+                if (_dataSyncManager.IsSyncing)
+                {
+                    int pct = Mathf.RoundToInt(_dataSyncManager.Progress * 100f);
+                    driveDetail = $"Initial download {Mathf.Clamp(pct, 0, 100)}% | {driveDetail}";
+                }
+                else if (_dataSyncManager.IsCheckingForUpdates)
+                {
+                    driveDetail = $"Update check running | {driveDetail}";
+                }
             }
 
+            GUILayout.BeginVertical();
             GUILayout.BeginHorizontal();
             GUILayout.Label($"Sensors: GPS {gpsState} | Compass {compassState}", _captionStyle, GUILayout.ExpandWidth(true));
             GUILayout.Label($"Drive: {driveState}", _captionStyle, GUILayout.Width(190f));
             GUILayout.EndHorizontal();
+            GUILayout.Label($"Drive detail: {driveDetail}", _metaStyle, GUILayout.ExpandWidth(true));
+            GUILayout.EndVertical();
         }
 
         private string ConsumeManualRecalculateReason()
@@ -1225,7 +1247,7 @@ namespace CDE2501.Wayfinding.UI
 
         private void EnsureOverlayStyles()
         {
-            if (_panelStyle != null && _bodyStyle != null && _captionStyle != null)
+            if (_panelStyle != null && _bodyStyle != null && _captionStyle != null && _metaStyle != null)
             {
                 return;
             }
@@ -1259,6 +1281,14 @@ namespace CDE2501.Wayfinding.UI
                 wordWrap = false
             };
             _captionStyle.normal.textColor = new Color(0.78f, 0.9f, 1f, 1f);
+
+            _metaStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = Mathf.Max(10, bodyFontSize - 8),
+                alignment = TextAnchor.UpperLeft,
+                wordWrap = true
+            };
+            _metaStyle.normal.textColor = new Color(0.66f, 0.78f, 0.9f, 1f);
         }
 
         private static Texture2D MakeSolidTexture(Color color)

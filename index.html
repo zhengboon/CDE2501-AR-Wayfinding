@@ -147,7 +147,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">☁️</div>
                     <h3>Thin APK + Drive Sync</h3>
-                    <p>APK ships only the minimum required files. Graphs, locations, boundaries, routing profiles, and optional map assets sync from Google Drive every 15 minutes using remote metadata fingerprints, and can be checked immediately with a Sync Now button. Optional Street View assets stay outside the Unity bundle.</p>
+                    <p>APK ships only the minimum required files. Graphs, locations, boundaries, routing profiles, and optional map assets sync from Google Drive every 15 minutes using remote metadata fingerprints, with a resilient HEAD-to-ranged-GET probe fallback and manual Sync Now trigger. Optional Street View assets stay outside the Unity bundle.</p>
                 </div>
 
                 <div class="card glass show-on-scroll">
@@ -319,17 +319,17 @@
             <div class="acc-wrapper">
                 <div class="doc-card glass">
                     <h4>Latest Android build status</h4>
-                    <p><b>Status:</b> Successful on <code>2026-04-15</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (33,443,534 bytes). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
+                    <p><b>Status:</b> Successful on <code>2026-04-15</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (33,443,534 bytes). <br><b>Duration:</b> 117.515 s (cached builder report). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>Latest code commit</h4>
-                    <p><b>Review pass:</b> <code>2026-04-15</code>. <br><b>Updates:</b> runtime sync now uses metadata fingerprints (not size-only), failed checks no longer silently report up-to-date, Quick Start overlay gained a Sync Now button + live GPS/Compass/Drive strip, and build timing now uses monotonic clock measurement.</p>
+                    <p><b>Review pass:</b> <code>2026-04-15</code>. <br><b>Updates:</b> runtime sync now includes HEAD-to-ranged-GET probe fallback, failed checks preserve retry schedule, Quick Start overlay now shows Drive detail line, AR camera permission polling is lifecycle-safe, and build timing uses monotonic clock measurement.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>Latest local review pass</h4>
-                    <p><b>Date:</b> <code>2026-04-15</code>. <br><b>Hardening:</b> Drive update checks compare <code>Content-Length + Last-Modified + ETag</code>, retries are preserved after failed checks, and overlay styling was refreshed for better field readability.</p>
+                    <p><b>Date:</b> <code>2026-04-15</code>. <br><b>Hardening:</b> Drive update checks compare <code>Content-Length + Last-Modified + ETag</code> with fallback probing when HEAD is blocked, retries are preserved after failed checks, and overlay status readability is improved with live sync detail.</p>
                 </div>
 
                 <div class="doc-card glass">
@@ -403,6 +403,11 @@
                 </div>
 
                 <div class="doc-card glass">
+                    <h4>Drive updates fail on networks that block HEAD</h4>
+                    <p><b>Check:</b> Older APKs relied on HEAD only and could not read metadata on restrictive networks. <br><b>Action:</b> Install the latest APK. Runtime probe now auto-falls back to ranged GET and continues sync checks safely.</p>
+                </div>
+
+                <div class="doc-card glass">
                     <h4>AR labels aren't moving when I tilt the phone</h4>
                     <p><b>Check:</b> Gyro not yet synced or OS hasn't initialised gyro sensor. <br><b>Action:</b> Wait 1&ndash;2 s after enabling AR (auto-sync fires at 1.5 s). Then tap <b>Sync Gyro</b> to manually zero the pitch at your current holding angle. The AR HUD (top-right) shows live Gyro&thinsp;✓ and corrected pitch.</p>
                 </div>
@@ -420,6 +425,11 @@
                 <div class="doc-card glass">
                     <h4>Share button shows "Share error: ..."</h4>
                     <p><b>Check:</b> FileProvider misconfiguration or missing permission. <br><b>Action:</b> Rebuild the APK (FileProvider config is now included in <code>Assets/Plugins/Android/AndroidManifest.xml</code>). The error message in the status bar will show the exact Java exception for further diagnosis.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>AR camera starts after AR was already turned off</h4>
+                    <p><b>Check:</b> Older APKs could keep camera permission polling alive after AR toggle-off. <br><b>Action:</b> Install the latest APK. Permission polling now cancels on AR deactivation and starts camera only if AR is still active.</p>
                 </div>
 
                 <div class="doc-card glass">

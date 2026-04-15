@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-15 (deep logic review + UI polish + Android rebuild)
+> Living document. Updated: 2026-04-15 (deep logic review + sync resilience hardening + UI polish + Android rebuild)
 
 ---
 
@@ -21,11 +21,12 @@
 - Result: **Build Succeeded**
 - Output: `Builds/Android/CDE2501-Wayfinding.apk`
 - File size: **33,443,534 bytes** (~31.9 MB)
-- Build duration: **153.803 s** (cached builder report)
+- Build duration: **117.515 s** (cached builder report)
 - Report: `UnityBuildCache/latest_build_report.md`
 - Notes:
   - Log scanner still catches licensing client errors early in startup, but Unity resolves entitlement and the final build succeeds.
   - Unity build log confirms Android target with `Build Finished, Result: Success` and `Total errors: 0`.
+  - Project-level C# warnings are cleared for this pass; remaining warnings are immutable package warnings from Unity packages.
   - `ProjectSettings.asset` currently keeps `preloadedAssets: []` for build stability and parity with latest successful run.
   - `unity_cached_builder.py` now passes explicit CLI args to `CDE2501BuildRunner` so WSL-launched Windows Unity picks Android target/output reliably.
 
@@ -101,6 +102,17 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 | UserPathRecorder | Assets/Scripts/Location/UserPathRecorder.cs | GPS breadcrumb recording from/to destinations. Min 5 points / 10m validation. |
 | FlightTrackerARView | Assets/Scripts/AR/FlightTrackerARView.cs | WebCamTexture + compass + gyroscope AR destination overlay. No ARCore required. |
 | CompassManager | Assets/Scripts/Location/CompassManager.cs | SmoothedHeading normalized 0–360. Returns early after enabling to give OS init time. |
+
+---
+
+## Code Review Fixes (2026-04-15 pass 6 - Sync resilience + UI polish)
+
+1. **Drive probe fallback**: `DataSyncManager` now falls back from `HEAD` to ranged `GET` (`Range: bytes=0-0`) when metadata HEAD checks are blocked by Drive/CDN/network policy.
+2. **Remote size parsing hardening**: runtime checks now parse `Content-Range` totals (when available) and still compare reliable size/fingerprint metadata before deciding to redownload.
+3. **Quick Start sync visibility**: overlay status strip now includes a detailed Drive status line (checking, retry-needed, updated, up-to-date) instead of only coarse state.
+4. **Overlay lifecycle cleanup**: `QuickStartBootstrap` now releases its generated panel texture on destroy to avoid long-session GUI texture leaks.
+5. **AR permission lifecycle safety**: `FlightTrackerARView` now cancels pending camera permission polling when AR is deactivated, preventing camera startup after AR was toggled off.
+6. **Warning cleanup**: removed the `CS0162` unreachable warning introduced in the AR permission coroutine by making branch exits explicit per platform.
 
 ---
 
@@ -188,16 +200,16 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 
 | Hash | Date | Summary |
 |---|---|---|
-| e44c51c | 2026-04-14 | feat: implement AR flight tracking view, simulated object driver, and quick-start UI bootstrap |
-| c109ec2 | 2026-04-14 | Refactor map loading and syncing logic; enhance runtime updates |
-| fd825a0 | 2026-04-13 | fix(ar): resolve simulated values lock on Android, add camera permission request, and sync gyro button |
-| e9cd709 | 2026-04-13 | feat: add simulation provider for PC testing, bootstrap UI, and AR flight tracker view |
-| 580f476 | 2026-04-11 | fix: update project settings and documentation for latest Android build verification |
-| dac7f0b | 2026-04-11 | fix: harden thin-APK sync/build flow and refresh project docs |
-| 7274431 | 2026-04-11 | chore: import course datasheets, site guides, and presentation materials into project directory |
-| eeffca9 | 2026-04-11 | fix: switch active build target in batchmode before BuildPlayer call |
-| 73cb041 | 2026-04-11 | docs: add memory.md and sync README + website with thin APK architecture |
-| cd42bee | 2026-04-10 | feat: switch DataSyncManager to use synced project Drive file IDs |
+| d07c9ce | 2026-04-15 | fix(sync): strengthen runtime update logic and polish quick-start UI |
+| 827a0be | 2026-04-14 | fix: update AR auto-sync timing, expand share file patterns, and relocate FileProvider resource |
+| 84b7f74 | 2026-04-14 | docs: update index/README with share fix troubleshooting, AR HUD, Snap GPS, latest commit hash |
+| 105cf13 | 2026-04-14 | docs: update memory.md with share deep-fix notes |
+| 46c6ebe | 2026-04-14 | fix(share): proper FLAGS, wider file scan, deduplicate, clearer status messages |
+| 4abea0e | 2026-04-14 | docs: update index.html and README.md with Snap GPS, AR HUD, and share features |
+| 63c2ddd | 2026-04-14 | docs: update index.html and README.md with newly added features and fixes |
+| 90e6746 | 2026-04-14 | docs: update memory.md |
+| 8e0dc64 | 2026-04-14 | chore: remove duplicate syncing files, add .tmp.drivedownload to gitignore |
+| 9c9f059 | 2026-04-14 | fix(share): add AndroidManifest FileProvider, fix share intent, remove duplicate DataSyncManager |
 
 ---
 

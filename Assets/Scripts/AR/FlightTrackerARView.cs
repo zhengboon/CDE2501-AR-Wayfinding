@@ -56,6 +56,7 @@ namespace CDE2501.Wayfinding.AR
         // selection / route
         private string      _selectedDestination;
         private RouteResult _lastRoute;
+        private Coroutine _cameraPermissionRoutine;
 
         // textures / styles (created lazily on first OnGUI)
         private Texture2D _bgTex;
@@ -116,6 +117,7 @@ namespace CDE2501.Wayfinding.AR
 
         private void OnDestroy()
         {
+            StopCameraPermissionRoutine();
             StopCameraInternal();
             DestroyTex(ref _bgTex);
             DestroyTex(ref _whiteTex);
@@ -140,6 +142,7 @@ namespace CDE2501.Wayfinding.AR
         {
             if (!IsActive) return;
             IsActive = false;
+            StopCameraPermissionRoutine();
             StopCameraInternal();
         }
 
@@ -174,7 +177,10 @@ namespace CDE2501.Wayfinding.AR
             if (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
             {
                 UnityEngine.Android.Permission.RequestUserPermission(UnityEngine.Android.Permission.Camera);
-                StartCoroutine(CameraPermissionRoutine());
+                if (_cameraPermissionRoutine == null)
+                {
+                    _cameraPermissionRoutine = StartCoroutine(CameraPermissionRoutine());
+                }
                 return;
             }
 #endif
@@ -211,13 +217,32 @@ namespace CDE2501.Wayfinding.AR
             _webcam = null;
         }
 
+        private void StopCameraPermissionRoutine()
+        {
+            if (_cameraPermissionRoutine == null)
+            {
+                return;
+            }
+
+            StopCoroutine(_cameraPermissionRoutine);
+            _cameraPermissionRoutine = null;
+        }
+
         private System.Collections.IEnumerator CameraPermissionRoutine()
         {
 #if UNITY_ANDROID && !UNITY_EDITOR
-            while (!UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
+            while (IsActive && !UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
                 yield return new WaitForSeconds(0.5f);
-            StartCameraInternal();
+
+            if (IsActive && UnityEngine.Android.Permission.HasUserAuthorizedPermission(UnityEngine.Android.Permission.Camera))
+            {
+                StartCameraInternal();
+            }
+
+            _cameraPermissionRoutine = null;
+            yield break;
 #else
+            _cameraPermissionRoutine = null;
             yield break;
 #endif
         }

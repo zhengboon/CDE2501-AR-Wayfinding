@@ -81,6 +81,15 @@ namespace CDE2501.Wayfinding.Data
         private Coroutine _backgroundUpdateRoutine;
         private bool _isCheckingForUpdates;
 
+        private struct RemoteProbeResult
+        {
+            public bool success;
+            public string fingerprint;
+            public string lastModifiedRaw;
+            public long remoteSizeBytes;
+            public string error;
+        }
+
         private static string DataDir => Path.Combine(Application.persistentDataPath, "Data");
 
         private static bool IsRequired(DriveFileEntry entry)
@@ -216,6 +225,117 @@ namespace CDE2501.Wayfinding.Data
             }
 
             PlayerPrefs.SetString(key, fingerprint);
+        }
+
+        private static bool TryExtractTotalBytesFromContentRange(string contentRange, out long totalBytes)
+        {
+            totalBytes = -1;
+            if (string.IsNullOrWhiteSpace(contentRange))
+            {
+                return false;
+            }
+
+            int slashIndex = contentRange.LastIndexOf('/');
+            if (slashIndex < 0 || slashIndex + 1 >= contentRange.Length)
+            {
+                return false;
+            }
+
+            string totalPart = contentRange.Substring(slashIndex + 1).Trim();
+            if (string.IsNullOrWhiteSpace(totalPart) || string.Equals(totalPart, "*", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            return long.TryParse(totalPart, NumberStyles.Integer, CultureInfo.InvariantCulture, out totalBytes);
+        }
+
+        private static long GetRemoteSizeFromResponse(UnityWebRequest request, int fallbackByteCount = -1)
+        {
+            if (request == null)
+            {
+                return -1;
+            }
+
+            if (TryExtractTotalBytesFromContentRange(request.GetResponseHeader("Content-Range"), out long rangedTotalBytes))
+            {
+                return rangedTotalBytes;
+            }
+
+            string contentLengthRaw = request.GetResponseHeader("Content-Length");
+            if (long.TryParse(contentLengthRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out long contentLength))
+            {
+                return contentLength;
+            }
+
+            return fallbackByteCount >= 0 ? fallbackByteCount : -1;
+        }
+
+        private IEnumerator ProbeRemoteFile(DriveFileEntry entry, Action<RemoteProbeResult> onComplete)
+        {
+            var result = new RemoteProbeResult
+            {
+                success = false,
+                fingerprint = string.Empty,
+                lastModifiedRaw = string.Empty,
+                remoteSizeBytes = -1,
+                error = "unknown error"
+            };
+
+            if (entry == null || string.IsNullOrWhiteSpace(entry.driveFileId))
+            {
+                result.error = "invalid drive file entry";
+                onComplete?.Invoke(result);
+                yield break;
+            }
+
+            string url = BuildDownloadUrl(entry.driveFileId);
+            using (UnityWebRequest headRequest = UnityWebRequest.Head(url))
+            {
+                headRequest.timeout = 10;
+                yield return headRequest.SendWebRequest();
+
+                if (headRequest.result == UnityWebRequest.Result.Success)
+                {
+                    result.success = true;
+                    result.fingerprint = BuildRemoteFingerprintFromRequest(headRequest);
+                    result.lastModifiedRaw = headRequest.GetResponseHeader("Last-Modified");
+                    result.remoteSizeBytes = GetRemoteSizeFromResponse(headRequest);
+                    result.error = string.Empty;
+                    onComplete?.Invoke(result);
+                    yield break;
+                }
+
+                result.error = headRequest.error;
+            }
+
+            // Some Drive/CDN paths reject HEAD. Fallback to a ranged GET probe.
+            using (UnityWebRequest getProbeRequest = UnityWebRequest.Get(url))
+            {
+                getProbeRequest.timeout = 15;
+                getProbeRequest.SetRequestHeader("Range", "bytes=0-0");
+                yield return getProbeRequest.SendWebRequest();
+
+                if (getProbeRequest.result == UnityWebRequest.Result.Success)
+                {
+                    byte[] probeBytes = getProbeRequest.downloadHandler != null
+                        ? getProbeRequest.downloadHandler.data
+                        : null;
+                    int probeByteCount = probeBytes != null ? probeBytes.Length : -1;
+
+                    result.success = true;
+                    result.fingerprint = BuildRemoteFingerprintFromRequest(getProbeRequest, probeByteCount);
+                    result.lastModifiedRaw = getProbeRequest.GetResponseHeader("Last-Modified");
+                    result.remoteSizeBytes = GetRemoteSizeFromResponse(getProbeRequest, probeByteCount);
+                    result.error = string.Empty;
+                }
+                else
+                {
+                    result.error = getProbeRequest.error;
+                }
+            }
+
+            onComplete?.Invoke(result);
         }
 
         private static bool IsLikelyHtmlPayload(byte[] data)
@@ -376,64 +496,67 @@ namespace CDE2501.Wayfinding.Data
 
                 if (!shouldDownload)
                 {
-                    string url = BuildDownloadUrl(entry.driveFileId);
-
-                    using (UnityWebRequest request = UnityWebRequest.Head(url))
+                    RemoteProbeResult probeResult = default;
+                    bool probeCompleted = false;
+                    yield return ProbeRemoteFile(entry, (result) =>
                     {
-                        request.timeout = 10;
-                        yield return request.SendWebRequest();
+                        probeResult = result;
+                        probeCompleted = true;
+                    });
 
-                        if (request.result == UnityWebRequest.Result.Success)
+                    if (probeCompleted && probeResult.success)
+                    {
+                        string remoteFingerprint = probeResult.fingerprint;
+                        string cachedFingerprint = GetCachedRemoteFingerprint(entry);
+
+                        if (!string.IsNullOrWhiteSpace(remoteFingerprint))
                         {
-                            string remoteFingerprint = BuildRemoteFingerprintFromRequest(request);
-                            string cachedFingerprint = GetCachedRemoteFingerprint(entry);
-
-                            if (!string.IsNullOrWhiteSpace(remoteFingerprint))
+                            if (string.IsNullOrWhiteSpace(cachedFingerprint))
                             {
-                                if (string.IsNullOrWhiteSpace(cachedFingerprint))
+                                // Bootstrap for installs from old versions: compare remote Last-Modified
+                                // to the local file timestamp before deciding to redownload.
+                                string remoteModifiedRaw = probeResult.lastModifiedRaw;
+                                DateTime localWriteUtc = File.GetLastWriteTimeUtc(localPath);
+                                if (TryParseHttpDateUtc(remoteModifiedRaw, out DateTime remoteModifiedUtc))
                                 {
-                                    // Bootstrap for installs from old versions: compare remote Last-Modified
-                                    // to the local file timestamp before deciding to redownload.
-                                    string remoteModifiedRaw = request.GetResponseHeader("Last-Modified");
-                                    DateTime localWriteUtc = File.GetLastWriteTimeUtc(localPath);
-                                    if (TryParseHttpDateUtc(remoteModifiedRaw, out DateTime remoteModifiedUtc))
+                                    shouldDownload = remoteModifiedUtc > localWriteUtc.AddSeconds(1);
+                                    if (!shouldDownload)
                                     {
-                                        shouldDownload = remoteModifiedUtc > localWriteUtc.AddSeconds(1);
-                                        if (!shouldDownload)
-                                        {
-                                            CacheRemoteFingerprint(entry, remoteFingerprint);
-                                        }
+                                        CacheRemoteFingerprint(entry, remoteFingerprint);
                                     }
-                                    else
-                                    {
-                                        // If we cannot parse Last-Modified, force one download to establish baseline.
-                                        shouldDownload = true;
-                                    }
-                                }
-                                else if (!string.Equals(cachedFingerprint, remoteFingerprint, StringComparison.Ordinal))
-                                {
-                                    shouldDownload = true;
                                 }
                                 else
                                 {
-                                    // Keep metadata fresh in prefs when unchanged.
-                                    CacheRemoteFingerprint(entry, remoteFingerprint);
+                                    // If we cannot parse Last-Modified, force one download to establish baseline.
+                                    shouldDownload = true;
                                 }
+                            }
+                            else if (!string.Equals(cachedFingerprint, remoteFingerprint, StringComparison.Ordinal))
+                            {
+                                shouldDownload = true;
                             }
                             else
                             {
-                                string contentLength = request.GetResponseHeader("Content-Length");
-                                if (long.TryParse(contentLength, out long remoteSize) && remoteSize != localSize)
-                                {
-                                    shouldDownload = true;
-                                }
+                                // Keep metadata fresh in prefs when unchanged.
+                                CacheRemoteFingerprint(entry, remoteFingerprint);
                             }
                         }
                         else
                         {
-                            hadCheckError = true;
-                            Debug.LogWarning($"[DataSyncManager] Update check failed for {GetDisplayName(entry)}: {request.error}");
+                            long remoteSize = probeResult.remoteSizeBytes;
+                            if (remoteSize >= 0 && remoteSize != localSize)
+                            {
+                                shouldDownload = true;
+                            }
                         }
+                    }
+                    else
+                    {
+                        hadCheckError = true;
+                        string probeError = probeCompleted && !string.IsNullOrWhiteSpace(probeResult.error)
+                            ? probeResult.error
+                            : "probe did not complete";
+                        Debug.LogWarning($"[DataSyncManager] Update check failed for {GetDisplayName(entry)}: {probeError}");
                     }
                 }
 
