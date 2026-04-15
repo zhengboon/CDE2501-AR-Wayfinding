@@ -1,0 +1,497 @@
+{
+  "version": "2026-04-16-nus-footage-v1",
+  "generatedAtUtc": "2026-04-15T16:11:13Z",
+  "graphHint": "nus_estate_graph",
+  "source": "Docs/nus_video_annotations.tsv + Docs/nus_path_segments.tsv",
+  "notes": "Derived from user-provided NUS footage annotations. Used to bias A* edge cost for AR route rendering.",
+  "defaultMultiplier": 0.85,
+  "edges": [
+    {
+      "fromNodeId": "NUS_COR_E2A_LT6",
+      "toNodeId": "NUS_E2A",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E2A_LT6",
+      "toNodeId": "NUS_LT6",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E2_E2A",
+      "toNodeId": "NUS_E2",
+      "multiplier": 0.856,
+      "evidenceWeight": 1.8,
+      "sourceVideos": [
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E2_E2A",
+      "toNodeId": "NUS_E2A",
+      "multiplier": 0.856,
+      "evidenceWeight": 1.8,
+      "sourceVideos": [
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E2_E3",
+      "toNodeId": "NUS_E2",
+      "multiplier": 0.728,
+      "evidenceWeight": 3.4,
+      "sourceVideos": [
+        "DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn",
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E2_E3",
+      "toNodeId": "NUS_E3",
+      "multiplier": 0.872,
+      "evidenceWeight": 1.6,
+      "sourceVideos": [
+        "DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn",
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E3_T_LABS",
+      "toNodeId": "NUS_E3",
+      "multiplier": 0.92,
+      "evidenceWeight": 1.0,
+      "sourceVideos": [
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E3_T_LABS",
+      "toNodeId": "NUS_T_LABS",
+      "multiplier": 0.92,
+      "evidenceWeight": 1.0,
+      "sourceVideos": [
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E4_LT6",
+      "toNodeId": "NUS_E4",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_COR_E4_LT6",
+      "toNodeId": "NUS_LT6",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E1A",
+      "toNodeId": "NUS_E2",
+      "multiplier": 0.952,
+      "evidenceWeight": 0.6,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E2",
+      "toNodeId": "NUS_COR_E2_E2A",
+      "multiplier": 0.856,
+      "evidenceWeight": 1.8,
+      "sourceVideos": [
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E2",
+      "toNodeId": "NUS_COR_E2_E3",
+      "multiplier": 0.728,
+      "evidenceWeight": 3.4,
+      "sourceVideos": [
+        "DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn",
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E2",
+      "toNodeId": "NUS_E1A",
+      "multiplier": 0.952,
+      "evidenceWeight": 0.6,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E2A",
+      "toNodeId": "NUS_COR_E2A_LT6",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E2A",
+      "toNodeId": "NUS_COR_E2_E2A",
+      "multiplier": 0.856,
+      "evidenceWeight": 1.8,
+      "sourceVideos": [
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E3",
+      "toNodeId": "NUS_COR_E2_E3",
+      "multiplier": 0.872,
+      "evidenceWeight": 1.6,
+      "sourceVideos": [
+        "DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn",
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E3",
+      "toNodeId": "NUS_COR_E3_T_LABS",
+      "multiplier": 0.92,
+      "evidenceWeight": 1.0,
+      "sourceVideos": [
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E3",
+      "toNodeId": "OSM_11919923184",
+      "multiplier": 0.792,
+      "evidenceWeight": 2.6,
+      "sourceVideos": [
+        "DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn",
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E3",
+      "toNodeId": "OSM_11919923185",
+      "multiplier": 0.84,
+      "evidenceWeight": 2.0,
+      "sourceVideos": [
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E4",
+      "toNodeId": "NUS_COR_E4_LT6",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_E4",
+      "toNodeId": "OSM_11918099318",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_LT6",
+      "toNodeId": "NUS_COR_E2A_LT6",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_LT6",
+      "toNodeId": "NUS_COR_E4_LT6",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "NUS_T_LABS",
+      "toNodeId": "NUS_COR_E3_T_LABS",
+      "multiplier": 0.92,
+      "evidenceWeight": 1.0,
+      "sourceVideos": [
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_11918099318",
+      "toNodeId": "NUS_E4",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_11918099318",
+      "toNodeId": "OSM_11918099319",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_11918099319",
+      "toNodeId": "OSM_11918099318",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_11918099319",
+      "toNodeId": "OSM_1534827185",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_11919923184",
+      "toNodeId": "NUS_E3",
+      "multiplier": 0.792,
+      "evidenceWeight": 2.6,
+      "sourceVideos": [
+        "DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn",
+        "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_11919923185",
+      "toNodeId": "NUS_E3",
+      "multiplier": 0.84,
+      "evidenceWeight": 2.0,
+      "sourceVideos": [
+        "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_1534827154",
+      "toNodeId": "OSM_1534827184",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_1534827154",
+      "toNodeId": "OSM_5243866758",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_1534827179",
+      "toNodeId": "OSM_5243866758",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_1534827184",
+      "toNodeId": "OSM_1534827154",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_1534827184",
+      "toNodeId": "OSM_1534827185",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_1534827185",
+      "toNodeId": "OSM_11918099319",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_1534827185",
+      "toNodeId": "OSM_1534827184",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_5243866758",
+      "toNodeId": "OSM_1534827154",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    },
+    {
+      "fromNodeId": "OSM_5243866758",
+      "toNodeId": "OSM_1534827179",
+      "multiplier": 0.904,
+      "evidenceWeight": 1.2,
+      "sourceVideos": [
+        "VID_20260412_202623"
+      ]
+    }
+  ],
+  "resolvedSegments": [
+    {
+      "videoId": "VID_20260412_202623",
+      "fromLabel": "Techno Edge",
+      "toLabel": "Junction (everywhere)",
+      "fromNodeId": "OSM_1534827179",
+      "toNodeId": "NUS_COR_E2_E3",
+      "confidence": "medium",
+      "pathNodeCount": 15,
+      "pathDistanceMeters": 205.979,
+      "notes": "00:55 to 03:00"
+    },
+    {
+      "videoId": "VID_20260412_202623",
+      "fromLabel": "Junction (everywhere)",
+      "toLabel": "E1/EA direction",
+      "fromNodeId": "NUS_COR_E2_E3",
+      "toNodeId": "NUS_E1A",
+      "confidence": "medium",
+      "pathNodeCount": 3,
+      "pathDistanceMeters": 40.491,
+      "notes": "03:00 to 03:15 direction split"
+    },
+    {
+      "videoId": "VID_20260412_202623",
+      "fromLabel": "Junction (everywhere)",
+      "toLabel": "E2",
+      "fromNodeId": "NUS_COR_E2_E3",
+      "toNodeId": "NUS_E2",
+      "confidence": "medium",
+      "pathNodeCount": 2,
+      "pathDistanceMeters": 15.0,
+      "notes": "03:00 to 04:15 direction split"
+    },
+    {
+      "videoId": "VID_20260412_202623",
+      "fromLabel": "Techno Edge",
+      "toLabel": "E2",
+      "fromNodeId": "OSM_1534827179",
+      "toNodeId": "NUS_E2",
+      "confidence": "medium",
+      "pathNodeCount": 14,
+      "pathDistanceMeters": 190.979,
+      "notes": "overall route note"
+    },
+    {
+      "videoId": "DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn",
+      "fromLabel": "E2",
+      "toLabel": "Rise and Shine",
+      "fromNodeId": "NUS_E2",
+      "toNodeId": "OSM_11919923184",
+      "confidence": "high",
+      "pathNodeCount": 4,
+      "pathDistanceMeters": 51.394,
+      "notes": "00:00 to 01:20"
+    },
+    {
+      "videoId": "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg",
+      "fromLabel": "Rise and Shine",
+      "toLabel": "E3",
+      "fromNodeId": "OSM_11919923184",
+      "toNodeId": "NUS_E3",
+      "confidence": "high",
+      "pathNodeCount": 2,
+      "pathDistanceMeters": 21.394,
+      "notes": "00:00 to 00:15"
+    },
+    {
+      "videoId": "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg",
+      "fromLabel": "E3",
+      "toLabel": "Cheers",
+      "fromNodeId": "NUS_E3",
+      "toNodeId": "OSM_11919923185",
+      "confidence": "high",
+      "pathNodeCount": 2,
+      "pathDistanceMeters": 4.333,
+      "notes": "00:15 to 00:20"
+    },
+    {
+      "videoId": "DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg",
+      "fromLabel": "Cheers",
+      "toLabel": "T Labs",
+      "fromNodeId": "OSM_11919923185",
+      "toNodeId": "NUS_T_LABS",
+      "confidence": "high",
+      "pathNodeCount": 4,
+      "pathDistanceMeters": 59.333,
+      "notes": "00:20 to end"
+    },
+    {
+      "videoId": "DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F",
+      "fromLabel": "Rise and Shine",
+      "toLabel": "E2A",
+      "fromNodeId": "OSM_11919923184",
+      "toNodeId": "NUS_E2A",
+      "confidence": "medium",
+      "pathNodeCount": 6,
+      "pathDistanceMeters": 76.394,
+      "notes": "00:00 to end"
+    }
+  ],
+  "unresolvedSegments": [],
+  "landmarkNodeMap": {
+    "Techno Edge": "OSM_1534827179",
+    "Junction (everywhere)": "NUS_COR_E2_E3",
+    "E1/EA direction": "NUS_E1A",
+    "E2": "NUS_E2",
+    "Rise and Shine": "OSM_11919923184",
+    "E3": "NUS_E3",
+    "Cheers": "OSM_11919923185",
+    "T Labs": "NUS_T_LABS",
+    "E2A": "NUS_E2A"
+  }
+}

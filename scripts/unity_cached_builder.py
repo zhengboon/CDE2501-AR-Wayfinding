@@ -19,6 +19,7 @@ import hashlib
 import json
 import os
 import platform
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
@@ -108,6 +109,113 @@ class BuildDecision:
     should_build: bool
     reason: str
     cache_hit: bool
+
+
+def scrub_desktop_ini_artifacts() -> Tuple[int, int]:
+    """
+    Remove Windows desktop.ini contamination that can break Unity Android packaging.
+    Returns:
+        (removed_ini_count, removed_orphan_meta_count)
+    """
+    removed_ini_count = 0
+    removed_orphan_meta_count = 0
+
+    for root in (PROJECT_ROOT / "Assets", PROJECT_ROOT / "Library"):
+        if not root.exists():
+            continue
+        for path in root.rglob("desktop.ini"):
+            if not path.is_file():
+                continue
+            try:
+                path.unlink()
+                removed_ini_count += 1
+            except OSError:
+                continue
+
+    # Unity warns when desktop.ini.meta remains after desktop.ini was removed.
+    assets_root = PROJECT_ROOT / "Assets"
+    if assets_root.exists():
+        for meta_path in assets_root.rglob("desktop.ini.meta"):
+            if not meta_path.is_file():
+                continue
+            try:
+                meta_path.unlink()
+                removed_orphan_meta_count += 1
+            except OSError:
+                continue
+
+    return removed_ini_count, removed_orphan_meta_count
+
+
+def scrub_stale_android_artifacts() -> Tuple[int, int]:
+    """
+    Remove stale Bee/Gradle folders that are known to intermittently lock and
+    fail Android builds with AccessDeniedException on Windows/WSL.
+    Returns:
+        (removed_count, failed_count)
+    """
+    stale_rel_paths = [
+        "Library/Bee/artifacts/Android/Split",
+        "Library/Bee/artifacts/Android/ManagedStripped",
+        "Library/Bee/artifacts/Android/il2cppOutput",
+        "Library/Bee/Android/Prj/IL2CPP/Gradle/.gradle",
+        "Library/Bee/Android/Prj/IL2CPP/Gradle/launcher/build",
+        "Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates",
+        "Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/intermediates/merged_native_libs",
+        "Library/Bee/Android/Prj/IL2CPP/Gradle/unityLibrary/build/outputs",
+    ]
+
+    removed_count = 0
+    failed_count = 0
+
+    for rel in stale_rel_paths:
+        target = PROJECT_ROOT / rel
+        if not target.exists():
+            continue
+
+        removed = False
+        for _ in range(3):
+            # First attempt with Python APIs (fast path, no recursive chmod walk).
+            try:
+                if target.is_dir():
+                    shutil.rmtree(target, ignore_errors=False)
+                else:
+                    target.unlink()
+            except OSError:
+                pass
+
+            # Fallback using cmd.exe to clear read-only attributes (Windows/WSL).
+            if target.exists():
+                win_target = try_wslpath_to_windows(target) or posix_mnt_to_windows(target)
+                cmd = (
+                    f'if exist "{win_target}" ('
+                    f'attrib -R /S /D "{win_target}\\*" >nul 2>&1 & '
+                    f'if exist "{win_target}" rmdir /s /q "{win_target}" >nul 2>&1'
+                    f')'
+                )
+                try:
+                    subprocess.run(
+                        ["cmd.exe", "/c", cmd],
+                        cwd=str(PROJECT_ROOT),
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                    )
+                except Exception:
+                    pass
+
+            if not target.exists():
+                removed = True
+                break
+
+            time.sleep(0.2)
+
+        if removed:
+            removed_count += 1
+        else:
+            failed_count += 1
+
+    return removed_count, failed_count
 
 
 def is_windows_unity_executable(unity_exe: Path) -> bool:
@@ -465,6 +573,22 @@ def build_if_needed(
         return summary
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    removed_ini, removed_meta = scrub_desktop_ini_artifacts()
+    if removed_ini or removed_meta:
+        print(
+            f"[unity_cached_builder] Cleaned desktop.ini artifacts "
+            f"(ini={removed_ini}, orphan_meta={removed_meta})."
+        )
+
+    if str(target).lower() == "android":
+        removed_stale, failed_stale = scrub_stale_android_artifacts()
+        if removed_stale or failed_stale:
+            print(
+                "[unity_cached_builder] Cleaned stale Android artifacts "
+                f"(removed={removed_stale}, failed={failed_stale})."
+            )
+
     unity_project_path = format_path_for_unity(PROJECT_ROOT, unity_exe)
     unity_log_path = format_path_for_unity(log_file, unity_exe)
     unity_output_path = format_path_for_unity(output_path, unity_exe)
@@ -526,8 +650,22 @@ def build_if_needed(
     )
 
     if not succeeded:
+        log_text = ""
+        try:
+            if log_file.exists():
+                log_text = log_file.read_text(encoding="utf-8", errors="ignore").lower()
+        except Exception:
+            log_text = ""
+
         joined_errors = "\n".join(errors).lower()
-        if "access token is unavailable" in joined_errors or "licensing" in joined_errors:
+        combined = f"{joined_errors}\n{log_text}"
+
+        if "failed to remove directory library\\bee\\artifacts\\android\\split" in combined or "accessdeniedexception" in combined:
+            summary["failureHint"] = (
+                "Stale Android build artifacts are locked. Close Unity/ADB processes, "
+                "clean Library/Bee Android artifacts, then rerun."
+            )
+        elif "access token is unavailable" in combined or "licensing" in joined_errors:
             summary["failureHint"] = "Unity license token unavailable. Open Unity Hub, sign in, then rerun."
         else:
             summary["failureHint"] = "Close any Unity Editor instance using this project, then rerun cached build."

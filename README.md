@@ -2,7 +2,7 @@
 
 > Unity AR navigation MVP with elderly-first guidance and safety-weighted routing for **Queenstown Estate** and **NUS Engineering Campus**.
 
-Last updated: 2026-04-15
+Last updated: 2026-04-16
 
 ---
 
@@ -70,13 +70,13 @@ If multiple Unity editors are installed, pin the executable explicitly:
 python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"
 ```
 
-### Latest Build Snapshot (2026-04-15)
+### Latest Build Snapshot (2026-04-16)
 
 - Build command: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
 - Result: **Build Succeeded**
 - APK output: `Builds/Android/CDE2501-Wayfinding.apk`
-- APK size: **33,443,534 bytes** (~31.9 MB)
-- Build duration: **117.515 s** (cached builder report)
+- APK size: **33,609,658 bytes** (~32.1 MB)
+- Build duration: **291.409 s** (cached builder report), build runner stage **235.850 s**
 - Build report: `UnityBuildCache/latest_build_report.md`
 
 ### Latest Logic/UI Review (2026-04-15)
@@ -88,6 +88,16 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 - Quick Start overlay UI refreshed with a runtime status strip (GPS / Compass / Drive state), detailed Drive sync message line, and cleaner panel styling.
 - AR camera permission polling is now lifecycle-safe: if AR is toggled off while permission dialog is open, camera startup no longer occurs later in the background.
 - Cached build launcher now measures duration with `time.perf_counter()` for stable timing even if system clock changes.
+
+### Latest Footage Integration (2026-04-16)
+
+- Added NUS footage-derived route-bias manifest: `Assets/StreamingAssets/Data/video_route_hints.json`.
+- `RouteCalculator` now loads route hints and applies edge multipliers during A* (`edgeCostMultiplierProvider`) so the AR route line prefers walked segments.
+- Integration metadata is now tracked in:
+  - `Docs/nus_video_annotations.tsv`
+  - `Docs/nus_path_segments.tsv`
+  - `Docs/nus_landmark_reference.tsv`
+- Home-linked segments are intentionally marked **partial** until a confirmed NUS graph node is provided for `Home`.
 
 ### Generate Maps from KML
 
@@ -208,6 +218,7 @@ The APK ships only the minimum required files. Large data files are downloaded f
 | File type | Location | Bundled? |
 |---|---|---|
 | Map atlas `.json` manifests | StreamingAssets/Data/ | ✅ Yes (~1 KB each) |
+| `video_route_hints.json` (NUS footage route bias) | StreamingAssets/Data/ | ✅ Yes (loaded by `RouteCalculator`) |
 | Street View dataset (`street_view/`, `street_view_manifest.json`) | `.tmp-streetview/manual_move/` (outside Unity assets) | ❌ Not bundled |
 | Graph + locations + boundaries + profiles | archived/ → Drive | ❌ Downloaded on launch |
 | Map tile `.png` + atlas `.json` metadata | archived/ → Drive | ❌ Downloaded as optional runtime assets |
@@ -343,6 +354,8 @@ By default, the overlay shows only essential controls: Wheelchair toggle, Rec, S
 | AR camera starts unexpectedly after closing AR | Permission dialog coroutine outlived AR state | Install latest APK; permission polling is now cancelled on AR deactivation and only starts camera when AR is still active |
 | Share shows "No data to share yet" | No recordings exist yet | Start **Rec: ON**, walk a path, stop it, then Share |
 | Share shows "Share error: ..." | FileProvider not registered | Rebuild APK — config now in `Assets/Plugins/Android/AndroidManifest.xml` |
+| Android build fails with `Failed to remove directory ... Library\\Bee\\artifacts\\Android\\Split` | Stale/locked Bee artifacts from prior failed runs | Delete `Library/Bee/artifacts/Android/Split`, `ManagedStripped`, and `il2cppOutput`, then rerun build |
+| Android build logs `Cannot move asset ... Assets/XR/Temp/... Destination path name does already exist` | Stale XR temp files left by interrupted build | Delete `Assets/XR/Temp/XRSimulationPreferences.asset*` and `XRSimulationRuntimeSettings.asset*`, rerun build |
 | Android build fails with `OBSOLETE ... Assets/Plugins/Android/res` | Legacy Android resource path used | Keep `file_paths.xml` under `Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/` (not `Assets/Plugins/Android/res/`) |
 | Minimap elements drift when turning | Follow-heading mode active | Toggle follow-heading off as fallback |
 | Route not refreshing after area switch | Map area just changed | Press `F5` to force recalc |

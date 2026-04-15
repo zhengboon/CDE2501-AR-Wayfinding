@@ -1,0 +1,11 @@
+video_id	segment_order	start_timestamp	end_timestamp	from_location	to_location	confidence	notes	from_node_id	to_node_id	integration_status
+VID_20260412_202623	1	00:55	03:00	Techno Edge	Junction (everywhere)	medium	Path passes all-floors direction cue at 01:40 and Starbucks on left at 02:16.	OSM_1534827179	NUS_COR_E2_E3	integrated
+VID_20260412_202623	2	03:00	03:15	Junction (everywhere)	E1/EA direction	medium	Direction split from central junction.	NUS_COR_E2_E3	NUS_E1A	integrated
+VID_20260412_202623	3	03:00	04:15	Junction (everywhere)	E2	medium	Direction split from central junction.	NUS_COR_E2_E3	NUS_E2	integrated
+DRIVE_1IYfUeAzCykeHrvzWP9ig3B6GNcaYOFYn	1	00:00	01:20	E2	Rise and Shine	high	Direct path note from user.	NUS_E2	OSM_11919923184	integrated
+DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg	1	00:00	00:15	Rise and Shine	E3	high	Direct timestamp note from user.	OSM_11919923184	NUS_E3	integrated
+DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg	2	00:15	00:20	E3	Cheers	high	Direct timestamp note from user.	NUS_E3	OSM_11919923185	integrated
+DRIVE_1wxEqxFJ_LYcm_dPOX7hHWjJWyUx7vLcg	3	00:20	video_end	Cheers	T Labs	high	User states the rest of the route is T Labs.	OSM_11919923185	NUS_T_LABS	integrated
+DRIVE_1sDWPppdmbHJw82wzpX557cMsz0Wvnk_5	1	00:00	video_end	T Labs	Home	medium	User provided route direction only (no intermediate timestamps yet).	NUS_T_LABS		partial-pending-home-node
+DRIVE_1oD8FGU_ypAvihoFeJHk7Mn4Y_J6gITEJ	1	00:00	video_end	Home	Rise and Shine	medium	User provided route direction only (no intermediate timestamps yet).		OSM_11919923184	partial-pending-home-node
+DRIVE_1TPa8giiLwn6J4SFtPq8WUMcKq7FG1C9F	1	00:00	video_end	Rise and Shine	E2A	medium	User provided route direction only (no intermediate timestamps yet).	OSM_11919923184	NUS_E2A	integrated

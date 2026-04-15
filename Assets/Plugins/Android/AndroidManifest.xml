@@ -27,8 +27,43 @@
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
     <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <!-- Keep AR optional so non-ARCore phones can still launch the app. -->
+    <uses-feature
+        android:name="android.hardware.camera.ar"
+        android:required="false"
+        tools:node="replace"
+        tools:replace="android:required" />
+    <uses-feature
+        android:name="com.google.ar.core.depth"
+        android:required="false"
+        tools:node="replace"
+        tools:replace="android:required" />
 
     <application>
+        <!--
+            Unity launcher activity.
+            Required for app icon visibility and "Open" button after install.
+        -->
+        <activity
+            android:name="com.unity3d.player.UnityPlayerActivity"
+            android:theme="@style/UnityThemeSelector"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="mcc|mnc|locale|touchscreen|keyboard|keyboardHidden|navigation|orientation|screenLayout|uiMode|screenSize|smallestScreenSize|fontScale|layoutDirection|density|colorMode"
+            android:hardwareAccelerated="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <meta-data android:name="unityplayer.UnityActivity" android:value="true" />
+        </activity>
+
+        <!-- Override ARCore plugin default from required -> optional. -->
+        <meta-data
+            android:name="com.google.ar.core"
+            android:value="optional"
+            tools:replace="android:value" />
+
         <!--
             FileProvider — required for cross-app file sharing on Android 7+ (API 24+).
             The authority MUST match the string constructed in DataSyncManager.ShareOnAndroid():

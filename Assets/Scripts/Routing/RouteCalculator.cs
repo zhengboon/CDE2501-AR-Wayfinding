@@ -61,11 +61,34 @@ namespace CDE2501.Wayfinding.Routing
         }
     }
 
+    [Serializable]
+    public class RouteHintEdge
+    {
+        public string fromNodeId;
+        public string toNodeId;
+        public float multiplier = 0.85f;
+    }
+
+    [Serializable]
+    public class RouteHintManifest
+    {
+        public string version;
+        public string generatedAtUtc;
+        public string source;
+        public string graphHint;
+        public float defaultMultiplier = 0.85f;
+        public List<RouteHintEdge> edges = new List<RouteHintEdge>();
+    }
+
     public class RouteCalculator : MonoBehaviour
     {
         [SerializeField] private GraphLoader graphLoader;
         [SerializeField] private BoundaryConstraintManager boundaryConstraintManager;
         [SerializeField] private string routingProfilesFileName = "routing_profiles.json";
+        [SerializeField] private bool enableVideoRouteBias = true;
+        [SerializeField] private string routeHintsFileName = "video_route_hints.json";
+        [SerializeField, Range(0.5f, 2f)] private float fallbackRouteHintMultiplier = 0.85f;
+        [SerializeField] private bool routeHintLogs;
         [SerializeField] private bool rainMode;
         [SerializeField] private RoutingMode routingMode = RoutingMode.NormalElderly;
         [SerializeField] private bool autoInitializeOnStart = true;
@@ -92,6 +115,9 @@ namespace CDE2501.Wayfinding.Routing
         private readonly LinkedList<string> _routeCacheOrder = new LinkedList<string>();
         private readonly Dictionary<string, LinkedListNode<string>> _cacheOrderIndex = new Dictionary<string, LinkedListNode<string>>();
         private readonly Dictionary<string, float> _edgeDistanceMetersByKey = new Dictionary<string, float>(StringComparer.Ordinal);
+        private readonly Dictionary<string, float> _routeHintEdgeMultipliersByKey = new Dictionary<string, float>(StringComparer.Ordinal);
+        private string _routeHintVersion = "none";
+        private int _routeHintEdgeCount;
 
         public event Action<RouteResult> OnRouteUpdated;
 
@@ -173,6 +199,7 @@ namespace CDE2501.Wayfinding.Routing
             _profilesConfig = profilesConfig;
             _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
             RebuildEdgeDistanceLookup();
+            LoadRouteHintsFromDisk();
             ClearRouteCache();
         }
 
@@ -379,6 +406,16 @@ namespace CDE2501.Wayfinding.Routing
                 yield break;
             }
 
+            if (enableVideoRouteBias && !string.IsNullOrWhiteSpace(routeHintsFileName))
+            {
+                string routeHintsPersistentPath = Path.Combine(Application.persistentDataPath, "Data", routeHintsFileName);
+                string routeHintsStreamingPath = Path.Combine(Application.streamingAssetsPath, "Data", routeHintsFileName);
+                if (!File.Exists(routeHintsPersistentPath))
+                {
+                    yield return CopyFromStreamingAssets(routeHintsStreamingPath, routeHintsPersistentPath);
+                }
+            }
+
             string raw = File.ReadAllText(persistentPath);
             string wrapped = WrapTopLevelArrayIfNeeded(raw, "profiles");
             _profilesConfig = JsonUtility.FromJson<RoutingProfilesConfig>(wrapped);
@@ -391,6 +428,7 @@ namespace CDE2501.Wayfinding.Routing
             }
 
             _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
+            LoadRouteHintsFromDisk();
             _isInitializing = false;
             ClearRouteCache();
         }
@@ -405,6 +443,7 @@ namespace CDE2501.Wayfinding.Routing
 
             _pathfinder = new AStarPathfinder(graphLoader.NodesById, graphLoader.Edges);
             RebuildEdgeDistanceLookup();
+            LoadRouteHintsFromDisk();
             ClearRouteCache();
 
             // Always reload profiles when graph loads successfully,
@@ -468,8 +507,16 @@ namespace CDE2501.Wayfinding.Routing
             Func<string, bool> nodeEligibility = boundaryConstraintManager != null && boundaryConstraintManager.HasBoundary
                 ? new Func<string, bool>(boundaryConstraintManager.IsNodeAllowed)
                 : null;
+            Func<string, string, float> edgeCostMultiplierProvider = _routeHintEdgeMultipliersByKey.Count > 0
+                ? new Func<string, string, float>(GetRouteHintEdgeMultiplier)
+                : null;
 
-            RouteResult result = _pathfinder.FindPath(request, profile, _profilesConfig.rainSlopeMultiplier, nodeEligibility);
+            RouteResult result = _pathfinder.FindPath(
+                request,
+                profile,
+                _profilesConfig.rainSlopeMultiplier,
+                nodeEligibility,
+                edgeCostMultiplierProvider);
             result.recalcReason = request.recalcReason;
             if (result.success)
             {
@@ -638,12 +685,160 @@ namespace CDE2501.Wayfinding.Routing
             string level = ((int)request.currentLevel).ToString();
             string rain = request.rainMode ? "1" : "0";
             string boundaryRev = request.boundaryRevision.ToString();
-            return $"{graphVersion}|{request.startNodeId}|{request.endNodeId}|{level}|{mode}|{rain}|{profileName}|b{boundaryRev}";
+            string routeHintRevision = $"{_routeHintVersion}:{_routeHintEdgeCount}";
+            return $"{graphVersion}|{request.startNodeId}|{request.endNodeId}|{level}|{mode}|{rain}|{profileName}|b{boundaryRev}|rh{routeHintRevision}";
         }
 
         private static string BuildDirectedEdgeKey(string fromNodeId, string toNodeId)
         {
             return $"{fromNodeId}->{toNodeId}";
+        }
+
+        private float GetRouteHintEdgeMultiplier(string fromNodeId, string toNodeId)
+        {
+            if (string.IsNullOrWhiteSpace(fromNodeId) || string.IsNullOrWhiteSpace(toNodeId))
+            {
+                return 1f;
+            }
+
+            string key = BuildDirectedEdgeKey(fromNodeId.Trim(), toNodeId.Trim());
+            return _routeHintEdgeMultipliersByKey.TryGetValue(key, out float multiplier) ? multiplier : 1f;
+        }
+
+        private void LoadRouteHintsFromDisk()
+        {
+            _routeHintEdgeMultipliersByKey.Clear();
+            _routeHintVersion = "none";
+            _routeHintEdgeCount = 0;
+
+            if (!enableVideoRouteBias || string.IsNullOrWhiteSpace(routeHintsFileName))
+            {
+                return;
+            }
+
+            string persistentPath = Path.Combine(Application.persistentDataPath, "Data", routeHintsFileName);
+            string streamingPath = Path.Combine(Application.streamingAssetsPath, "Data", routeHintsFileName);
+            string sourcePath = null;
+
+            if (File.Exists(persistentPath))
+            {
+                sourcePath = persistentPath;
+            }
+            else if (File.Exists(streamingPath))
+            {
+                sourcePath = streamingPath;
+            }
+
+            if (string.IsNullOrWhiteSpace(sourcePath))
+            {
+                if (routeHintLogs)
+                {
+                    Debug.Log($"[RouteCalculator] Route hints file not found: {routeHintsFileName}");
+                }
+
+                return;
+            }
+
+            try
+            {
+                string raw = File.ReadAllText(sourcePath);
+                RouteHintManifest manifest = JsonUtility.FromJson<RouteHintManifest>(raw);
+                if (manifest == null || manifest.edges == null || manifest.edges.Count == 0)
+                {
+                    return;
+                }
+
+                if (!IsRouteHintManifestForCurrentGraph(manifest))
+                {
+                    if (routeHintLogs)
+                    {
+                        Debug.Log($"[RouteCalculator] Route hints ignored for graph '{graphLoader?.GraphFileName}'. Hint graph='{manifest.graphHint}'.");
+                    }
+
+                    return;
+                }
+
+                float defaultMultiplier = manifest.defaultMultiplier > 0f
+                    ? manifest.defaultMultiplier
+                    : fallbackRouteHintMultiplier;
+                defaultMultiplier = Mathf.Clamp(defaultMultiplier, 0.5f, 2f);
+
+                for (int i = 0; i < manifest.edges.Count; i++)
+                {
+                    RouteHintEdge entry = manifest.edges[i];
+                    if (entry == null)
+                    {
+                        continue;
+                    }
+
+                    float multiplier = entry.multiplier > 0f ? entry.multiplier : defaultMultiplier;
+                    multiplier = Mathf.Clamp(multiplier, 0.5f, 2f);
+                    AddRouteHintEdgeMultiplier(entry.fromNodeId, entry.toNodeId, multiplier);
+                }
+
+                _routeHintVersion = string.IsNullOrWhiteSpace(manifest.version)
+                    ? "unversioned"
+                    : manifest.version.Trim();
+                _routeHintEdgeCount = _routeHintEdgeMultipliersByKey.Count;
+
+                if (routeHintLogs)
+                {
+                    Debug.Log($"[RouteCalculator] Loaded {_routeHintEdgeCount} route hint edges (v={_routeHintVersion}) from {sourcePath}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[RouteCalculator] Failed to load route hints from '{sourcePath}': {ex.Message}");
+            }
+        }
+
+        private bool IsRouteHintManifestForCurrentGraph(RouteHintManifest manifest)
+        {
+            if (manifest == null || string.IsNullOrWhiteSpace(manifest.graphHint))
+            {
+                return true;
+            }
+
+            string graphHint = manifest.graphHint.Trim();
+            string graphFileName = graphLoader != null ? graphLoader.GraphFileName : string.Empty;
+            string estateName = graphLoader?.GraphData?.metadata?.estateName ?? string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(graphFileName) &&
+                graphFileName.IndexOf(graphHint, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(estateName) &&
+                estateName.IndexOf(graphHint, StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private void AddRouteHintEdgeMultiplier(string fromNodeId, string toNodeId, float multiplier)
+        {
+            if (string.IsNullOrWhiteSpace(fromNodeId) || string.IsNullOrWhiteSpace(toNodeId))
+            {
+                return;
+            }
+
+            string key = BuildDirectedEdgeKey(fromNodeId.Trim(), toNodeId.Trim());
+            if (!_edgeDistanceMetersByKey.ContainsKey(key))
+            {
+                return;
+            }
+
+            if (_routeHintEdgeMultipliersByKey.TryGetValue(key, out float existing))
+            {
+                _routeHintEdgeMultipliersByKey[key] = Mathf.Min(existing, multiplier);
+            }
+            else
+            {
+                _routeHintEdgeMultipliersByKey[key] = multiplier;
+            }
         }
 
         private static RouteRequest CloneRouteRequest(RouteRequest request)

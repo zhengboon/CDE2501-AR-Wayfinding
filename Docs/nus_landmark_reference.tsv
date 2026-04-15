@@ -1,0 +1,12 @@
+label	area	plus_code	latitude	longitude	notes	mapped_node_id	mapping_status
+E2A	NUS		1.298833333	103.771555556	From user-provided DMS: 1°17'55.8\"N 103°46'17.6\"E	NUS_E2A	mapped
+Rise and Shine	NUS	7QXC+MM Singapore	1.2991875	103.7716875	User-provided plus code (decoded).	OSM_11919923184	mapped
+Cheers	NUS	7QXC+QM Singapore	1.2994375	103.7716875	User-provided plus code (decoded).	OSM_11919923185	mapped
+E3	NUS	7QXC+PP Singapore	1.2993125	103.7718125	User-provided plus code (decoded).	NUS_E3	mapped
+T Labs	NUS	7QXC+WR Singapore	1.2998125	103.7720625	User-provided plus code (decoded).	NUS_T_LABS	mapped
+Techno Edge	NUS	7QXC+4M Singapore	1.2978125	103.7716875	User-provided plus code (decoded).	OSM_1534827179	mapped
+Starbucks (left side cue)	NUS				Landmark cue seen around 02:16 in VID_20260412_202623		informational-cue
+Junction (non-location cue)	NUS				Cue seen around 03:00 in VID_20260412_202623	NUS_COR_E2_E3	mapped-cue
+E1/EA direction cue	NUS				Cue seen around 03:15 in VID_20260412_202623	NUS_E1A	mapped-cue
+E2 direction cue	NUS				Cue seen around 04:15 in VID_20260412_202623	NUS_E2	mapped-cue
+Home	NUS				User-defined destination label from video annotations.		pending-node-confirmation

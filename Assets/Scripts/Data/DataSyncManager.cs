@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
@@ -830,6 +831,21 @@ namespace CDE2501.Wayfinding.Data
                 }
             }
 
+            // Always include route destination source files so shared packages contain
+            // "places to go" data even when no recording has started yet.
+            string dataDir = Path.Combine(baseDir, "Data");
+            if (Directory.Exists(dataDir))
+            {
+                try
+                {
+                    files.AddRange(Directory.GetFiles(dataDir, "*locations*.json", SearchOption.TopDirectoryOnly));
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[DataSyncManager] Share scan error in {dataDir}: {ex.Message}");
+                }
+            }
+
             // Remove duplicates that might occur due to multiple pattern passes on same file
             var seen = new System.Collections.Generic.HashSet<string>(StringComparer.OrdinalIgnoreCase);
             files.RemoveAll(f => !seen.Add(f));
@@ -842,6 +858,28 @@ namespace CDE2501.Wayfinding.Data
             }
 
             Debug.Log($"[DataSyncManager] Share: Found {files.Count} files to share.");
+
+            if (TryCreateShareZip(baseDir, files, out string zipPath, out string zipError))
+            {
+                Debug.Log($"[DataSyncManager] Share ZIP ready: {zipPath}");
+#if UNITY_ANDROID && !UNITY_EDITOR
+                ShareOnAndroid(
+                    new List<string> { zipPath },
+                    useSingleIntent: true,
+                    mimeType: "application/zip",
+                    chooserTitle: "Share Wayfinding ZIP");
+#else
+                StatusMessage = $"ZIP ready: {zipPath}";
+                Debug.Log($"[DataSyncManager] Share ZIP ready at {zipPath}");
+#endif
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(zipError))
+            {
+                Debug.LogWarning($"[DataSyncManager] ZIP share fallback: {zipError}");
+            }
+
 #if UNITY_ANDROID && !UNITY_EDITOR
             ShareOnAndroid(files);
 #else
@@ -851,7 +889,11 @@ namespace CDE2501.Wayfinding.Data
         }
 
 #if UNITY_ANDROID && !UNITY_EDITOR
-        private void ShareOnAndroid(List<string> filePaths)
+        private void ShareOnAndroid(
+            List<string> filePaths,
+            bool useSingleIntent = false,
+            string mimeType = "*/*",
+            string chooserTitle = null)
         {
             try
             {
@@ -866,6 +908,7 @@ namespace CDE2501.Wayfinding.Data
                     using (AndroidJavaObject arrayList = new AndroidJavaObject("java.util.ArrayList"))
                     {
                         int added = 0;
+                        AndroidJavaObject firstUri = null;
                         foreach (string path in filePaths)
                         {
                             if (!File.Exists(path)) continue;
@@ -876,6 +919,10 @@ namespace CDE2501.Wayfinding.Data
                                     AndroidJavaObject uri = fileProviderClass.CallStatic<AndroidJavaObject>(
                                         "getUriForFile", context, authority, file);
                                     arrayList.Call<bool>("add", uri);
+                                    if (firstUri == null)
+                                    {
+                                        firstUri = uri;
+                                    }
                                     added++;
                                 }
                             }
@@ -895,18 +942,34 @@ namespace CDE2501.Wayfinding.Data
                         using (AndroidJavaClass intentClass = new AndroidJavaClass("android.content.Intent"))
                         using (AndroidJavaObject intent     = new AndroidJavaObject("android.content.Intent"))
                         {
-                            intent.Call<AndroidJavaObject>("setAction", "android.intent.action.SEND_MULTIPLE");
-                            intent.Call<AndroidJavaObject>("setType", "*/*");
-                            intent.Call<AndroidJavaObject>("putParcelableArrayListExtra",
-                                "android.intent.extra.STREAM", arrayList);
+                            string resolvedMime = string.IsNullOrWhiteSpace(mimeType) ? "*/*" : mimeType;
+                            if (useSingleIntent && firstUri != null)
+                            {
+                                intent.Call<AndroidJavaObject>("setAction", "android.intent.action.SEND");
+                                intent.Call<AndroidJavaObject>("setType", resolvedMime);
+                                intent.Call<AndroidJavaObject>("putExtra", "android.intent.extra.STREAM", firstUri);
+                            }
+                            else
+                            {
+                                intent.Call<AndroidJavaObject>("setAction", "android.intent.action.SEND_MULTIPLE");
+                                intent.Call<AndroidJavaObject>("setType", resolvedMime);
+                                intent.Call<AndroidJavaObject>("putParcelableArrayListExtra",
+                                    "android.intent.extra.STREAM", arrayList);
+                            }
+
                             // FLAG_GRANT_READ_URI_PERMISSION (0x1) | FLAG_ACTIVITY_NEW_TASK (0x10000000)
                             intent.Call<AndroidJavaObject>("addFlags", 0x10000001);
 
+                            string resolvedChooserTitle = !string.IsNullOrWhiteSpace(chooserTitle)
+                                ? chooserTitle
+                                : (useSingleIntent ? "Share wayfinding package" : $"Share {added} session files");
                             AndroidJavaObject chooser = intentClass.CallStatic<AndroidJavaObject>(
-                                "createChooser", intent, $"Share {added} session files");
+                                "createChooser", intent, resolvedChooserTitle);
                             activity.Call("startActivity", chooser);
-                            StatusMessage = $"Sharing {added} files...";
-                            Debug.Log($"[DataSyncManager] Share intent launched for {added} files.");
+                            StatusMessage = useSingleIntent
+                                ? "Sharing ZIP package..."
+                                : $"Sharing {added} files...";
+                            Debug.Log($"[DataSyncManager] Share intent launched for {added} file(s).");
                         }
                     }
                 }
@@ -918,6 +981,209 @@ namespace CDE2501.Wayfinding.Data
             }
         }
 #endif
+
+        private static bool TryCreateShareZip(string baseDir, List<string> files, out string zipPath, out string error)
+        {
+            zipPath = string.Empty;
+            error = string.Empty;
+
+            if (files == null || files.Count == 0)
+            {
+                error = "No source files to zip.";
+                return false;
+            }
+
+            try
+            {
+                string exportDir = Path.Combine(baseDir, "ShareExports");
+                Directory.CreateDirectory(exportDir);
+                zipPath = Path.Combine(exportDir, $"wayfinding_share_{DateTime.Now:yyyyMMdd_HHmmss}.zip");
+
+                string placesToGoText = BuildPlacesToGoWords(baseDir, files);
+                var seenEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                using (FileStream zipStream = new FileStream(zipPath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (ZipArchive archive = new ZipArchive(zipStream, ZipArchiveMode.Create))
+                {
+                    for (int i = 0; i < files.Count; i++)
+                    {
+                        string sourcePath = files[i];
+                        if (!File.Exists(sourcePath))
+                        {
+                            continue;
+                        }
+
+                        string entryName = BuildZipEntryName(baseDir, sourcePath);
+                        if (string.IsNullOrWhiteSpace(entryName) || !seenEntries.Add(entryName))
+                        {
+                            continue;
+                        }
+
+                        ZipArchiveEntry entry = archive.CreateEntry(entryName, System.IO.Compression.CompressionLevel.Optimal);
+                        using (Stream source = File.OpenRead(sourcePath))
+                        using (Stream destination = entry.Open())
+                        {
+                            source.CopyTo(destination);
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(placesToGoText))
+                    {
+                        ZipArchiveEntry wordsEntry = archive.CreateEntry("places_to_go_words.txt", System.IO.Compression.CompressionLevel.Optimal);
+                        using (StreamWriter writer = new StreamWriter(wordsEntry.Open(), Encoding.UTF8))
+                        {
+                            writer.Write(placesToGoText);
+                        }
+                    }
+                }
+
+                return File.Exists(zipPath) && new FileInfo(zipPath).Length > 0;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(zipPath) && File.Exists(zipPath))
+                    {
+                        File.Delete(zipPath);
+                    }
+                }
+                catch
+                {
+                    // Ignore zip cleanup failures.
+                }
+
+                return false;
+            }
+        }
+
+        private static string BuildZipEntryName(string baseDir, string sourcePath)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath))
+            {
+                return string.Empty;
+            }
+
+            string baseFull = Path.GetFullPath(baseDir)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            string sourceFull = Path.GetFullPath(sourcePath);
+
+            string relative = sourceFull.StartsWith(baseFull, StringComparison.OrdinalIgnoreCase)
+                ? sourceFull.Substring(baseFull.Length)
+                : Path.GetFileName(sourceFull);
+
+            return relative.Replace('\\', '/');
+        }
+
+        private static string BuildPlacesToGoWords(string baseDir, IReadOnlyList<string> files)
+        {
+            var places = new SortedSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "My Location"
+            };
+
+            string dataDir = Path.Combine(baseDir, "Data");
+            if (Directory.Exists(dataDir))
+            {
+                try
+                {
+                    string[] locationFiles = Directory.GetFiles(dataDir, "*locations*.json", SearchOption.TopDirectoryOnly);
+                    for (int i = 0; i < locationFiles.Length; i++)
+                    {
+                        foreach (string locationName in ReadLocationNames(locationFiles[i]))
+                        {
+                            places.Add(locationName);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"[DataSyncManager] Failed building places_to_go_words: {ex.Message}");
+                }
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine("CDE2501 AR Wayfinding Share Package");
+            sb.AppendLine($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            sb.AppendLine();
+            sb.AppendLine("Places to go words:");
+            foreach (string place in places)
+            {
+                sb.AppendLine($"- {place}");
+            }
+
+            if (files != null && files.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Included files:");
+                for (int i = 0; i < files.Count; i++)
+                {
+                    string filePath = files[i];
+                    if (string.IsNullOrWhiteSpace(filePath))
+                    {
+                        continue;
+                    }
+
+                    sb.AppendLine($"- {BuildZipEntryName(baseDir, filePath)}");
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        private static IEnumerable<string> ReadLocationNames(string locationsFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(locationsFilePath) || !File.Exists(locationsFilePath))
+            {
+                yield break;
+            }
+
+            string raw;
+            try
+            {
+                raw = File.ReadAllText(locationsFilePath, Encoding.UTF8);
+            }
+            catch
+            {
+                yield break;
+            }
+
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                yield break;
+            }
+
+            string wrapped = raw.TrimStart().StartsWith("[", StringComparison.Ordinal)
+                ? "{\"locations\":" + raw + "}"
+                : raw;
+
+            LocationListWrapper wrapper;
+            try
+            {
+                wrapper = JsonUtility.FromJson<LocationListWrapper>(wrapped);
+            }
+            catch
+            {
+                yield break;
+            }
+
+            if (wrapper == null || wrapper.locations == null)
+            {
+                yield break;
+            }
+
+            for (int i = 0; i < wrapper.locations.Count; i++)
+            {
+                LocationPoint point = wrapper.locations[i];
+                if (point == null || string.IsNullOrWhiteSpace(point.name))
+                {
+                    continue;
+                }
+
+                yield return point.name.Trim();
+            }
+        }
 
         private void OnGUI()
         {

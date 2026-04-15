@@ -154,6 +154,8 @@ namespace CDE2501.Wayfinding.UI
         private const string AutoSessionRecordingsFolderRelative = "Recordings/AutoSessions";
         private const int MaxPlaySessionPreviewCount = 5;
         private const float PlaySessionRefreshIntervalSeconds = 1f;
+        private const string MyLocationDisplayName = "My Location";
+        private const string MyLocationNodeId = "__MY_LOCATION__";
 
         private void Awake()
         {
@@ -2020,6 +2022,8 @@ namespace CDE2501.Wayfinding.UI
                 return;
             }
 
+            _uiDestinations.Add(BuildMyLocationDestination());
+
             var seen = new HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
             for (int i = 0; i < _locationManager.Locations.Count; i++)
             {
@@ -2055,7 +2059,13 @@ namespace CDE2501.Wayfinding.UI
                 _uiDestinations.Add(location);
             }
 
-            _uiDestinations.Sort((a, b) => string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase));
+            if (_uiDestinations.Count > 1)
+            {
+                LocationPoint myLocation = _uiDestinations[0];
+                _uiDestinations.RemoveAt(0);
+                _uiDestinations.Sort((a, b) => string.Compare(a.name, b.name, System.StringComparison.OrdinalIgnoreCase));
+                _uiDestinations.Insert(0, myLocation);
+            }
 
             if (_uiDestinations.Count == 0)
             {
@@ -2183,7 +2193,8 @@ namespace CDE2501.Wayfinding.UI
 
             destinationIndex = Mathf.Clamp(destinationIndex, 0, _uiDestinations.Count - 1);
             var destination = _uiDestinations[destinationIndex];
-            if (_graphLoader != null && _graphLoader.GetNode(destination.indoor_node_id) == null)
+            bool destinationIsMyLocation = IsMyLocationDestination(destination);
+            if (!destinationIsMyLocation && _graphLoader != null && _graphLoader.GetNode(destination.indoor_node_id) == null)
             {
                 _status = $"Destination '{destination.name}' has no matching graph node.";
                 return;
@@ -2206,16 +2217,26 @@ namespace CDE2501.Wayfinding.UI
                 }
             }
 
-            if (ShouldAutoAvoidTrivialDestination(reason) &&
+            string destinationNodeId = destinationIsMyLocation ? _resolvedStartNodeId : destination.indoor_node_id;
+
+            if (!destinationIsMyLocation &&
+                ShouldAutoAvoidTrivialDestination(reason) &&
                 !string.IsNullOrWhiteSpace(destination.indoor_node_id) &&
                 string.Equals(destination.indoor_node_id, _resolvedStartNodeId, System.StringComparison.OrdinalIgnoreCase) &&
                 TrySelectAlternativeDestinationForStart(_resolvedStartNodeId, out LocationPoint alternativeDestination))
             {
                 destination = alternativeDestination;
+                destinationNodeId = destination.indoor_node_id;
                 _status = $"Auto-selected nearby destination '{destination.name}' for better wayfinding in {GetActiveAreaLabel()}.";
             }
 
-            _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destination.indoor_node_id, level, forceImmediateRouteRefresh, reason);
+            if (string.IsNullOrWhiteSpace(destinationNodeId))
+            {
+                _status = "Unable to resolve destination node.";
+                return;
+            }
+
+            _routeCalculator.CalculateIndoorRoute(_resolvedStartNodeId, destinationNodeId, level, forceImmediateRouteRefresh, reason);
         }
 
         private void SnapViewToStartNodeIfNeeded(bool force = false)
@@ -2296,11 +2317,31 @@ namespace CDE2501.Wayfinding.UI
 
             if (_miniMapOverlay != null)
             {
-                _miniMapOverlay.SetSelectedDestinationNodeId(selected.indoor_node_id);
+                _miniMapOverlay.SetSelectedDestinationNodeId(
+                    IsMyLocationDestination(selected) ? null : selected.indoor_node_id);
             }
 
             _selectedDestinationNodeId = selected.indoor_node_id;
             _selectedDestinationName = selected.name;
+        }
+
+        private static LocationPoint BuildMyLocationDestination()
+        {
+            return new LocationPoint
+            {
+                name = MyLocationDisplayName,
+                type = "System",
+                gps_lat = 0d,
+                gps_lon = 0d,
+                indoor_node_id = MyLocationNodeId
+            };
+        }
+
+        private static bool IsMyLocationDestination(LocationPoint point)
+        {
+            return point != null &&
+                   !string.IsNullOrWhiteSpace(point.indoor_node_id) &&
+                   string.Equals(point.indoor_node_id.Trim(), MyLocationNodeId, System.StringComparison.OrdinalIgnoreCase);
         }
 
         private string ResolveStartNodeIdForRoute()
@@ -2339,6 +2380,11 @@ namespace CDE2501.Wayfinding.UI
             {
                 LocationPoint candidate = _uiDestinations[i];
                 if (candidate == null || string.IsNullOrWhiteSpace(candidate.indoor_node_id))
+                {
+                    continue;
+                }
+
+                if (IsMyLocationDestination(candidate))
                 {
                     continue;
                 }

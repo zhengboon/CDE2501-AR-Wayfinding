@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-15 (deep logic review + sync resilience hardening + UI polish + Android rebuild)
+> Living document. Updated: 2026-04-16 (NUS footage integration into runtime routing + Android rebuild)
 
 ---
 
@@ -14,18 +14,91 @@
 
 ---
 
-## Latest Verified Android Build (2026-04-15)
+## Resume Completion (2026-04-16)
+
+### Footage Integration Status
+
+1. **Integrated into runtime routing:** added `Assets/StreamingAssets/Data/video_route_hints.json` generated from NUS annotation docs.
+2. **A* hook completed end-to-end:** `RouteCalculator` now loads route hints and passes edge multipliers into `AStarPathfinder.FindPath(...)`.
+3. **Graph-aware loading:** route hints are only applied when manifest `graphHint` matches active graph context.
+4. **Cache safety:** route cache key now includes route-hint revision so stale pre-hint routes are not reused.
+5. **Annotation docs marked:** integration state/mapped node IDs are recorded in:
+   - `Docs/nus_video_annotations.tsv`
+   - `Docs/nus_path_segments.tsv`
+   - `Docs/nus_landmark_reference.tsv`
+6. **Partial segment flag retained:** Home-linked segments remain marked `partial` pending explicit `Home` node confirmation in NUS graph.
+
+### Build Recovery Notes
+
+1. Repeated Android build failures were caused by stale/locked Bee artifacts (`Library/Bee/artifacts/Android/Split`, `ManagedStripped`, `il2cppOutput`).
+2. Additional intermittent failure came from stale XR temp files (`Assets/XR/Temp/XRSimulationPreferences.asset*`, `XRSimulationRuntimeSettings.asset*`).
+3. Clearing those stale folders/files before rebuild restored successful APK generation.
+
+---
+
+## Sleep Handoff Checkpoint (2026-04-15, late session)
+
+### What I Have Done
+
+1. Logged all newly provided NUS route videos and cues into repo docs:
+   - `Docs/nus_video_annotations.tsv`
+   - `Docs/nus_path_segments.tsv`
+   - `Docs/nus_landmark_reference.tsv`
+2. Confirmed the repeated `1MU0UwMaRMlhYXNFY8caOgxxDrzam2unW` input was deduplicated (no duplicate annotation row kept).
+3. Started route-bias implementation for AR red-line quality by adding optional edge weighting to A*:
+   - `Assets/Scripts/Routing/AStarPathfinder.cs`
+   - `FindPath(...)` now accepts `Func<string, string, float> edgeCostMultiplierProvider`
+   - Multiplier is sanitized and clamped before applying to edge cost.
+4. Decoded user plus-code landmarks in terminal for mapping preparation (session computation, not yet persisted into runtime config).
+
+### What I Am Doing
+
+1. Wiring the video-derived path knowledge into runtime routing so frequently walked segments are preferred where appropriate.
+2. Preparing to connect landmark/segment hints to graph node pairs and pass multipliers through `RouteCalculator` into `AStarPathfinder`.
+3. Keeping Street View datasets outside Unity assets (no delete), aligned with your earlier instruction.
+
+### What I Plan To Do Next (resume order)
+
+1. Add a route-hints manifest (likely in `StreamingAssets/Data/`) built from the annotation TSV files.
+2. Implement route-hints loader and apply edge multipliers in route computation.
+3. Validate no regressions with a quick route sanity pass (NUS start/end pairs).
+4. Update `README.md`, `index.html`, and this `memory.md` to mark footage integration status as completed.
+5. Run the Android build command again and record new APK size + build report.
+
+### Important Current Working State
+
+- `git status` currently includes modified tracked files from prior sessions:
+  - `Assets/Plugins/Android/AndroidManifest.xml`
+  - `Assets/Scripts/Data/DataSyncManager.cs`
+  - `Assets/Scripts/Routing/AStarPathfinder.cs`
+  - `Assets/Scripts/UI/QuickStartBootstrap.cs`
+  - `Assets/XR/Resources/XRSimulationRuntimeSettings.asset.meta`
+  - `Assets/XR/UserSimulationSettings/Resources/XRSimulationPreferences.asset.meta`
+  - `ProjectSettings/ProjectSettings.asset`
+  - `scripts/unity_cached_builder.py`
+- New untracked items:
+  - `.tmp_pluscode_venv/`
+  - `Docs/nus_video_annotations.tsv`
+  - `Docs/nus_path_segments.tsv`
+  - `Docs/nus_landmark_reference.tsv`
+
+This checkpoint is intentionally explicit so work can resume safely after machine sleep with no context loss.
+
+---
+
+## Latest Verified Android Build (2026-04-16)
 
 - Command used:
   `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
 - Result: **Build Succeeded**
 - Output: `Builds/Android/CDE2501-Wayfinding.apk`
-- File size: **33,443,534 bytes** (~31.9 MB)
-- Build duration: **117.515 s** (cached builder report)
+- File size: **33,609,658 bytes** (~32.1 MB)
+- Build duration: **291.409 s** (cached builder report)
 - Report: `UnityBuildCache/latest_build_report.md`
 - Notes:
-  - Log scanner still catches licensing client errors early in startup, but Unity resolves entitlement and the final build succeeds.
+  - Log scanner still catches licensing client warnings early in startup, but Unity resolves entitlement and the final build succeeds.
   - Unity build log confirms Android target with `Build Finished, Result: Success` and `Total errors: 0`.
+  - `CDE2501BuildRunner` reported build stage time `235.850 s`.
   - Project-level C# warnings are cleared for this pass; remaining warnings are immutable package warnings from Unity packages.
   - `ProjectSettings.asset` currently keeps `preloadedAssets: []` for build stability and parity with latest successful run.
   - `unity_cached_builder.py` now passes explicit CLI args to `CDE2501BuildRunner` so WSL-launched Windows Unity picks Android target/output reliably.
@@ -162,6 +235,7 @@ Download URL pattern: `https://drive.usercontent.google.com/download?id={fileId}
 - `DataSyncManager`: runtime update checks now include HEAD-to-ranged-GET fallback probe so restrictive networks do not silently stall Drive updates.
 - `QuickStartBootstrap`: status strip now includes Drive detail messaging; overlay texture lifecycle cleanup added.
 - `FlightTrackerARView`: camera permission coroutine is now tied to AR lifecycle and is canceled when AR is toggled off.
+- Current resume-session work (footage routing integration, docs refresh, and 2026-04-16 APK build) is local and not committed yet.
 
 ---
 
@@ -176,6 +250,7 @@ python scripts/unity_cached_builder.py --force --target Android --output Builds/
 
 **Bundled in APK (StreamingAssets/Data/):**
 - Map atlas JSON manifests (6 × ~1 KB)
+- `video_route_hints.json` (NUS footage-derived A* edge multipliers)
 - No Street View dataset (moved outside Unity assets)
 
 **Downloaded on first launch from Drive (required):**

@@ -23,7 +23,8 @@ namespace CDE2501.Wayfinding.Routing
             RouteRequest request,
             RoutingProfile profile,
             float rainSlopeMultiplier = 1.25f,
-            Func<string, bool> nodeEligibility = null)
+            Func<string, bool> nodeEligibility = null,
+            Func<string, string, float> edgeCostMultiplierProvider = null)
         {
             if (request == null)
             {
@@ -88,7 +89,19 @@ namespace CDE2501.Wayfinding.Routing
                         continue;
                     }
 
-                    float tentativeG = currentG + ComputeEdgeCost(edge, request, profile, rainSlopeMultiplier);
+                    float edgeCost = ComputeEdgeCost(edge, request, profile, rainSlopeMultiplier);
+                    if (edgeCostMultiplierProvider != null)
+                    {
+                        float multiplier = edgeCostMultiplierProvider(current, neighbor);
+                        if (float.IsNaN(multiplier) || float.IsInfinity(multiplier))
+                        {
+                            multiplier = 1f;
+                        }
+
+                        edgeCost *= Mathf.Clamp(multiplier, 0.5f, 2f);
+                    }
+
+                    float tentativeG = currentG + edgeCost;
                     float neighborG = gScore.TryGetValue(neighbor, out float ng) ? ng : float.PositiveInfinity;
 
                     if (tentativeG >= neighborG)
