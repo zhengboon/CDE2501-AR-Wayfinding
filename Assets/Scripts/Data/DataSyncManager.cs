@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Text;
 using UnityEngine;
@@ -30,6 +31,7 @@ namespace CDE2501.Wayfinding.Data
         public bool IsSyncing { get; private set; }
         public bool SyncComplete { get; private set; }
         public bool SyncFailed { get; private set; }
+        public bool IsCheckingForUpdates => _isCheckingForUpdates;
         public string StatusMessage { get; private set; } = "Waiting...";
         public float Progress { get; private set; }
         public string ErrorMessage { get; private set; }
@@ -68,6 +70,7 @@ namespace CDE2501.Wayfinding.Data
         };
 
         private const string LastUpdateCheckKey = "DataSync_LastUpdateCheck";
+        private const string RemoteMetaKeyPrefix = "DataSync_RemoteMeta_";
 
         private GUIStyle _bgStyle;
         private GUIStyle _labelStyle;
@@ -127,6 +130,92 @@ namespace CDE2501.Wayfinding.Data
         private static string BuildDownloadUrl(string fileId)
         {
             return $"https://drive.usercontent.google.com/download?id={fileId}&export=download";
+        }
+
+        private static string BuildRemoteMetaKey(DriveFileEntry entry)
+        {
+            if (entry == null || string.IsNullOrWhiteSpace(entry.driveFileId))
+            {
+                return string.Empty;
+            }
+
+            return RemoteMetaKeyPrefix + entry.driveFileId.Trim();
+        }
+
+        private static string BuildRemoteFingerprint(string contentLength, string lastModified, string etag)
+        {
+            string lengthPart = string.IsNullOrWhiteSpace(contentLength) ? string.Empty : contentLength.Trim();
+            string modifiedPart = string.IsNullOrWhiteSpace(lastModified) ? string.Empty : lastModified.Trim();
+            string etagPart = string.IsNullOrWhiteSpace(etag) ? string.Empty : etag.Trim();
+
+            if (string.IsNullOrWhiteSpace(lengthPart) &&
+                string.IsNullOrWhiteSpace(modifiedPart) &&
+                string.IsNullOrWhiteSpace(etagPart))
+            {
+                return string.Empty;
+            }
+
+            return $"{lengthPart}|{modifiedPart}|{etagPart}";
+        }
+
+        private static bool TryParseHttpDateUtc(string raw, out DateTime utcDateTime)
+        {
+            utcDateTime = default;
+            if (string.IsNullOrWhiteSpace(raw))
+            {
+                return false;
+            }
+
+            return DateTime.TryParse(
+                raw.Trim(),
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                out utcDateTime);
+        }
+
+        private static string BuildRemoteFingerprintFromRequest(UnityWebRequest request, int fallbackByteCount = -1)
+        {
+            if (request == null)
+            {
+                return string.Empty;
+            }
+
+            string contentLength = request.GetResponseHeader("Content-Length");
+            if (string.IsNullOrWhiteSpace(contentLength) && fallbackByteCount >= 0)
+            {
+                contentLength = fallbackByteCount.ToString();
+            }
+
+            string lastModified = request.GetResponseHeader("Last-Modified");
+            string etag = request.GetResponseHeader("ETag");
+            return BuildRemoteFingerprint(contentLength, lastModified, etag);
+        }
+
+        private static string GetCachedRemoteFingerprint(DriveFileEntry entry)
+        {
+            string key = BuildRemoteMetaKey(entry);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return string.Empty;
+            }
+
+            return PlayerPrefs.GetString(key, string.Empty);
+        }
+
+        private static void CacheRemoteFingerprint(DriveFileEntry entry, string fingerprint)
+        {
+            if (string.IsNullOrWhiteSpace(fingerprint))
+            {
+                return;
+            }
+
+            string key = BuildRemoteMetaKey(entry);
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return;
+            }
+
+            PlayerPrefs.SetString(key, fingerprint);
         }
 
         private static bool IsLikelyHtmlPayload(byte[] data)
@@ -210,6 +299,16 @@ namespace CDE2501.Wayfinding.Data
             StartCoroutine(SyncRoutine(forceRedownload: true));
         }
 
+        public void CheckForUpdatesNow()
+        {
+            if (IsSyncing || _isCheckingForUpdates)
+            {
+                return;
+            }
+
+            StartCoroutine(CheckForUpdatesRoutine(ignoreSchedule: true));
+        }
+
         private bool AllRequiredFilesExistLocally()
         {
             for (int i = 0; i < SyncFiles.Length; i++)
@@ -254,7 +353,9 @@ namespace CDE2501.Wayfinding.Data
             }
 
             _isCheckingForUpdates = true;
+            StatusMessage = "Checking Drive updates...";
             var updatedFiles = new List<string>();
+            bool hadCheckError = false;
 
             for (int i = 0; i < SyncFiles.Length; i++)
             {
@@ -271,10 +372,10 @@ namespace CDE2501.Wayfinding.Data
                 }
 
                 bool shouldDownload = !File.Exists(localPath) || new FileInfo(localPath).Length == 0;
+                long localSize = shouldDownload ? 0 : new FileInfo(localPath).Length;
 
                 if (!shouldDownload)
                 {
-                    long localSize = new FileInfo(localPath).Length;
                     string url = BuildDownloadUrl(entry.driveFileId);
 
                     using (UnityWebRequest request = UnityWebRequest.Head(url))
@@ -284,11 +385,54 @@ namespace CDE2501.Wayfinding.Data
 
                         if (request.result == UnityWebRequest.Result.Success)
                         {
-                            string contentLength = request.GetResponseHeader("Content-Length");
-                            if (long.TryParse(contentLength, out long remoteSize) && remoteSize != localSize)
+                            string remoteFingerprint = BuildRemoteFingerprintFromRequest(request);
+                            string cachedFingerprint = GetCachedRemoteFingerprint(entry);
+
+                            if (!string.IsNullOrWhiteSpace(remoteFingerprint))
                             {
-                                shouldDownload = true;
+                                if (string.IsNullOrWhiteSpace(cachedFingerprint))
+                                {
+                                    // Bootstrap for installs from old versions: compare remote Last-Modified
+                                    // to the local file timestamp before deciding to redownload.
+                                    string remoteModifiedRaw = request.GetResponseHeader("Last-Modified");
+                                    DateTime localWriteUtc = File.GetLastWriteTimeUtc(localPath);
+                                    if (TryParseHttpDateUtc(remoteModifiedRaw, out DateTime remoteModifiedUtc))
+                                    {
+                                        shouldDownload = remoteModifiedUtc > localWriteUtc.AddSeconds(1);
+                                        if (!shouldDownload)
+                                        {
+                                            CacheRemoteFingerprint(entry, remoteFingerprint);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // If we cannot parse Last-Modified, force one download to establish baseline.
+                                        shouldDownload = true;
+                                    }
+                                }
+                                else if (!string.Equals(cachedFingerprint, remoteFingerprint, StringComparison.Ordinal))
+                                {
+                                    shouldDownload = true;
+                                }
+                                else
+                                {
+                                    // Keep metadata fresh in prefs when unchanged.
+                                    CacheRemoteFingerprint(entry, remoteFingerprint);
+                                }
                             }
+                            else
+                            {
+                                string contentLength = request.GetResponseHeader("Content-Length");
+                                if (long.TryParse(contentLength, out long remoteSize) && remoteSize != localSize)
+                                {
+                                    shouldDownload = true;
+                                }
+                            }
+                        }
+                        else
+                        {
+                            hadCheckError = true;
+                            Debug.LogWarning($"[DataSyncManager] Update check failed for {GetDisplayName(entry)}: {request.error}");
                         }
                     }
                 }
@@ -304,16 +448,34 @@ namespace CDE2501.Wayfinding.Data
                 {
                     updatedFiles.Add(GetRelativePath(entry));
                 }
+                else
+                {
+                    hadCheckError = true;
+                }
             }
 
-            PlayerPrefs.SetString(LastUpdateCheckKey, DateTime.UtcNow.ToString("o"));
+            if (!hadCheckError)
+            {
+                PlayerPrefs.SetString(LastUpdateCheckKey, DateTime.UtcNow.ToString("o"));
+            }
             PlayerPrefs.Save();
             _isCheckingForUpdates = false;
 
             if (updatedFiles.Count > 0)
             {
+                StatusMessage = $"Drive sync updated {updatedFiles.Count} file(s).";
                 Debug.Log($"[DataSyncManager] Updated {updatedFiles.Count} files from Drive.");
                 OnFilesUpdated?.Invoke(updatedFiles);
+            }
+            else if (hadCheckError)
+            {
+                StatusMessage = "Drive update check incomplete. Will retry.";
+                Debug.LogWarning("[DataSyncManager] One or more runtime update checks failed; retaining previous schedule marker.");
+            }
+            else
+            {
+                StatusMessage = "Drive data is up to date.";
+                Debug.Log("[DataSyncManager] No runtime data updates detected.");
             }
         }
 
@@ -474,6 +636,12 @@ namespace CDE2501.Wayfinding.Data
                         Debug.LogError($"[DataSyncManager] Download for {GetDisplayName(entry)} returned HTML. Verify file sharing is 'Anyone with link -> Viewer' for Drive file ID {entry.driveFileId}.");
                         result?.Invoke(false);
                         yield break;
+                    }
+
+                    string remoteFingerprint = BuildRemoteFingerprintFromRequest(request, bytes.Length);
+                    if (!string.IsNullOrWhiteSpace(remoteFingerprint))
+                    {
+                        CacheRemoteFingerprint(entry, remoteFingerprint);
                     }
 
                     File.WriteAllBytes(tempPath, bytes);

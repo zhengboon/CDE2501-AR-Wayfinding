@@ -507,9 +507,9 @@ def build_if_needed(
     print("[unity_cached_builder] Running Unity batch build...")
     print("[unity_cached_builder] " + " ".join(command))
 
-    start = time.time()
+    start = time.perf_counter()
     process = subprocess.run(command, cwd=str(PROJECT_ROOT), env=env, check=False)
-    duration = time.time() - start
+    duration = time.perf_counter() - start
 
     error_count, warning_count, errors, warnings = analyze_log(log_file)
     succeeded = process.returncode == 0 and output_path.exists()

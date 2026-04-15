@@ -131,6 +131,7 @@ namespace CDE2501.Wayfinding.UI
         private string _activeLocationsFile;
         private GUIStyle _panelStyle;
         private GUIStyle _bodyStyle;
+        private GUIStyle _captionStyle;
         private Texture2D _panelTexture;
         private Rect _panelRect;
         private bool _panelRectInitialized;
@@ -407,6 +408,12 @@ namespace CDE2501.Wayfinding.UI
             string pendingRecalcReason = null;
 
             GUILayout.BeginVertical(GUILayout.ExpandWidth(true));
+            if (_captionStyle != null)
+            {
+                GUILayout.Label("Core Controls", _captionStyle);
+            }
+            DrawRuntimeStatusStrip();
+            GUILayout.Space(2f);
 
             // Essential controls
             GUILayout.BeginHorizontal();
@@ -470,9 +477,22 @@ namespace CDE2501.Wayfinding.UI
                 }
             }
 
-            if (_dataSyncManager != null && GUILayout.Button("Share", GUILayout.Width(80f)))
+            if (_dataSyncManager != null)
             {
-                _dataSyncManager.ShareTelemetryData();
+                string syncButtonLabel = _dataSyncManager.IsCheckingForUpdates ? "Sync..." : "Sync Now";
+                if (GUILayout.Button(syncButtonLabel, GUILayout.Width(80f)))
+                {
+                    if (!_dataSyncManager.IsCheckingForUpdates && !_dataSyncManager.IsSyncing)
+                    {
+                        _dataSyncManager.CheckForUpdatesNow();
+                        _status = "Checking Drive updates...";
+                    }
+                }
+
+                if (GUILayout.Button("Share", GUILayout.Width(80f)))
+                {
+                    _dataSyncManager.ShareTelemetryData();
+                }
             }
 
             bool newDebug = GUILayout.Toggle(_showDebugInfo, "Debug", GUILayout.Width(80f));
@@ -710,6 +730,42 @@ namespace CDE2501.Wayfinding.UI
 
             GUILayout.EndVertical();
             GUI.DragWindow();
+        }
+
+        private void DrawRuntimeStatusStrip()
+        {
+            if (_captionStyle == null)
+            {
+                return;
+            }
+
+            string gpsState = (_gpsManager != null && _gpsManager.IsReady) ? "Ready" : "Waiting";
+            string compassState = (_compassManager != null && _compassManager.IsReady) ? "Ready" : "Waiting";
+            string driveState = "N/A";
+            if (_dataSyncManager != null)
+            {
+                if (_dataSyncManager.IsSyncing)
+                {
+                    driveState = "Initial Sync";
+                }
+                else if (_dataSyncManager.IsCheckingForUpdates)
+                {
+                    driveState = "Checking";
+                }
+                else if (_dataSyncManager.SyncFailed)
+                {
+                    driveState = "Failed";
+                }
+                else
+                {
+                    driveState = "Idle";
+                }
+            }
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Label($"Sensors: GPS {gpsState} | Compass {compassState}", _captionStyle, GUILayout.ExpandWidth(true));
+            GUILayout.Label($"Drive: {driveState}", _captionStyle, GUILayout.Width(190f));
+            GUILayout.EndHorizontal();
         }
 
         private string ConsumeManualRecalculateReason()
@@ -1169,12 +1225,12 @@ namespace CDE2501.Wayfinding.UI
 
         private void EnsureOverlayStyles()
         {
-            if (_panelStyle != null && _bodyStyle != null)
+            if (_panelStyle != null && _bodyStyle != null && _captionStyle != null)
             {
                 return;
             }
 
-            _panelTexture = MakeSolidTexture(new Color(0f, 0f, 0f, 0.76f));
+            _panelTexture = MakeSolidTexture(new Color(0.04f, 0.08f, 0.13f, 0.86f));
 
             _panelStyle = new GUIStyle(GUI.skin.box)
             {
@@ -1194,6 +1250,15 @@ namespace CDE2501.Wayfinding.UI
                 wordWrap = true
             };
             _bodyStyle.normal.textColor = Color.white;
+
+            _captionStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = Mathf.Max(12, bodyFontSize - 5),
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.UpperLeft,
+                wordWrap = false
+            };
+            _captionStyle.normal.textColor = new Color(0.78f, 0.9f, 1f, 1f);
         }
 
         private static Texture2D MakeSolidTexture(Color color)

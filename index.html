@@ -44,7 +44,7 @@
     <!-- Hero Section -->
     <header id="hero" class="hero section">
         <div class="hero-content show-on-scroll">
-            <div class="badge">Unity 2022.3.62f3 AR MVP &bull; Android build verified 2026-04-14</div>
+            <div class="badge">Unity 2022.3.62f3 AR MVP &bull; Android build verified 2026-04-15</div>
             <h1>Navigate <span class="highlight">Tomorrow</span></h1>
             <p>A Unity wayfinding app with flight-tracker AR camera view, elderly-first safety routing, GPS telemetry recording, and real-time path data collection for Queenstown Estate and NUS Engineering campus.</p>
             <div class="hero-buttons">
@@ -147,7 +147,7 @@
                 <div class="card glass show-on-scroll">
                     <div class="icon">☁️</div>
                     <h3>Thin APK + Drive Sync</h3>
-                    <p>APK ships only the minimum required files. Graphs, locations, boundaries, routing profiles, and optional map assets sync from Google Drive and update automatically every 15 minutes, while optional Street View assets stay outside the Unity bundle.</p>
+                    <p>APK ships only the minimum required files. Graphs, locations, boundaries, routing profiles, and optional map assets sync from Google Drive every 15 minutes using remote metadata fingerprints, and can be checked immediately with a Sync Now button. Optional Street View assets stay outside the Unity bundle.</p>
                 </div>
 
                 <div class="card glass show-on-scroll">
@@ -319,17 +319,17 @@
             <div class="acc-wrapper">
                 <div class="doc-card glass">
                     <h4>Latest Android build status</h4>
-                    <p><b>Status:</b> Successful on <code>2026-04-14</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (33,513,760 bytes). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
+                    <p><b>Status:</b> Successful on <code>2026-04-15</code>. <br><b>Artifact:</b> <code>Builds/Android/CDE2501-Wayfinding.apk</code> (33,443,534 bytes). <br><b>Tip:</b> If multiple Unity editors are installed, pass <code>--unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"</code> to avoid wrong editor selection.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>Latest code commit</h4>
-                    <p><b>Commit:</b> <code>46c6ebe</code> (2026-04-14). <br><b>Updates:</b> Gyro math rewritten for correct Android portrait transform, pitch-driven AR label Y, auto gyro sync, GPS Snap button, AR status HUD, FileProvider share intent fixed with <code>FLAG_ACTIVITY_NEW_TASK</code>, wider share file scan including screenshots.</p>
+                    <p><b>Review pass:</b> <code>2026-04-15</code>. <br><b>Updates:</b> runtime sync now uses metadata fingerprints (not size-only), failed checks no longer silently report up-to-date, Quick Start overlay gained a Sync Now button + live GPS/Compass/Drive strip, and build timing now uses monotonic clock measurement.</p>
                 </div>
 
                 <div class="doc-card glass">
                     <h4>Latest local review pass</h4>
-                    <p><b>Date:</b> <code>2026-04-14</code>. <br><b>Hardening:</b> AR auto-sync now uses activation-relative delay, share scan includes <code>.jpeg</code>, FileProvider XML resource moved to <code>Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/</code>, and transient XR temp files are cleared before build.</p>
+                    <p><b>Date:</b> <code>2026-04-15</code>. <br><b>Hardening:</b> Drive update checks compare <code>Content-Length + Last-Modified + ETag</code>, retries are preserved after failed checks, and overlay styling was refreshed for better field readability.</p>
                 </div>
 
                 <div class="doc-card glass">
@@ -393,6 +393,16 @@
                 </div>
 
                 <div class="doc-card glass">
+                    <h4>Drive file changed but app did not refresh</h4>
+                    <p><b>Check:</b> Older APKs only compared file size, so same-size edits could be missed. <br><b>Action:</b> Install the latest APK and tap <b>Sync Now</b> in Quick Start. Runtime sync now compares remote metadata fingerprint.</p>
+                </div>
+
+                <div class="doc-card glass">
+                    <h4>Drive status says "update check incomplete"</h4>
+                    <p><b>Check:</b> One or more HEAD/GET checks failed due network or sharing permissions. <br><b>Action:</b> Verify internet and Drive sharing (<code>Anyone with link -&gt; Viewer</code>), then tap <b>Sync Now</b> again.</p>
+                </div>
+
+                <div class="doc-card glass">
                     <h4>AR labels aren't moving when I tilt the phone</h4>
                     <p><b>Check:</b> Gyro not yet synced or OS hasn't initialised gyro sensor. <br><b>Action:</b> Wait 1&ndash;2 s after enabling AR (auto-sync fires at 1.5 s). Then tap <b>Sync Gyro</b> to manually zero the pitch at your current holding angle. The AR HUD (top-right) shows live Gyro&thinsp;✓ and corrected pitch.</p>
                 </div>
@@ -431,7 +441,7 @@
             <div class="acc-wrapper">
                 <div class="doc-card glass">
                     <h4>✅ Thin APK + Drive sync</h4>
-                    <p>APK ships without large data files. Graphs, locations, boundaries, profiles, and optional map assets download from Google Drive and update every 15 minutes when files change. Already shipped.</p>
+                    <p>APK ships without large data files. Graphs, locations, boundaries, profiles, and optional map assets update every 15 minutes using metadata fingerprints, with manual <b>Sync Now</b> trigger in Quick Start. Already shipped.</p>
                 </div>
                 <div class="doc-card glass">
                     <h4>✅ One-tap telemetry share</h4>

@@ -2,7 +2,7 @@
 
 > Unity AR navigation MVP with elderly-first guidance and safety-weighted routing for **Queenstown Estate** and **NUS Engineering Campus**.
 
-Last updated: 2026-04-14
+Last updated: 2026-04-15
 
 ---
 
@@ -70,28 +70,22 @@ If multiple Unity editors are installed, pin the executable explicitly:
 python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"
 ```
 
-### Latest Build Snapshot (2026-04-14)
+### Latest Build Snapshot (2026-04-15)
 
 - Build command: `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
 - Result: **Build Succeeded**
 - APK output: `Builds/Android/CDE2501-Wayfinding.apk`
-- APK size: **33,513,760 bytes** (~32 MB)
-- Build duration: **148.792 s** (cached builder report)
+- APK size: **33,443,534 bytes** (~31.9 MB)
+- Build duration: **153.803 s** (cached builder report)
 - Build report: `UnityBuildCache/latest_build_report.md`
 
-### Latest Code Commit (2026-04-14)
+### Latest Logic/UI Review (2026-04-15)
 
-- Commit: `46c6ebe` — `fix(share): proper FLAGS, wider file scan, deduplicate, clearer status messages`
-- Share intent now uses Android 7+ safe `FileProvider` flow with `FLAG_GRANT_READ_URI_PERMISSION | FLAG_ACTIVITY_NEW_TASK`.
-- Share scan widened to include telemetry CSV/JSON/TXT and session screenshots (`.png`, `.jpg`, `.jpeg`) across `Telemetry/`, `RecordedPaths/`, and `Crashes/`.
-- Status feedback now distinguishes common failure states (`No data to share yet`, `Share error: ...`) to avoid silent no-op behavior.
-- AR troubleshooting path is now aligned with the live AR HUD + manual `Sync Gyro` + `Snap GPS` workflow used during field testing.
-
-### Latest Local Review Pass (2026-04-14)
-
-- AR auto-sync timing uses activation-relative delay (`Time.time - _arActivatedAtTime > 1.5f`) for consistent on-device behavior.
-- Android FileProvider resource moved to `Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/file_paths.xml` to avoid Unity 2022 deprecated `Assets/Plugins/Android/res` build failures.
-- XR build stability normalized: `preloadedAssets` reset to empty and transient `Assets/XR/Temp/*` simulation files cleared before APK generation.
+- Drive runtime update detection now uses remote metadata fingerprint (`Content-Length + Last-Modified + ETag`) instead of size-only checks, so same-size file edits are detected.
+- Failed update checks no longer silently report "up to date" and no longer advance the schedule marker; the app surfaces "Drive update check incomplete. Will retry."
+- Added **Sync Now** button to Quick Start overlay for immediate Drive checks (no need to wait for the 15-minute interval).
+- Quick Start overlay UI refreshed with a runtime status strip (GPS / Compass / Drive state) and cleaner visual panel styling.
+- Cached build launcher now measures duration with `time.perf_counter()` for stable timing even if system clock changes.
 
 ### Generate Maps from KML
 
@@ -236,8 +230,9 @@ When you regenerate data locally, Google Drive desktop auto-syncs. The app picks
 ### Sync behaviour
 
 - **First launch (no cached files):** progress bar UI downloads the 7 required startup files. Optional map assets are also downloaded when enabled.
-- **Subsequent launches:** files already cached → app starts immediately. A size-based update check runs every **15 minutes** and re-downloads only changed files.
+- **Subsequent launches:** files already cached → app starts immediately. A metadata-based update check runs every **15 minutes** and re-downloads only changed files.
 - **While app is open:** background checks continue every 15 minutes, and updated files are hot-reloaded for graph/locations/boundary/profiles/minimap textures where supported.
+- **Manual trigger:** tap **Sync Now** in the Quick Start overlay to force an immediate runtime check.
 - **Safety check:** if Drive returns an HTML page (auth/permission page), sync fails fast and logs a clear sharing-permission error instead of saving invalid JSON.
 - **Force re-sync:** call `DataSyncManager.ForceReSync()` (or clear `persistentDataPath/Data/` manually).
 
@@ -327,7 +322,7 @@ Tap **AR: OFF** to activate the camera-based destination overlay:
 - **`Sync Gyro`** button re-zeroes pitch offset at any time for re-calibration mid-session
 
 ### Alpha tester UI
-By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, AR, Path Record, Destination, Map Area. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
+By default, the overlay shows only essential controls: Wheelchair toggle, Rec, Snap, AR, Sync Now, Share, Path Record, Destination, Map Area. A compact status strip now shows GPS/Compass/Drive sync state. Toggle **Debug** to reveal full diagnostics (Rain, Sim Mode, session recordings, system status).
 
 ---
 
@@ -340,6 +335,8 @@ By default, the overlay shows only essential controls: Wheelchair toggle, Rec, S
 | GPS/Compass not ready | Overlay status text | Laptop: `F2` simulation; Mobile: enable Location Services |
 | AR labels don't move when tilting | Gyro not yet synced | Wait 1.5 s for auto-sync or tap **Sync Gyro**; check AR HUD top-right |
 | Route starts from wrong location | GPS smoothing hasn't converged | Tap **Snap GPS** in overlay to instantly lock to raw fix |
+| Drive file changed but app did not refresh | Old APK using size-only update checks | Install latest APK and tap **Sync Now**; runtime sync now compares remote metadata fingerprint |
+| Drive status shows "update check incomplete" | Network/share permission issue during runtime check | Verify internet + Drive sharing (`Anyone with link -> Viewer`), then tap **Sync Now** again |
 | Share shows "No data to share yet" | No recordings exist yet | Start **Rec: ON**, walk a path, stop it, then Share |
 | Share shows "Share error: ..." | FileProvider not registered | Rebuild APK — config now in `Assets/Plugins/Android/AndroidManifest.xml` |
 | Android build fails with `OBSOLETE ... Assets/Plugins/Android/res` | Legacy Android resource path used | Keep `file_paths.xml` under `Assets/Plugins/Android/FileProviderLib.androidlib/res/xml/` (not `Assets/Plugins/Android/res/`) |

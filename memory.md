@@ -1,6 +1,6 @@
 # CDE2501 AR Wayfinding — Memory
 
-> Living document. Updated: 2026-04-14 (share/AR deep review pass 3 + APK rebuild)
+> Living document. Updated: 2026-04-15 (deep logic review + UI polish + Android rebuild)
 
 ---
 
@@ -14,20 +14,20 @@
 
 ---
 
-## Latest Verified Android Build (2026-04-14)
+## Latest Verified Android Build (2026-04-15)
 
 - Command used:
   `python scripts/unity_cached_builder.py --force --target Android --output Builds/Android/CDE2501-Wayfinding.apk --unity-exe "C:\Program Files\Unity\Hub\Editor\2022.3.62f3-x86_64\Editor\Unity.exe"`
 - Result: **Build Succeeded**
 - Output: `Builds/Android/CDE2501-Wayfinding.apk`
-- File size: **33,513,760 bytes** (~32 MB)
-- Build duration: **148.792 s** (cached builder report)
+- File size: **33,443,534 bytes** (~31.9 MB)
+- Build duration: **153.803 s** (cached builder report)
 - Report: `UnityBuildCache/latest_build_report.md`
 - Notes:
   - Log scanner still catches licensing client errors early in startup, but Unity resolves entitlement and the final build succeeds.
-  - Unity build log confirms `Build Finished, Result: Success` with `Total errors: 0`.
+  - Unity build log confirms Android target with `Build Finished, Result: Success` and `Total errors: 0`.
   - `ProjectSettings.asset` currently keeps `preloadedAssets: []` for build stability and parity with latest successful run.
-  - `scripts/unity_cached_builder_config.json` is pinned to Unity `2022.3.62f3-x86_64` to avoid selecting an editor without Android modules.
+  - `unity_cached_builder.py` now passes explicit CLI args to `CDE2501BuildRunner` so WSL-launched Windows Unity picks Android target/output reliably.
 
 ---
 
@@ -55,7 +55,7 @@ DataSyncManager.Start()
        └── 15-minute update cycle:
            - Check on launch (if interval elapsed)
            - Continue background checks every 15 minutes while app is open
-           - Compare Content-Length and re-download changed files
+           - Compare remote metadata fingerprint (Content-Length + Last-Modified + ETag) and re-download changed files
            - Raise OnFilesUpdated event so QuickStartBootstrap hot-refreshes runtime components
 ```
 
@@ -317,4 +317,15 @@ While attempting to generate the thin APK via headless batchmode (`unity_cached_
 2. **Project settings normalization**: reset `ProjectSettings/ProjectSettings.asset` back to `preloadedAssets: []` to avoid accidental XR preloads changing runtime behavior.
 3. **XR GUID stability restored**: reverted unexpected GUID churn in `Assets/XR/Resources/XRSimulationRuntimeSettings.asset.meta` and `Assets/XR/UserSimulationSettings/Resources/XRSimulationPreferences.asset.meta`.
 4. **Stale XR temp asset cleanup**: removed generated files under `Assets/XR/Temp/` before build to prevent simulation-preprocessor move/collision failures.
+
+---
+
+## Code Review Fixes (2026-04-15 pass 5 - Sync + UI)
+
+1. **Drive sync detection upgraded**: DataSyncManager no longer relies on `Content-Length` alone; runtime update checks now use `Content-Length + Last-Modified + ETag` fingerprint to catch same-size file edits.
+2. **Bootstrap metadata seeding**: for installs without cached remote metadata, sync now seeds fingerprint using HEAD metadata and local file timestamp, preventing silent stale-cache states while avoiding unnecessary full redownloads.
+3. **Failure handling fixed**: if runtime HEAD/GET checks fail, status now reports `Drive update check incomplete. Will retry.` and the last-check schedule marker is not advanced.
+4. **Manual sync action added**: QuickStart overlay now includes `Sync Now` button to force immediate Drive update checks without waiting for the 15-minute interval.
+5. **Overlay UI polish**: refreshed QuickStart panel tint and added a compact runtime status strip (`GPS`, `Compass`, `Drive`) for clearer field-test diagnostics.
+6. **Build duration accuracy fix**: `unity_cached_builder.py` now uses `time.perf_counter()` instead of wall-clock time so reported build duration is robust to system clock jumps.
 
